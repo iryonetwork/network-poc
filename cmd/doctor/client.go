@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -16,6 +17,7 @@ const tokenKey = "token"
 
 type rpcClient struct {
 	client   specs.CloudClient
+	config   *config.Config
 	metadata metadata.MD
 	eth      *eth.Storage
 	ehr      *ehr.Storage
@@ -37,6 +39,13 @@ func newClient(config *config.Config, client specs.CloudClient, eth *eth.Storage
 		return nil, err
 	}
 
+	c := &rpcClient{
+		client:   client,
+		metadata: md,
+		eth:      eth,
+		ehr:      ehr,
+	}
+
 	go func() {
 		for {
 			event, err := stream.Recv()
@@ -49,14 +58,32 @@ func newClient(config *config.Config, client specs.CloudClient, eth *eth.Storage
 
 			if event.Type == specs.Event_KeySent {
 				config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
+				c.Download(event.KeySentDetails.From)
 			}
 		}
 	}()
 
-	return &rpcClient{
-		client:   client,
-		metadata: md,
-		eth:      eth,
-		ehr:      ehr,
-	}, nil
+	return c, nil
+}
+
+func (c *rpcClient) Download(owner string) error {
+	granted, err := c.eth.AccessGranted(owner, c.config.EthPublic)
+	if err != nil {
+		return err
+	}
+
+	if !granted {
+		return fmt.Errorf("You do not have permission to download this file")
+	}
+
+	response, err := c.client.Download(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.DownloadRequest{
+		Owner: owner,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.ehr.Save(owner, response.Data)
+
+	return nil
 }
