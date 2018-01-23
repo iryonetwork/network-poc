@@ -58,6 +58,7 @@ func newClient(config *config.Config, client specs.CloudClient, eth *eth.Storage
 
 			if event.Type == specs.Event_KeySent {
 				config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
+				config.Connections = append(config.Connections, event.KeySentDetails.From)
 				c.Download(event.KeySentDetails.From)
 			}
 		}
@@ -86,4 +87,27 @@ func (c *rpcClient) Download(owner string) error {
 	c.ehr.Save(owner, response.Data)
 
 	return nil
+}
+
+func (c *rpcClient) Upload(owner string) error {
+	granted, err := c.eth.AccessGranted(owner, c.config.EthPublic)
+	if err != nil {
+		return err
+	}
+
+	if !granted {
+		return fmt.Errorf("You do not have permission to upload this file")
+	}
+
+	data := c.ehr.Get(owner)
+	if data == nil {
+		return fmt.Errorf("Document for %s does not exist", owner)
+	}
+
+	_, err = c.client.Upload(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.UploadRequest{
+		Owner: owner,
+		Data:  data,
+	})
+
+	return err
 }
