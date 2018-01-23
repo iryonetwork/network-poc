@@ -1,6 +1,13 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+		{
+			"checksumSHA1": "c5ukZzC6DTIJP1eXRKJU4QanswQ=",
+			"path": "github.com/caarlos0/env",
+			"revision": "7cd7992b3bc86f920394f8de92c13900da1a46b7",
+			"revisionTime": "2017-12-13T10:02:19Z"
+		}
+	],
 	"rootPath": "github.com/iryonetwork/network-poc"
 }

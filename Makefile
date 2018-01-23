@@ -1,4 +1,4 @@
-.PHONY: up run stop build
+.PHONY: up run stop build specs
 
 ALL: vendorSync
 
@@ -31,6 +31,9 @@ build/%: ## builds a specific project
 
 logs: ## shows docker compose logs
 	docker-compose logs -f --tail=0 $*
+
+specs: ## builds the protobuf spec
+	$(MAKE) -C ./specs
 
 test: test/unit ## run all tests
 

@@ -1,0 +1,55 @@
+syntax = "proto3";
+package specs;
+
+message Empty{}
+
+message LoginRequest{
+    string public = 1;
+    bytes signature = 2;
+}
+
+message LoginResponse{
+    string token = 1;
+}
+
+message UploadRequest{
+    string owner = 1;
+    bytes data = 2;
+}
+
+message DownloadRequest{
+    string owner = 1;
+}
+
+message DownloadResponse{
+    bytes data = 1;
+}
+
+message SendKeyRequest{
+    string to = 1;
+    bytes key = 2;
+}
+
+message Event {
+    enum Type {
+        KeySent = 0;
+    }
+
+    message KeySentDetails{
+        string from = 1;
+        bytes key = 2;
+    }
+
+    Type type = 1;
+
+    KeySentDetails keySentDetails = 2;
+}
+
+service cloud {
+    rpc login(LoginRequest) returns (LoginResponse);
+    rpc upload(UploadRequest) returns (Empty);
+    rpc download(DownloadRequest) returns (DownloadResponse);
+    rpc sendKey(SendKeyRequest) returns (Empty);
+    rpc subscribe(Empty) returns (stream Event);
+}
+
