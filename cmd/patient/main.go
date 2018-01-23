@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"log"
 	"net/http"
 
@@ -18,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)
 	}
-	config.ClientType = "Doctor"
+	config.ClientType = "Patient"
 
 	eth := eth.New(config)
 	ehr := ehr.New()
@@ -33,10 +34,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize client: %v", err)
 	}
-	err = client.Subscribe()
+
+	key := make([]byte, 32)
+	_, err = rand.Read(key)
 	if err != nil {
-		log.Fatalf("failed to subscribe to events: %v", err)
+		log.Fatalf("failed to generate random key: %v", err)
 	}
+	config.EncryptionKeys[config.GetEthPublicAddress()] = key
+	ehr.Encrypt(config.GetEthPublicAddress(), []byte{}, key)
 
 	h := &handlers{
 		config: config,
@@ -44,9 +49,10 @@ func main() {
 		ehr:    ehr,
 	}
 
-	http.HandleFunc("/ehr/", h.ehrHandler)
-	http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/", h.indexHandler)
+	http.HandleFunc("/grant", h.grantAccessHandler)
+	http.HandleFunc("/revoke", h.revokeAccessHandler)
+	http.HandleFunc("/save", h.saveEHRHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 

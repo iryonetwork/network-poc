@@ -32,8 +32,13 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	log.Printf("starting gRPC server on %s", config.IryoAddr)
+
 	// Creates a new gRPC server
 	s := grpc.NewServer()
 	specs.RegisterCloudServer(s, server)
-	s.Serve(lis)
+
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("error serving gRPC: %v", err)
+	}
 }

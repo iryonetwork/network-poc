@@ -22,7 +22,11 @@ type rpcServer struct {
 }
 
 func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*specs.LoginResponse, error) {
-	return nil, nil
+	// mock login
+	s.config.Tokens["token"] = request.Public
+	return &specs.LoginResponse{
+		Token: "token",
+	}, nil
 }
 
 func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*specs.Empty, error) {
@@ -42,7 +46,7 @@ func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*
 
 	s.ehr.Save(request.Owner, request.Data)
 
-	return nil, nil
+	return &specs.Empty{}, nil
 }
 
 func (s *rpcServer) Download(ctx context.Context, request *specs.DownloadRequest) (*specs.DownloadResponse, error) {
@@ -90,7 +94,7 @@ func (s *rpcServer) SendKey(ctx context.Context, request *specs.SendKeyRequest) 
 			From: user,
 			Key:  request.Key,
 		}
-		return nil, nil
+		return &specs.Empty{}, nil
 	}
 
 	return nil, fmt.Errorf("Receiver for %s not registerd", request.To)

@@ -11,16 +11,22 @@ import (
 )
 
 type Config struct {
-	IryoAddr       string           `env:"IRYO_ADDR" envDefault:"iryo:80"`
+	IryoAddr       string           `env:"IRYO_ADDR" envDefault:"localhost:8000"`
 	EthPublic      string           `env:"ETH_PUBLIC"`
 	EthPrivate     ecdsa.PrivateKey `env:"ETH_PRIVATE,required"`
+	ClientType     string           `env:"CLIENT_TYPE" envDefault:"Patient"`
+	ClientAddr     string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
 	EncryptionKeys map[string][]byte
 	Connections    []string
 	Tokens         map[string]string
 }
 
 func New() (*Config, error) {
-	cfg := &Config{}
+	cfg := &Config{
+		EncryptionKeys: make(map[string][]byte),
+		Connections:    []string{},
+		Tokens:         make(map[string]string),
+	}
 	parsers := map[reflect.Type]env.ParserFunc{
 		reflect.TypeOf(cfg.EthPrivate): parseEthPrivateKey,
 	}
