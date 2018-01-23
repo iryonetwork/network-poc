@@ -1,4 +1,15 @@
 version: "3"
 services:
-  dummy:
-    image: redis
+  mew: # local instance of myetherwallet
+    build:
+      context: ./services/mew
+    ports:
+    - 8080:80
+
+  ganache:
+    image: trufflesuite/ganache-cli
+    command:
+    - --mnemonic="candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
+    - --blocktime=5
+    ports:
+    - 8545:8545
