@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eth"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -17,6 +18,7 @@ type rpcServer struct {
 	config  *config.Config
 	keySent map[string]chan specs.Event_KeySentDetails
 	eth     *eth.Storage
+	ehr     *ehr.Storage
 }
 
 func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*specs.LoginResponse, error) {
@@ -24,19 +26,48 @@ func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*sp
 }
 
 func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*specs.Empty, error) {
-	if _, err := s.loggedIn(ctx); err != nil {
+	user, err := s.loggedIn(ctx)
+	if err != nil {
 		return nil, err
 	}
+
+	granted, err := s.eth.AccessGranted(request.Owner, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if !granted {
+		return nil, fmt.Errorf("You do not have permission to upload this file")
+	}
+
+	s.ehr.Save(request.Owner, request.Data)
 
 	return nil, nil
 }
 
 func (s *rpcServer) Download(ctx context.Context, request *specs.DownloadRequest) (*specs.DownloadResponse, error) {
-	if _, err := s.loggedIn(ctx); err != nil {
+	user, err := s.loggedIn(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	granted, err := s.eth.AccessGranted(request.Owner, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if !granted {
+		return nil, fmt.Errorf("You do not have permission to download this file")
+	}
+
+	document := s.ehr.Get(request.Owner)
+	if document == nil {
+		return nil, fmt.Errorf("Document for %s does not exist", request.Owner)
+	}
+
+	return &specs.DownloadResponse{
+		Data: document,
+	}, nil
 }
 
 func (s *rpcServer) SendKey(ctx context.Context, request *specs.SendKeyRequest) (*specs.Empty, error) {

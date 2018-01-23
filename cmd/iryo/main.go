@@ -6,6 +6,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/specs"
+	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eth"
 	"google.golang.org/grpc"
 )
@@ -17,11 +18,13 @@ func main() {
 	}
 
 	eth := eth.New(config)
+	ehr := ehr.New()
 
 	server := &rpcServer{
 		config:  config,
 		keySent: make(map[string]chan specs.Event_KeySentDetails),
 		eth:     eth,
+		ehr:     ehr,
 	}
 
 	lis, err := net.Listen("tcp", config.IryoAddr)
