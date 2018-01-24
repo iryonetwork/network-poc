@@ -7,7 +7,7 @@
         <style>
             .table th { border-top: 0; }
             .content { margin-top: 20px; }
-            textarea { margin: 10px 0; }
+            textarea { display: none !important; }
         </style>
         <title>IRYO PoC</title>
     </head>
@@ -73,6 +73,8 @@
                 <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
                     <form action="/save">
                         <textarea class="form-control" name="data" rows="10">{{.EHRData}}</textarea>
+                        <canvas id="chart"></canvas>
+                        <button class="btn btn-primary" type="button" id="add">Add data point</button>
                         <button class="btn btn-primary" type="submit">Save</button>
                     </form>
                 </div>
@@ -83,6 +85,57 @@
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+
+
+    <script>
+        $(document).ready(function() {
+            var data = $("textarea").val().split("\n").filter(function(point) {
+                return point.split(",").length == 2
+            }).map(function(point) {
+                var parts = point.split(",")
+                return {
+                    x: new Date(parseInt(parts[0])),
+                    y: parseInt(parts[1])
+                }
+            })
+
+            var ctx = document.getElementById('chart').getContext('2d')
+            var chart = new Chart(ctx, {
+                type: 'line',
+
+                data: {
+                    datasets: [{
+                        label: "Heart rate",
+                        backgroundColor: 'rgb(255, 99, 132)',
+                        borderColor: 'rgb(255, 99, 132)',
+                        data: data,
+                    }]
+                },
+                options: {
+                    scales: {
+                        xAxes: [{
+                            type: 'time',
+                            distribution: 'series'
+                        }]
+                    }
+                }
+            })
+
+            $("#add").click(function() {
+                var point = {
+                    x: Date.now(),
+                    y: Math.floor(Math.random() * 60) + 100
+                }
+
+                $("textarea").val($("textarea").val() + "\n" + point.x + "," + point.y)
+                chart.data.datasets[0].data.push(point)
+                chart.update()
+            })
+
+        })
+    </script>
 
     </body>
 </html>
