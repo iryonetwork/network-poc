@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/specs"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eth"
@@ -21,18 +23,32 @@ type RPCClient struct {
 	metadata metadata.MD
 	eth      *eth.Storage
 	ehr      *ehr.Storage
+	log      *logger.Log
 }
 
-func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr *ehr.Storage) (*RPCClient, error) {
+func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr *ehr.Storage, log *logger.Log) (*RPCClient, error) {
+	// calculate the signature
+	hash := make([]byte, 32)
+	_, err := rand.Read(hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random hash; %v", err)
+	}
+	sig, err := crypto.Sign(hash, &config.EthPrivate)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to sign the login request; %v", err)
+	}
+
+	// login
 	response, err := client.Login(context.Background(), &specs.LoginRequest{
-		Public:    config.GetEthPublicAddress(),
-		Signature: []byte("TODO"),
+		Public:    crypto.CompressPubkey(&config.EthPrivate.PublicKey),
+		Signature: sig,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to call login; %v", err)
 	}
 
 	md := metadata.Pairs(tokenKey, response.Token)
+	config.EthContractAddr = response.ContractAddress
 
 	return &RPCClient{
 		client:   client,
@@ -40,13 +56,15 @@ func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr 
 		metadata: md,
 		eth:      eth,
 		ehr:      ehr,
+		log:      log,
 	}, nil
 }
 
 func (c *RPCClient) Download(owner string) error {
-	granted, err := c.eth.AccessGranted(owner, c.config.EthPublic)
+	c.log.Debugf("RPCClient::Download(%s) called", owner)
+	granted, err := c.eth.AccessGranted(owner, c.config.GetEthPublicAddress())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check accessGranted; %v", err)
 	}
 
 	if !granted {
@@ -57,7 +75,7 @@ func (c *RPCClient) Download(owner string) error {
 		Owner: owner,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to call download; %v", err)
 	}
 
 	c.ehr.Save(owner, response.Data)
@@ -66,9 +84,10 @@ func (c *RPCClient) Download(owner string) error {
 }
 
 func (c *RPCClient) Upload(owner string) error {
-	granted, err := c.eth.AccessGranted(owner, c.config.EthPublic)
+	c.log.Debugf("RPCClient::upload(%s) called", owner)
+	granted, err := c.eth.AccessGranted(owner, c.config.GetEthPublicAddress())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check accessGranted; %v", err)
 	}
 
 	if !granted {
@@ -85,13 +104,14 @@ func (c *RPCClient) Upload(owner string) error {
 		Data:  data,
 	})
 
-	return err
+	return fmt.Errorf("failed to call Upload; %v", err)
 }
 
 func (c *RPCClient) GrantAccess(to string) error {
+	c.log.Debugf("RPCClient::grantAccess(%s) called", to)
 	err := c.eth.GrantAccess(to)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check grantAccess; %v", err)
 	}
 
 	_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
@@ -101,12 +121,15 @@ func (c *RPCClient) GrantAccess(to string) error {
 
 	if err == nil {
 		c.config.Connections = append(c.config.Connections, to)
+	} else {
+		err = fmt.Errorf("failed to call SendKey; %v", err)
 	}
 
 	return err
 }
 
 func (c *RPCClient) RevokeAccess(to string) error {
+	c.log.Debugf("RPCClient::revokeAccess(%s) called", to)
 	found := false
 	for i, v := range c.config.Connections {
 		if v == to {
@@ -123,9 +146,10 @@ func (c *RPCClient) RevokeAccess(to string) error {
 }
 
 func (c *RPCClient) Subscribe() error {
+	c.log.Debugf("RPCClient::subscribe() called")
 	stream, err := c.client.Subscribe(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.Empty{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to call subscribe; %v", err)
 	}
 
 	go func() {
@@ -135,7 +159,7 @@ func (c *RPCClient) Subscribe() error {
 				break
 			}
 			if err != nil {
-				log.Fatalf("error receiving events: %v", err)
+				c.log.Fatalf("error receiving events: %v", err)
 			}
 
 			if event.Type == specs.Event_KeySent {

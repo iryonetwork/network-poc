@@ -18,7 +18,7 @@ type handlers struct {
 }
 
 func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("cmd/doctor/templates/index.html")
+	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}
@@ -39,7 +39,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("cmd/doctor/templates/ehr.html")
+	t, err := template.ParseFiles("templates/ehr.html")
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}

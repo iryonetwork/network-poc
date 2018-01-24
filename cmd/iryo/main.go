@@ -1,10 +1,11 @@
 package main
 
 import (
-	"log"
+	stdlog "log"
 	"net"
 
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/specs"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eth"
@@ -14,10 +15,20 @@ import (
 func main() {
 	config, err := config.New()
 	if err != nil {
-		log.Fatalf("failed to get config: %v", err)
+		stdlog.Fatalf("failed to get config: %v", err)
 	}
+	config.ClientType = "Iryo"
 
-	eth := eth.New(config)
+	log := logger.New(config)
+
+	eth, err := eth.New(config, log)
+	if err != nil {
+		log.Fatalf("failed to setup eth storage; %v", err)
+	}
+	err = eth.DeployContract()
+	if err != nil {
+		log.Fatalf("failed to deploy the contract; %v", err)
+	}
 	ehr := ehr.New()
 
 	server := &rpcServer{
@@ -25,6 +36,7 @@ func main() {
 		keySent: make(map[string]chan specs.Event_KeySentDetails),
 		eth:     eth,
 		ehr:     ehr,
+		log:     log,
 	}
 
 	lis, err := net.Listen("tcp", config.IryoAddr)

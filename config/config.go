@@ -11,14 +11,17 @@ import (
 )
 
 type Config struct {
-	IryoAddr       string           `env:"IRYO_ADDR" envDefault:"localhost:8000"`
-	EthPublic      string           `env:"ETH_PUBLIC"`
-	EthPrivate     ecdsa.PrivateKey `env:"ETH_PRIVATE,required"`
-	ClientType     string           `env:"CLIENT_TYPE" envDefault:"Patient"`
-	ClientAddr     string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
-	EncryptionKeys map[string][]byte
-	Connections    []string
-	Tokens         map[string]string
+	IryoAddr        string           `env:"IRYO_ADDR" envDefault:"localhost:8000"`
+	EthAddr         string           `env:"ETH_ADDR" envDefault:"localhost:8545"`
+	EthPublic       string           `env:"ETH_PUBLIC"`
+	EthPrivate      ecdsa.PrivateKey `env:"ETH_PRIVATE,required"`
+	EthContractAddr string           `env:"ETH_CONTRACT_ADDR"`
+	ClientType      string           `env:"CLIENT_TYPE" envDefault:"Patient"`
+	ClientAddr      string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
+	Debug           bool             `env:"DEBUG"`
+	EncryptionKeys  map[string][]byte
+	Connections     []string
+	Tokens          map[string]string
 }
 
 func New() (*Config, error) {

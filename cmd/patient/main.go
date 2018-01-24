@@ -9,6 +9,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/specs"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eth"
@@ -21,7 +22,12 @@ func main() {
 	}
 	config.ClientType = "Patient"
 
-	eth := eth.New(config)
+	log := logger.New(config)
+
+	eth, err := eth.New(config, log)
+	if err != nil {
+		log.Fatalf("failed to setup eth storage; %v", err)
+	}
 	ehr := ehr.New()
 
 	conn, err := grpc.Dial(config.IryoAddr, grpc.WithInsecure())
@@ -30,9 +36,13 @@ func main() {
 	}
 	defer conn.Close()
 
-	client, err := client.New(config, specs.NewCloudClient(conn), eth, ehr)
+	client, err := client.New(config, specs.NewCloudClient(conn), eth, ehr, log)
 	if err != nil {
 		log.Fatalf("failed to initialize client: %v", err)
+	}
+
+	if err := eth.SetupSession(); err != nil {
+		log.Fatalf("Failed to setup eth connection; %v", err)
 	}
 
 	key := make([]byte, 32)

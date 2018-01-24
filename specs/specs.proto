@@ -4,12 +4,14 @@ package specs;
 message Empty{}
 
 message LoginRequest{
-    string public = 1;
-    bytes signature = 2;
+    bytes public = 1;
+    bytes hash = 2;
+    bytes signature = 3;
 }
 
 message LoginResponse{
     string token = 1;
+    string contractAddress = 2;
 }
 
 message UploadRequest{

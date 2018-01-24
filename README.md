@@ -20,6 +20,11 @@ In this project we would like to define and implement a system that allows user 
 * govendor (`go get -u github.com/kardianos/govendor`)
 * make
 
+### Requirements for rebuilding the smart contract
+
+- solc
+- abigen (`go install github.com/ethereum/go-ethereum/cmd/abigen`)
+
 ## Setup
 
 ```bash
@@ -39,5 +44,8 @@ make test
 make up
 
 # TBD ...
+
+# rebuild the smart contract (requires abigen and solc)
+make buildContract
 ```
 

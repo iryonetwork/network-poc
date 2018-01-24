@@ -9,10 +9,10 @@ clear: ## clears generated artifacts
 up: ## start all basic services
 	@echo TBD
 
-up/%: build/% stop/% ## start a service in background
+up/%: stop/% ## start a service in background
 	docker-compose up -d $*
 
-run/%: build/% stop/% ## run a service in foreground
+run/%: stop/% ## run a service in foreground
 	docker-compose up $*
 
 stop: ## stop all services in docker-compose
@@ -21,13 +21,18 @@ stop: ## stop all services in docker-compose
 stop/%: ## stop a service in docker-compose
 	docker-compose stop $*
 
-build/%: ## builds a specific project
-	@mkdir -p .bin
-	@if [ -a cmd/$*/main.go ]; then \
-		GOOS=linux GOARCH=amd64 go build -o ./.bin/$* ./cmd/$* ; \
-	else \
-		echo "No sources found in cmd/$*/main.go"; \
-	fi
+# build/%: ## builds a specific project
+# 	@mkdir -p .bin
+# 	@if [ -a cmd/$*/main.go ]; then \
+# 		GOOS=linux GOARCH=amd64 go build -o ./.bin/$* ./cmd/$* ; \
+# 	else \
+# 		echo "No sources found in cmd/$*/main.go"; \
+# 	fi
+
+buildContract: contract/contract.go ## rebuilds the smart contract
+
+contract/contract.go: contract/contract.sol
+	abigen --sol=contract/contract.sol --pkg=contract --out=contract/contract.go
 
 logs: ## shows docker compose logs
 	docker-compose logs -f --tail=0 $*
