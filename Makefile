@@ -3,7 +3,7 @@
 ALL: run/bootstrapGeth
 
 clear: ## clears generated artifacts
-	docker-compose down
+	docker-compose down -v --remove-orphans --rmi local
 	rm -fr vendor/*/
 
 up: up/geth up/iryo up/patient1 up/patient2 up/doctor up/mew ## start all basic services
