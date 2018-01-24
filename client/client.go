@@ -145,6 +145,14 @@ func (c *RPCClient) GrantAccess(to string) error {
 
 func (c *RPCClient) RevokeAccess(to string) error {
 	c.log.Debugf("RPCClient::revokeAccess(%s) called", to)
+	_, err := c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
+		To:  to,
+		Key: []byte{},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to call SendKey: %v", err)
+	}
+
 	found := false
 	for i, v := range c.config.Connections {
 		if v == to {
@@ -180,13 +188,16 @@ func (c *RPCClient) Subscribe() error {
 			if event.Type == specs.Event_KeySent {
 				c.config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
 				found := false
-				for _, connection := range c.config.Connections {
+				for i, connection := range c.config.Connections {
 					if connection == event.KeySentDetails.From {
+						if len(event.KeySentDetails.Key) == 0 {
+							c.config.Connections = append(c.config.Connections[:i], c.config.Connections[i+1:]...)
+						}
 						found = true
 						break
 					}
 				}
-				if !found {
+				if !found && len(event.KeySentDetails.Key) > 0 {
 					c.config.Connections = append(c.config.Connections, event.KeySentDetails.From)
 				}
 
