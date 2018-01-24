@@ -38,12 +38,14 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Connections []string
 		EHRData     string
 		Error       string
+		Contract    string
 	}{
 		h.config.ClientType,
 		user,
 		h.config.Connections,
 		string(ehr),
 		outErr,
+		h.config.EthContractAddr,
 	}
 
 	if err := t.Execute(w, data); err != nil {

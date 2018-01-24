@@ -20,7 +20,9 @@ The setup consists of following components:
 
 - prepopulated `geth` acting as a local testnet
   - smart contract keeping a list who is connected with who.
-- `iryo` that allows anonymous entities to share data between each other
+- `iryo` represents a cloud component that:
+  -  allows anonymous entities to share data between each other
+  - recreates / deploys the smart contract on start
 - [`patient1`](http://localhost:9001) and [`patient2`](http://localhost:9002) who represent a patient that:
   - is the initial owner of it's own EHR,
   - has an option to create a new connection with a doctor,

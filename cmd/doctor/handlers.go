@@ -27,10 +27,12 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Type        string
 		Public      string
 		Connections []string
+		Contract    string
 	}{
 		h.config.ClientType,
 		h.config.GetEthPublicAddress(),
 		h.config.Connections,
+		h.config.EthContractAddr,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -60,14 +62,16 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Type    string
-		Public  string
-		Owner   string
-		EHRData string
-		Error   string
+		Type     string
+		Public   string
+		Contract string
+		Owner    string
+		EHRData  string
+		Error    string
 	}{
 		h.config.ClientType,
 		h.config.GetEthPublicAddress(),
+		h.config.EthContractAddr,
 		owner,
 		string(ehr),
 		outErr,

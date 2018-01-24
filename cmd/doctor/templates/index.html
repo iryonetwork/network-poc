@@ -7,6 +7,7 @@
         <style>
             .table th { border-top: 0; }
             .content { margin-top: 20px; }
+            .footer { border-top: solid 1px #dee2e6; padding-top: 10px; font-size: x-small; color: #ccc; }
         </style>
         <title>IRYO PoC</title>
     </head>
@@ -36,6 +37,9 @@
             {{ else }}
                 You have no patients
             {{ end }}
+            <div class="footer">
+                Contract address: {{ .Contract }}
+            </div>
         </div>
     </div>
 
