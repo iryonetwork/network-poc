@@ -117,7 +117,7 @@ func (c *RPCClient) GrantAccess(to string) error {
 	c.log.Debugf("RPCClient::grantAccess(%s) called", to)
 	err := c.eth.GrantAccess(to)
 	if err != nil {
-		return fmt.Errorf("failed to check grantAccess; %v", err)
+		return fmt.Errorf("failed to call grantAccess; %v", err)
 	}
 
 	_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{

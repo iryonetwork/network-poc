@@ -11,9 +11,9 @@ services:
     command:
     - --mnemonic="candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
     - --blocktime=5
-    ports:
-    - 8545:8545
-    - 65520:8545
+    # ports:
+    # - 8545:8545
+    # - 65520:8545
 
   iryo:
     build:
@@ -28,8 +28,8 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/iryo
     environment:
-    - ETH_PRIVATE=c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3
-    - ETH_ADDR=http://ganache:8545
+    - ETH_PRIVATE=896772721092967eb44d6c72e3ebdd97babbada1c29eace2d8c1dd7bd1f9ee99
+    - ETH_ADDR=http://geth:8545
     - IRYO_ADDR=0.0.0.0:8000
     - DEBUG=1
 
@@ -46,9 +46,9 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
-    - ETH_PRIVATE=ae6ae8e5ccbfb04590405997ee2d52d2b330726137b875053c36d94e974d162f
+    - ETH_PRIVATE=30fa8b6d85a5aa024cd3286907c96318b27217546d28232373f94cc76bb74b76
     - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://ganache:8545
+    - ETH_ADDR=http://geth:8545
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -67,9 +67,9 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
-    - ETH_PRIVATE=0dbbe8e4ae425a6d2687f1a7e3ba17bc98c673636790f1b8ad91193c05875ef1
+    - ETH_PRIVATE=d43cd3f2c6e210fc263e6cf6ad5db8cd9eb746e206df43f5f07eaf2d2e72bac0
     - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://ganache:8545
+    - ETH_ADDR=http://geth:8545
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -88,10 +88,33 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
     environment:
-    - ETH_PRIVATE=c88b703fb08cbea894b6aeff5a544fb92e78a18e19814cd85da83b71f772aa6c
+    - ETH_PRIVATE=188a9155c8588b67e3083834e970e8fcb40ad9fd069eae0f247d16cb8c0a8173
     - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://ganache:8545
+    - ETH_ADDR=http://geth:8545
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9003:9000
+
+  bootsrapGeth:
+    image: ethereum/client-go
+    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
+    volumes:
+    - devchain:/root/.ethereum/devchain
+    - ./services/geth/genesis.json:/root/files/genesis.json:ro
+
+  geth:
+    image: ethereum/client-go
+    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
+    volumes:
+    - devchain:/root/.ethereum/devchain
+    - ./services/geth/password:/root/files/password:ro
+    - ./services/geth/genesis.json:/root/files/genesis.json:ro
+    - ./services/geth/keystore:/root/.ethereum/devchain/keystore:rw
+    ports:
+    - "30303:30303"
+    - "30303:30303/udp"
+    - "8545:8545"
+
+volumes:
+  devchain:

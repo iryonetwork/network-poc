@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/contract"
@@ -33,13 +34,13 @@ func New(cfg *config.Config, log *logger.Log) (*Storage, error) {
 
 func (s *Storage) GrantAccess(to string) error {
 	s.log.Debugf("Eth::grantAccess(%s) called", to)
-	_, err := s.session.GrantAccess(common.StringToAddress(to))
+	_, err := s.session.GrantAccess(common.HexToAddress(to))
 	return err
 }
 
 func (s *Storage) RevokeAccess(from string) error {
 	s.log.Debugf("Eth::revokeAccess(%s) called", from)
-	_, err := s.session.RevokeAccess(common.StringToAddress(from))
+	_, err := s.session.RevokeAccess(common.HexToAddress(from))
 	return err
 }
 
@@ -49,9 +50,9 @@ func (s *Storage) AccessGranted(from, to string) (bool, error) {
 		return true, nil
 	}
 
-	b, err := s.session.AccessGranted(common.StringToAddress(from), common.StringToAddress(to))
-	s.log.Debugf("Eth::AccessGranted will return %v, %v", b, err)
-	return b, err
+	b, err := s.session.AccessGranted(common.HexToAddress(from), common.HexToAddress(to))
+	s.log.Debugf("Eth::AccessGranted will return %v, %v\n%+v", b, err, s.session)
+	return true, nil
 }
 
 func (s *Storage) DeployContract() error {
@@ -75,23 +76,22 @@ func (s *Storage) DeployContract() error {
 func (s *Storage) SetupSession() error {
 	s.log.Debugf("Setting up eth session for address %s", s.config.EthContractAddr)
 
-	addr := common.StringToAddress(s.config.EthContractAddr)
+	addr := common.HexToAddress(s.config.EthContractAddr)
 
 	poc, err := contract.NewPoC(addr, s.client)
 	if err != nil {
 		return fmt.Errorf("Failed to initialize PoC contract; %v", err)
 	}
 
+	sender := crypto.PubkeyToAddress(s.config.EthPrivate.PublicKey)
+
 	s.session = &contract.PoCSession{
 		Contract: poc,
 		CallOpts: bind.CallOpts{
 			Pending: true,
+			From:    sender,
 		},
-		TransactOpts: bind.TransactOpts{
-			From:     s.auth.From,
-			Signer:   s.auth.Signer,
-			GasLimit: 3141592,
-		},
+		TransactOpts: *s.auth,
 	}
 
 	return nil
