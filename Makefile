@@ -1,12 +1,12 @@
 .PHONY: up run stop build specs
 
-ALL: vendorSync
+ALL: run/bootstrapGeth
 
 clear: ## clears generated artifacts
 	docker-compose down
 	rm -fr vendor/*/
 
-up: ## start all basic services
+up: up/geth up/iryo up/patient1 up/patient2 up/doctor up/mew ## start all basic services
 	@echo TBD
 
 up/%: stop/% ## start a service in background
