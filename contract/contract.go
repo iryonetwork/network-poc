@@ -28,13 +28,14 @@ func DeployPoC(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Ad
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
-	return address, tx, &PoC{PoCCaller: PoCCaller{contract: contract}, PoCTransactor: PoCTransactor{contract: contract}}, nil
+	return address, tx, &PoC{PoCCaller: PoCCaller{contract: contract}, PoCTransactor: PoCTransactor{contract: contract}, PoCFilterer: PoCFilterer{contract: contract}}, nil
 }
 
 // PoC is an auto generated Go binding around an Ethereum contract.
 type PoC struct {
 	PoCCaller     // Read-only binding to the contract
 	PoCTransactor // Write-only binding to the contract
+	PoCFilterer   // Log filterer for contract events
 }
 
 // PoCCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -44,6 +45,11 @@ type PoCCaller struct {
 
 // PoCTransactor is an auto generated write-only Go binding around an Ethereum contract.
 type PoCTransactor struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// PoCFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type PoCFilterer struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
@@ -86,16 +92,16 @@ type PoCTransactorRaw struct {
 
 // NewPoC creates a new instance of PoC, bound to a specific deployed contract.
 func NewPoC(address common.Address, backend bind.ContractBackend) (*PoC, error) {
-	contract, err := bindPoC(address, backend, backend)
+	contract, err := bindPoC(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &PoC{PoCCaller: PoCCaller{contract: contract}, PoCTransactor: PoCTransactor{contract: contract}}, nil
+	return &PoC{PoCCaller: PoCCaller{contract: contract}, PoCTransactor: PoCTransactor{contract: contract}, PoCFilterer: PoCFilterer{contract: contract}}, nil
 }
 
 // NewPoCCaller creates a new read-only instance of PoC, bound to a specific deployed contract.
 func NewPoCCaller(address common.Address, caller bind.ContractCaller) (*PoCCaller, error) {
-	contract, err := bindPoC(address, caller, nil)
+	contract, err := bindPoC(address, caller, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -104,20 +110,29 @@ func NewPoCCaller(address common.Address, caller bind.ContractCaller) (*PoCCalle
 
 // NewPoCTransactor creates a new write-only instance of PoC, bound to a specific deployed contract.
 func NewPoCTransactor(address common.Address, transactor bind.ContractTransactor) (*PoCTransactor, error) {
-	contract, err := bindPoC(address, nil, transactor)
+	contract, err := bindPoC(address, nil, transactor, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &PoCTransactor{contract: contract}, nil
 }
 
+// NewPoCFilterer creates a new log filterer instance of PoC, bound to a specific deployed contract.
+func NewPoCFilterer(address common.Address, filterer bind.ContractFilterer) (*PoCFilterer, error) {
+	contract, err := bindPoC(address, nil, nil, filterer)
+	if err != nil {
+		return nil, err
+	}
+	return &PoCFilterer{contract: contract}, nil
+}
+
 // bindPoC binds a generic wrapper to an already deployed contract.
-func bindPoC(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor) (*bind.BoundContract, error) {
+func bindPoC(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
 	parsed, err := abi.JSON(strings.NewReader(PoCABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

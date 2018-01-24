@@ -27,9 +27,7 @@ services:
     - "8545:8545"
 
   iryo:
-    build:
-      context: ./
-      dockerfile: Dockerfile.go
+    image: iryo/go-futurehack
     command:
     - go
     - run
@@ -45,9 +43,7 @@ services:
     - DEBUG=1
 
   patient1:
-    build:
-      context: ./
-      dockerfile: Dockerfile.go
+    image: iryo/go-futurehack
     command:
     - go
     - run
@@ -66,9 +62,7 @@ services:
     - 9001:9000
 
   patient2:
-    build:
-      context: ./
-      dockerfile: Dockerfile.go
+    image: iryo/go-futurehack
     command:
     - go
     - run
@@ -87,9 +81,7 @@ services:
     - 9002:9000
 
   doctor:
-    build:
-      context: ./
-      dockerfile: Dockerfile.go
+    image: iryo/go-futurehack
     command:
     - go
     - run

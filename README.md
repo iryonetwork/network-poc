@@ -22,10 +22,11 @@ The setup consists of following components:
   - smart contract keeping a list who is connected with who.
 - `iryo` represents a cloud component that:
   -  allows anonymous entities to share data between each other
-  - recreates / deploys the smart contract on start
+  -  recreates / deploys the smart contract on start
 - [`patient1`](http://localhost:9001) and [`patient2`](http://localhost:9002) who represent a patient that:
   - is the initial owner of it's own EHR,
   - has an option to create a new connection with a doctor,
+  - is the only entity that writes to blockchain
   - can send the an encrypted key to the doctor to enable the doctor to read and write to their EHR.
 - [`doctor`](http://localhost:9003) that is able to:
   - receive new keys,
@@ -92,21 +93,42 @@ git clone git@github.com:iryonetwork/network-poc.git
 # go to the folder
 cd network-poc
 
-# prapare the repository (this will initialize the testnet)
+# prapare the repository (this will initialize and start the testnet)
 make
 
-# start it up
-make up
-
-# check logs (service will be up and running once the DAG is calculated)
+# check logs (it takes a while to prepare DAG, you can proceed once geth node start mining)
 make logs
+
+# start rest of the services
+make up
 
 # once DAG is done, fire up browsers
 open http://localhost:9001 # patient1
 open http://localhost:9002 # patient2
 open http://localhost:9003 # doctor
 open http://localhost:8080 # local myetherwallet
+
+# connect patient and doctor by copying doctor's address to input field on patient's website and click connect
 ```
+
+## Lessons learned
+
+#### github.com/ethereum/go-ethereum package
+
+1. Does not allow cross-compilation (we work on macs) hence which is why we ended up with quite an awkward and slow go execution process. Subpackage `github.com/ethereum/go-ethereum/crypto/secp256k1` include C source files. Flags in this package running following from a mac console: `GOOS=linux go build ./cmd/iryo`. 
+
+2. The same source files in the `crypto/secp256k1` package prevented us from using a vendor folder as the C source files are stripped out by `govendor`. We did not check if other dependency management tools (like `dep`) also have fail due to this issue.
+
+3. There is a lot of development going on this package and the interfaces of public methods are constantly changing.
+
+   Following error occurred two hours before the end of the hackaton:
+
+   ```
+   # github.com/iryonetwork/network-poc/contract
+   ../../contract/contract.go:120:30: not enough arguments in call to bind.NewBoundContract
+   have (common.Address, abi.ABI, bind.ContractCaller, bind.ContractTransactor)
+   want (common.Address, abi.ABI, bind.ContractCaller, bind.ContractTransactor, bind.ContractFilterer)
+   ```
 
 ## Notes
 
