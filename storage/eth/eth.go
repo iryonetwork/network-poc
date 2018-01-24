@@ -50,9 +50,7 @@ func (s *Storage) AccessGranted(from, to string) (bool, error) {
 		return true, nil
 	}
 
-	b, err := s.session.AccessGranted(common.HexToAddress(from), common.HexToAddress(to))
-	s.log.Debugf("Eth::AccessGranted will return %v, %v\n%+v", b, err, s.session)
-	return true, nil
+	return s.session.AccessGranted(common.HexToAddress(from), common.HexToAddress(to))
 }
 
 func (s *Storage) DeployContract() error {
