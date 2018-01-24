@@ -74,3 +74,10 @@ make buildContract
 * All accounts are have initial balance of 200 ETH.
 * Keystore / JSON files are located in `./services/geth/keystore`. Password was set to `test12345`.
 
+
+## Contract ABI / JSON Interface
+
+```json
+[{"constant":false,"inputs":[{"name":"_to","type":"address"}],"name":"grantAccess","outputs":[{"name":"success","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"}],"name":"accessGranted","outputs":[{"name":"is_connected","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"}],"name":"revokeAccess","outputs":[{"name":"success","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"}]
+```
+

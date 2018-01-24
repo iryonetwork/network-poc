@@ -6,14 +6,25 @@ services:
     ports:
     - 8080:80
 
-  ganache:
-    image: trufflesuite/ganache-cli
-    command:
-    - --mnemonic="candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
-    - --blocktime=5
-    # ports:
-    # - 8545:8545
-    # - 65520:8545
+  bootsrapGeth:
+    image: ethereum/client-go
+    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
+    volumes:
+    - devchain:/root/.ethereum/devchain
+    - ./services/geth/genesis.json:/root/files/genesis.json:ro
+
+  geth:
+    image: ethereum/client-go
+    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
+    volumes:
+    - devchain:/root/.ethereum/devchain
+    - ./services/geth/password:/root/files/password:ro
+    - ./services/geth/genesis.json:/root/files/genesis.json:ro
+    - ./services/geth/keystore:/root/.ethereum/devchain/keystore:rw
+    ports:
+    - "30303:30303"
+    - "30303:30303/udp"
+    - "8545:8545"
 
   iryo:
     build:
@@ -95,26 +106,6 @@ services:
     - DEBUG=1
     ports:
     - 9003:9000
-
-  bootsrapGeth:
-    image: ethereum/client-go
-    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
-    volumes:
-    - devchain:/root/.ethereum/devchain
-    - ./services/geth/genesis.json:/root/files/genesis.json:ro
-
-  geth:
-    image: ethereum/client-go
-    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
-    volumes:
-    - devchain:/root/.ethereum/devchain
-    - ./services/geth/password:/root/files/password:ro
-    - ./services/geth/genesis.json:/root/files/genesis.json:ro
-    - ./services/geth/keystore:/root/.ethereum/devchain/keystore:rw
-    ports:
-    - "30303:30303"
-    - "30303:30303/udp"
-    - "8545:8545"
 
 volumes:
   devchain:
