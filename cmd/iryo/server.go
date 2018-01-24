@@ -50,7 +50,7 @@ func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*sp
 		return nil, fmt.Errorf("invalid login signature")
 	}
 
-	// mock login
+	// save login token
 	token := hex.EncodeToString(request.Signature)
 	s.config.Tokens[token] = crypto.PubkeyToAddress(*pub).String()
 	return &specs.LoginResponse{
@@ -62,6 +62,7 @@ func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*sp
 func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*specs.Empty, error) {
 	s.log.Debugf("RPCServer::Upload(%+v) called", request)
 
+	//check permissions
 	user, err := s.loggedIn(ctx)
 	if err != nil {
 		return nil, err
@@ -76,6 +77,7 @@ func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*
 		return nil, fmt.Errorf("You do not have permission to upload this file")
 	}
 
+	// save file to storage
 	s.ehr.Save(request.Owner, request.Data)
 
 	return &specs.Empty{}, nil
@@ -84,6 +86,7 @@ func (s *rpcServer) Upload(ctx context.Context, request *specs.UploadRequest) (*
 func (s *rpcServer) Download(ctx context.Context, request *specs.DownloadRequest) (*specs.DownloadResponse, error) {
 	s.log.Debugf("RPCServer::Download(%+v) called", request)
 
+	// check permissions
 	user, err := s.loggedIn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("user not logged in; %v", err)
@@ -98,11 +101,13 @@ func (s *rpcServer) Download(ctx context.Context, request *specs.DownloadRequest
 		return nil, fmt.Errorf("You do not have permission to download this file")
 	}
 
+	// get document from storage
 	document := s.ehr.Get(request.Owner)
 	if document == nil {
 		return nil, fmt.Errorf("Document for %s does not exist", request.Owner)
 	}
 
+	// return document
 	return &specs.DownloadResponse{
 		Data: document,
 	}, nil
@@ -111,6 +116,7 @@ func (s *rpcServer) Download(ctx context.Context, request *specs.DownloadRequest
 func (s *rpcServer) SendKey(ctx context.Context, request *specs.SendKeyRequest) (*specs.Empty, error) {
 	s.log.Debugf("RPCServer::SendKey(%+v) called", request)
 
+	// check permissions
 	user, err := s.loggedIn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("user not logged in; %v", err)
@@ -125,6 +131,7 @@ func (s *rpcServer) SendKey(ctx context.Context, request *specs.SendKeyRequest) 
 		return nil, fmt.Errorf("User %s does not have permission to receive key from %s", request.To, user)
 	}
 
+	// send key to users's channel
 	if keys, ok := s.keySent[request.To]; ok {
 		keys <- specs.Event_KeySentDetails{
 			From: user,
@@ -139,6 +146,7 @@ func (s *rpcServer) SendKey(ctx context.Context, request *specs.SendKeyRequest) 
 func (s *rpcServer) Subscribe(_ *specs.Empty, stream specs.Cloud_SubscribeServer) error {
 	s.log.Debugf("RPCServer::Subscribe() called")
 
+	// check permissions
 	user, err := s.loggedIn(stream.Context())
 	if err != nil {
 		return fmt.Errorf("user not logged in; %v", err)
@@ -149,6 +157,7 @@ func (s *rpcServer) Subscribe(_ *specs.Empty, stream specs.Cloud_SubscribeServer
 	}
 
 	for {
+		// send key from channel to user
 		key := <-s.keySent[user]
 
 		s.log.Debugf("received a new keySent event (%+v)", key)
