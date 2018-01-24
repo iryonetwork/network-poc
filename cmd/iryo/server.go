@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"encoding/asn1"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iryonetwork/network-poc/logger"
@@ -34,9 +37,17 @@ func (s *rpcServer) Login(ctx context.Context, request *specs.LoginRequest) (*sp
 		return nil, fmt.Errorf("failed to decompress public key; %v", err)
 	}
 
-	if !crypto.VerifySignature(request.Public, request.Hash, request.Signature) {
-		s.log.Debugf("Invalid login signature")
-		// return nil, fmt.Errorf("invalid login signature")
+	signature := struct {
+		R, S *big.Int
+	}{}
+
+	_, err = asn1.Unmarshal(request.Signature, &signature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal signature; %v", err)
+	}
+
+	if !ecdsa.Verify(pub, request.Hash, signature.R, signature.S) {
+		return nil, fmt.Errorf("invalid login signature")
 	}
 
 	// mock login

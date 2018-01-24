@@ -33,7 +33,8 @@ func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr 
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random hash; %v", err)
 	}
-	sig, err := crypto.Sign(hash, &config.EthPrivate)
+
+	sig, err := config.EthPrivate.Sign(rand.Reader, hash, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to sign the login request; %v", err)
 	}
@@ -42,6 +43,7 @@ func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr 
 	response, err := client.Login(context.Background(), &specs.LoginRequest{
 		Public:    crypto.CompressPubkey(&config.EthPrivate.PublicKey),
 		Signature: sig,
+		Hash:      hash,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to call login; %v", err)
@@ -104,7 +106,11 @@ func (c *RPCClient) Upload(owner string) error {
 		Data:  data,
 	})
 
-	return fmt.Errorf("failed to call Upload; %v", err)
+	if err != nil {
+		return fmt.Errorf("failed to call Upload; %v", err)
+	}
+
+	return nil
 }
 
 func (c *RPCClient) GrantAccess(to string) error {
@@ -120,7 +126,16 @@ func (c *RPCClient) GrantAccess(to string) error {
 	})
 
 	if err == nil {
-		c.config.Connections = append(c.config.Connections, to)
+		found := false
+		for _, connection := range c.config.Connections {
+			if connection == to {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.config.Connections = append(c.config.Connections, to)
+		}
 	} else {
 		err = fmt.Errorf("failed to call SendKey; %v", err)
 	}
@@ -164,7 +179,16 @@ func (c *RPCClient) Subscribe() error {
 
 			if event.Type == specs.Event_KeySent {
 				c.config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
-				c.config.Connections = append(c.config.Connections, event.KeySentDetails.From)
+				found := false
+				for _, connection := range c.config.Connections {
+					if connection == event.KeySentDetails.From {
+						found = true
+						break
+					}
+				}
+				if !found {
+					c.config.Connections = append(c.config.Connections, event.KeySentDetails.From)
+				}
 
 				fmt.Printf("Received key for user %s", event.KeySentDetails.From)
 			}
