@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iryonetwork/network-poc/config"
@@ -120,25 +122,29 @@ func (c *RPCClient) GrantAccess(to string) error {
 		return fmt.Errorf("failed to call grantAccess; %v", err)
 	}
 
-	_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
-		To:  to,
-		Key: c.config.EncryptionKeys[c.config.GetEthPublicAddress()],
-	})
+	err = retry(10, 2*time.Second, func() error {
+		_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
+			To:  to,
+			Key: c.config.EncryptionKeys[c.config.GetEthPublicAddress()],
+		})
 
-	if err == nil {
-		found := false
-		for _, connection := range c.config.Connections {
-			if connection == to {
-				found = true
-				break
+		if err == nil {
+			found := false
+			for _, connection := range c.config.Connections {
+				if connection == to {
+					found = true
+					break
+				}
 			}
+			if !found {
+				c.config.Connections = append(c.config.Connections, to)
+			}
+		} else {
+			err = fmt.Errorf("failed to call SendKey; %v", err)
 		}
-		if !found {
-			c.config.Connections = append(c.config.Connections, to)
-		}
-	} else {
-		err = fmt.Errorf("failed to call SendKey; %v", err)
-	}
+
+		return err
+	})
 
 	return err
 }
@@ -207,4 +213,18 @@ func (c *RPCClient) Subscribe() error {
 	}()
 
 	return nil
+}
+
+func retry(attempts int, sleep time.Duration, f func() error) (err error) {
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			return nil
+		}
+
+		time.Sleep(sleep)
+
+		log.Println("retrying after error:", err)
+	}
+
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
