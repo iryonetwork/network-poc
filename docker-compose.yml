@@ -7,17 +7,17 @@ services:
     - 8080:80
 
   bootstrapGeth:
-    image: ethereum/client-go
-    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
+    image: ethereum/client-go:v1.7.3
+    command: --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
     volumes:
-    - devchain:/root/.ethereum/devchain
+    - devchain:/root
     - ./services/geth/genesis.json:/root/files/genesis.json:ro
 
   geth:
-    image: ethereum/client-go
-    command: --datadir=/root/.ethereum/devchain --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
+    image: ethereum/client-go:v1.7.3
+    command: --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
     volumes:
-    - devchain:/root/.ethereum/devchain
+    - devchain:/root
     - ./services/geth/password:/root/files/password:ro
     - ./services/geth/genesis.json:/root/files/genesis.json:ro
     - ./services/geth/keystore:/root/.ethereum/devchain/keystore:rw

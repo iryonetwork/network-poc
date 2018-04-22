@@ -96,7 +96,7 @@ cd network-poc
 # prapare the repository (this will initialize and start the testnet)
 make
 
-# check logs (it takes a while to prepare DAG, you can proceed once geth node start mining)
+# check logs (it takes a while to prepare DAG, you can proceed once geth node starts mining)
 make logs
 
 # start rest of the services
