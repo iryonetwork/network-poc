@@ -12,9 +12,14 @@ import (
 
 type Config struct {
 	IryoAddr        string           `env:"IRYO_ADDR" envDefault:"localhost:8000"`
+	EosAPI          string           `env:"EOS_API" envDefault:"http://localhost:8888"`
+	EosPrivate      string           `env:"EOS_PRIVATE,required"`
+	EosAccount      string           `env:"EOS_ACCOUNT"`
+	EosContractName string           `env:"EOS_CONTRACT_NAME"`
+	EosTokenName    string           `env:"EOS_TOKEN_NAME"`
 	EthAddr         string           `env:"ETH_ADDR" envDefault:"localhost:8545"`
 	EthPublic       string           `env:"ETH_PUBLIC"`
-	EthPrivate      ecdsa.PrivateKey `env:"ETH_PRIVATE,required"`
+	EthPrivate      ecdsa.PrivateKey `env:"ETH_PRIVATE"`
 	EthContractAddr string           `env:"ETH_CONTRACT_ADDR"`
 	ClientType      string           `env:"CLIENT_TYPE" envDefault:"Patient"`
 	ClientAddr      string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`

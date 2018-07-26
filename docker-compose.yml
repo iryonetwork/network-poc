@@ -99,5 +99,57 @@ services:
     ports:
     - 9003:9000
 
+  nodeos:
+    container_name: server
+    image: eosio/eos:v1.1.0
+    command: nodeosd.sh -e --http-alias=server:8888 --http-alias=127.0.0.1:8888 --http-alias=localhost:8888
+    ports:
+    - 8888:8888
+
+  cleos:
+    image: eosio/eos:v1.1.0
+    command:
+    - /bin/bash
+    - -c
+    - |
+      cleos wallet create
+      cleos wallet import --private-key $$EOS_PRIVATE 
+      cleos wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 #default eosio account private key
+      cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
+    environment:
+    - EOS_API=http://server:8888 # url on which nodeos is running
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
+    - EOS_PUBLIC=EOS8Bi2k2R4Zv3Go2FEBAM6X8nu7aDPBDWGZeNhewhQZQThe61nc7 # key used to create master account (public key of $EOS_PRIVATE)
+    tty: true
+
+  eosiryo:
+    image: iryo/go-futurehack
+    command:
+    - go
+    - run
+    - main.go
+    volumes:
+    - ../../.././:/go/src/
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/deploy_eos_contract
+    environment:
+    - EOS_API=http://server:8888
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_TOKEN_NAME=iryo.token
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs action
+  
+  tools:
+    image: eosio/eos-dev:v1.1.0
+    command:
+    - /bin/bash
+    - -c
+    - |
+      cleos wallet create > password.txt
+      cleos wallet import --private-key $$EOS_PRIVATE 
+      exec bash
+    environment:
+    - EOS_API=http://server:8888 # url on which nodeos is running
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
+    tty: true
+
 volumes:
   devchain:

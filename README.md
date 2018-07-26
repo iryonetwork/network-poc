@@ -111,6 +111,55 @@ open http://localhost:8080 # local myetherwallet
 # connect patient and doctor by copying doctor's address to input field on patient's website and click connect
 ```
 
+## EOS Setup
+
+### Requirements
+
+* go (current version 1.9.3, https://golang.org/dl)
+* docker (current version 17.12.0-ce, https://www.docker.com/community-edition#/download)
+* docker-compose (current version 1.18.0, https://docs.docker.com/compose/install/)
+* make
+
+### Setup the dev environment & run the code
+
+The development environment is setup using docker-compose that allows us to have all dependencies running locally in an isolated environment.
+
+```bash
+# clone the repository
+git clone git@github.com:iryonetwork/network-poc.git
+
+# go to the folder
+cd network-poc
+
+# prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token)
+# master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
+make apiup
+
+# check logs
+make logs
+
+# start the tools
+make run/tools
+
+# inside tools container
+## create new account
+### generate key
+cleos create key
+### import it
+cleos wallet import
+### create as many accounts under master as you wish. Keys can be reused to avoid generating them
+cleos  -u $EOS_API create account master <patient/doctor> <public_key>
+### connect patient to doctor 
+cleos -u $EOS_API push action iryo give '[<patient>, <doctor>]' -p <patient>
+### get the table of patient's doctors
+cleos -u $EOS_API get table iryo <patient> status
+### remove patient-doctor connection
+#### using patient's signature
+cleos -u $EOS_API push action iryo premove '[<patient>, <doctor>]' -p <patient>
+#### using doc's signature
+cleos -u $EOS_API push action iryo dremove '[<patient>, <doctor>]' -p <doctor>
+```
+If your wallet gets locked, get the password with `tail -n 1 /password.txt`
 ## Lessons learned
 
 #### github.com/ethereum/go-ethereum package
