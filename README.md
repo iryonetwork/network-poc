@@ -131,35 +131,27 @@ git clone git@github.com:iryonetwork/network-poc.git
 # go to the folder
 cd network-poc
 
-# prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token)
+# prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token, and create the patients)
 # master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
-make apiup
+make apiup up/eospatient1 up/eospatient2
 
 # check logs
 make logs
 
-# start the tools
+# boot up the browsers
+open http://localhost:9001
+open http://localhost:9002
+
+# To check the connection table
+## start the tools
 make attach/tools
 
-# inside tools container
-## create new account
-### generate key
-cleos create key
-### import it
-cleos wallet import
-### create as many accounts under master as you wish. Keys can be reused to avoid generating them
-cleos  -u $EOS_API create account master <patient/doctor> <public_key>
-### connect patient to doctor 
-cleos -u $EOS_API push action iryo give '[<patient>, <doctor>]' -p <patient>
-### get the table of patient's doctors
-cleos -u $EOS_API get table iryo <patient> status
-### remove patient-doctor connection
-#### using patient's signature
-cleos -u $EOS_API push action iryo premove '[<patient>, <doctor>]' -p <patient>
-#### using doc's signature
-cleos -u $EOS_API push action iryo dremove '[<patient>, <doctor>]' -p <doctor>
+## check the table for <patient1/patient2>
+cleos -u $EOS_API get table iryo <patient1/patient2> status
 ```
-If your wallet gets locked, get the password with `tail -n 1 /password.txt`
+Note: If you plan on running the commands again use `make clear` before that. The containers should not include any old data because account can only be created once. Recreating accounts causes errors and we dont't want that.
+Note#2: Doctor's names can include characters /a-z/123456 and must not be more than 13 characters long. This is the limitation of EOS accounts
+
 ## Lessons learned
 
 #### github.com/ethereum/go-ethereum package

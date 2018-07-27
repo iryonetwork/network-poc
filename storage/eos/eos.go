@@ -34,33 +34,33 @@ type AccessReq struct {
 	To   eos.AccountName `json:"to"`
 }
 
-// GrantAccess adds `to` field in `from` contract table
-func (s *Storage) GrantAccess(from, to string) error {
-	s.log.Debugf("Eos::grantAccess(%s, %s) called", from, to)
+// GrantAccess adds `to` field in contract table
+func (s *Storage) GrantAccess(to string) error {
+	s.log.Printf("Eos::grantAccess(%s) called", to)
 	// Give access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
 		Name:    eos.ActN("give"),
 		Authorization: []eos.PermissionLevel{
-			{eos.AN(from), eos.PermissionName("active")},
+			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{From: eos.AN(from), To: eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{From: eos.AN(s.config.EosAccount), To: eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
 	return err
 }
 
-// RevokeAccess removes `to` field in `from` contract table
-func (s *Storage) RevokeAccess(to, from string) error {
-	s.log.Debugf("Eos::grantAccess(%s, %s) called", from, to)
+// RevokeAccess removes `to` field in contract table
+func (s *Storage) RevokeAccess(to string) error {
+	s.log.Printf("Eos::revokeAccess(%s) called", to)
 	// Remove access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
 		Name:    eos.ActN("premove"),
 		Authorization: []eos.PermissionLevel{
-			{eos.AN(from), eos.PermissionName("active")},
+			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{From: eos.AN(from), To: eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{From: eos.AN(s.config.EosAccount), To: eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
 	return err
@@ -95,12 +95,22 @@ func (s *Storage) DeployContract() error {
 	if s.config.EosContractName == "" {
 		return fmt.Errorf("No config.EosContractName specified, unable to deploy contract")
 	}
+	if s.config.EosTokenAccount == "" {
+		return fmt.Errorf("No config.EosTokenAccount specified, unable to createa account to deploy contract to")
+	}
 
-	err := s.pushContract("iryo", "iryo")
+	err := s.pushContract(s.config.EosAccount, s.config.EosContractName)
 	if err != nil {
 		return fmt.Errorf("Failed to deploy connections contract: %v", err)
 	}
-	err = s.pushContract("iryo.token", "eosio.token")
+
+	if s.config.EosTokenName == "" {
+		return fmt.Errorf("No config.EosTokenName specified, unable to deploy token")
+	}
+	if s.config.EosAccount == "" {
+		return fmt.Errorf("No config.EosAccount specified, unable to createa account to deploy token to")
+	}
+	err = s.pushContract(s.config.EosTokenAccount, s.config.EosTokenName)
 	if err != nil {
 		return fmt.Errorf("Failed to deploy new token contract: %v", err)
 	}
@@ -112,7 +122,6 @@ func (s *Storage) pushContract(n, cn string) error {
 	s.CreateAccount(n)
 
 	// Get newcontract actions
-	// TODO: Are the paths ok?
 	contract, err := system.NewSetContract(eos.AN(n), "../../contract/eos/"+cn+".wasm", "../../contract/eos/"+cn+".abi")
 	if err != nil {
 		return err
@@ -126,11 +135,15 @@ func (s *Storage) pushContract(n, cn string) error {
 
 	return nil
 }
+func (s *Storage) SetupSession() error {
+	err := s.CreateAccount(s.config.EosAccount)
+	return err
+}
 
 // CreateAccount creates account using key specified in config.EosPrivate.
 // The key is imported, then account is created
 func (s *Storage) CreateAccount(account string) error {
-	s.log.Printf("Eos::createAccount() called")
+	s.log.Printf("Eos::createAccount(%s) called", account)
 
 	key, err := ecc.NewPrivateKey(s.config.EosPrivate)
 	if err != nil {

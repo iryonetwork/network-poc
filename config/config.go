@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/caarlos0/env"
+	"github.com/eoscanada/eos-go/ecc"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	EosPrivate      string           `env:"EOS_PRIVATE,required"`
 	EosAccount      string           `env:"EOS_ACCOUNT"`
 	EosContractName string           `env:"EOS_CONTRACT_NAME"`
+	EosTokenAccount string           `env:"EOS_TOKEN_ACCOUNT"`
 	EosTokenName    string           `env:"EOS_TOKEN_NAME"`
 	EthAddr         string           `env:"ETH_ADDR" envDefault:"localhost:8545"`
 	EthPublic       string           `env:"ETH_PUBLIC"`
@@ -56,4 +58,12 @@ func parseEthPrivateKey(v string) (interface{}, error) {
 
 func (c *Config) GetEthPublicAddress() string {
 	return crypto.PubkeyToAddress(c.EthPrivate.PublicKey).String()
+}
+
+func (c *Config) GetEosPublicKey() string {
+	key, err := ecc.NewPrivateKey(c.EosPrivate)
+	if err != nil {
+		panic(err)
+	}
+	return key.PublicKey().String()
 }

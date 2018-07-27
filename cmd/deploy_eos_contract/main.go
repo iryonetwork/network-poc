@@ -13,13 +13,12 @@ func main() {
 	if err != nil {
 		stdlog.Fatalf("failed to get config: %v", err)
 	}
-	config.ClientType = "Iryo"
 
 	log := logger.New(config)
 
 	eos, err := eos.New(config, log)
 	if err != nil {
-		log.Fatalf("failed to setup eth storage; %v", err)
+		log.Fatalf("failed to setup eos storage; %v", err)
 	}
 	err = eos.DeployContract()
 	if err != nil {

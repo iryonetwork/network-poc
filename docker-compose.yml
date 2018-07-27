@@ -98,7 +98,7 @@ services:
     - DEBUG=1
     ports:
     - 9003:9000
-
+######################## EOS starts here
   nodeos:
     container_name: server
     image: eosio/eos:v1.1.0
@@ -106,6 +106,7 @@ services:
     ports:
     - 8888:8888
 
+## Create master account
   cleos:
     image: eosio/eos:v1.1.0
     command:
@@ -121,7 +122,15 @@ services:
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
     - EOS_PUBLIC=EOS8Bi2k2R4Zv3Go2FEBAM6X8nu7aDPBDWGZeNhewhQZQThe61nc7 # key used to create master account (public key of $EOS_PRIVATE)
     tty: true
-
+## Cleos interface
+  tools:
+    image: eosio/eos-dev:v1.1.0
+    command:
+    - bash
+    environment:
+    - EOS_API=http://server:8888 # url on which nodeos is running
+    tty: true
+## Deploy contract
   eosiryo:
     image: iryo/go-futurehack
     command:
@@ -133,23 +142,49 @@ services:
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/deploy_eos_contract
     environment:
     - EOS_API=http://server:8888
+    - EOS_ACCOUNT=iryo
     - EOS_CONTRACT_NAME=iryo
-    - EOS_TOKEN_NAME=iryo.token
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs action
-  
-  tools:
-    image: eosio/eos-dev:v1.1.0
+    - EOS_TOKEN_ACCOUNT=iryo.token
+    - EOS_TOKEN_NAME=eosio.token
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+  ## patient server
+  eospatient1:
+    image: iryo/go-futurehack
     command:
-    - /bin/bash
-    - -c
-    - |
-      cleos wallet create > password.txt
-      cleos wallet import --private-key $$EOS_PRIVATE 
-      exec bash
+    - go
+    - run
+    - main.go
+    - handlers.go
+    volumes:
+    - ../../.././:/go/src/
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
-    - EOS_API=http://server:8888 # url on which nodeos is running
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
-    tty: true
+    - EOS_API=http://server:8888
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_ACCOUNT=patient1
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - CLIENT_ADDR=0.0.0.0:9000
+    ports:
+    - 9001:9000
+
+  eospatient2:
+    image: iryo/go-futurehack
+    command:
+    - go
+    - run
+    - main.go
+    - handlers.go
+    volumes:
+    - ../../.././:/go/src/
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
+    environment:
+    - EOS_API=http://server:8888
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_ACCOUNT=patient2
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - CLIENT_ADDR=0.0.0.0:9000
+    ports:
+    - 9002:9000
 
 volumes:
   devchain:

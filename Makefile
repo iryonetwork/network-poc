@@ -6,7 +6,7 @@ clear: ## clears generated artifacts
 	docker-compose down -v --remove-orphans --rmi local
 	rm -fr vendor/*/
 
-apiup: up/nodeos up/cleos up/eosiryo
+apiup: up/nodeos up/cleos up/eosiryo ## sets the nodeos up - creates accounts and publishes contracts on them
 
 attach/%:
 	docker-compose run $*
