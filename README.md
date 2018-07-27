@@ -139,7 +139,7 @@ make apiup
 make logs
 
 # start the tools
-make run/tools
+make attach/tools
 
 # inside tools container
 ## create new account

@@ -8,6 +8,9 @@ clear: ## clears generated artifacts
 
 apiup: up/nodeos up/cleos up/eosiryo
 
+attach/%:
+	docker-compose run $*
+
 up: up/iryo up/patient1 up/patient2 up/doctor up/mew ## start all basic services
 
 up/%: stop/% ## start a service in background
