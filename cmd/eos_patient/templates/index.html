@@ -71,13 +71,22 @@
                         </div>
                     </form>
                 </div>
+               
+
                 <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-                    <form action="/save">
-                        <textarea class="form-control" name="data" rows="10">{{.EHRData}}</textarea>
-                        <canvas id="chart"></canvas>
-                        <button class="btn btn-primary" type="button" id="add">Add data point</button>
-                        <button class="btn btn-primary" type="submit">Save</button>
-                    </form>
+                        <form action="/save">
+                            <textarea class="form-control" name="data" rows="10"></textarea>
+                            <canvas id="chart"></canvas>
+                            <button class="btn btn-primary" type="button" id="add">Add data point</button>
+                            <button class="btn btn-primary" type="submit">Save</button>
+                        </form>
+
+                    {{range $i, $c := .EHRData}}
+                    <h1>{{ $i }}</h1>
+                    <div class="form-control" name="data" rows="10">{{ $c }}</div>
+                    {{end}}
+
+    
                 </div>
                 <div class="footer">
                     Contract address: {{ .Contract }}

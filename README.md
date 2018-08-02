@@ -133,24 +133,111 @@ cd network-poc
 
 # prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token, and create the patients)
 # master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
-make apiup up/eospatient1 up/eospatient2
+make apiup
 
 # check logs
 make logs
 
 # boot up the browsers
-open http://localhost:9001
-open http://localhost:9002
+open http://localhost:9001 #patient1
+open http://localhost:9002 #patient2
+open http://localhost:9003/ehr/<iryoUUID>
 
 # To check the connection table
 ## start the tools
 make attach/tools
 
-## check the table for <patient1/patient2>
-cleos -u $EOS_API get table iryo <patient1/patient2> status
+## check the table for <iryoUUID>
+cleos -u $EOS_API get table iryo <iryoUUID> status
 ```
-Note: If you plan on running the commands again use `make clear` before that. The containers should not include any old data because account can only be created once. Recreating accounts causes errors and we dont't want that.
+Note: If you plan on running the commands again use `make clear` before that. The containers should not include any old data because account can only be created once. Recreating accounts causes errors and we dont't want that.  
 Note#2: Doctor's names can include characters /a-z/123456 and must not be more than 13 characters long. This is the limitation of EOS accounts
+
+
+## API
+/createaccount
+```json
+In:
+{
+    "key": EOS_Public_Key
+}
+
+Out:
+{
+    "account": Account_name
+}
+OR
+{
+    "error": error
+}
+```
+
+/upload
+```json
+In:
+{
+    "key": EOS_Public_Key_used_to_sign_data,
+    "sign": Signature_of_data's_sha256_hash,
+    "data": Data_to_upload,
+    "ehrID": UUID,
+    "account": Name_of_account_signing,
+    "owner": ehr's_owner
+}
+
+Out:
+{
+    "fileID": UUID,
+    "ehrID": UUID(same as input),
+    "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+}
+OR
+{
+    "error": error
+}
+```
+
+/ls
+```json
+In:
+{
+    "account": Account_to_list_files_for
+}
+
+Out:
+{
+    "files":[
+        {
+            "fileID": UUID1,
+            "ehrID": UUID1,
+            "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+        },
+        {
+            "fileID": UUID2,
+            "ehrID": UUID2,
+            "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+        }
+    ]
+}
+OR
+{
+    "error": error
+}
+```
+
+/download
+```json
+In:
+{
+    "fileID": UUID,
+    "ehrID": UUID,
+    "account": account_name_to_which_the_file_belongs
+}
+Out:
+File's contents
+
+OR
+"ERROR: error"
+```
 
 ## Lessons learned
 

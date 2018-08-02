@@ -131,7 +131,7 @@ services:
     - EOS_API=http://server:8888 # url on which nodeos is running
     tty: true
 ## Deploy contract
-  eosiryo:
+  eosdeploy:
     image: iryo/go-futurehack
     command:
     - go
@@ -147,6 +147,26 @@ services:
     - EOS_TOKEN_ACCOUNT=iryo.token
     - EOS_TOKEN_NAME=eosio.token
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+
+  eosapi:
+    image: iryo/go-futurehack
+    command:
+    - go
+    - run
+    - main.go
+    - handlers.go
+    volumes:
+    - ../../.././:/go/src/
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
+    environment:
+    - IRYO_ADDR=0.0.0.0:8000
+    - EOS_API=http://server:8888
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_TOKEN_ACCOUNT=iryo.token
+    - DEBUG=1
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn
+    ports:
+    - 8000:8000
   ## patient server
   eospatient1:
     image: iryo/go-futurehack
@@ -159,11 +179,13 @@ services:
     - ../../.././:/go/src/
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
+    - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
     - EOS_ACCOUNT=patient1
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
+    - DEBUG=1
     ports:
     - 9001:9000
 
@@ -178,13 +200,36 @@ services:
     - ../../.././:/go/src/
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
+    - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
     - EOS_ACCOUNT=patient2
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
+    - DEBUG=1
     ports:
     - 9002:9000
+  ## Doctor
+  eosdoctor:
+    image: iryo/go-futurehack
+    command:
+    - go
+    - run
+    - main.go
+    - handlers.go
+    volumes:
+    - ../../.././:/go/src/
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
+    environment:
+    - EOS_API=http://server:8888
+    - IRYO_ADDR=eosapi:8000
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_ACCOUNT=doctor
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - CLIENT_ADDR=0.0.0.0:9000
+    - DEBUG=1
+    ports:
+    - 9003:9000
 
 volumes:
   devchain:

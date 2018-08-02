@@ -1,6 +1,7 @@
 package eos
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math"
 
@@ -23,7 +24,7 @@ func New(cfg *config.Config, log *logger.Log) (*Storage, error) {
 	log.Debugf("Adding API from %s", cfg.EosAPI)
 	node := eos.New(cfg.EosAPI)
 	node.SetSigner(eos.NewKeyBag())
-	s := &Storage{config: cfg, api: node}
+	s := &Storage{log: log, config: cfg, api: node}
 	s.api = node
 	return s, nil
 }
@@ -36,7 +37,7 @@ type AccessReq struct {
 
 // GrantAccess adds `to` field in contract table
 func (s *Storage) GrantAccess(to string) error {
-	s.log.Printf("Eos::grantAccess(%s) called", to)
+	s.log.Debugf("Eos::grantAccess(%s) called", to)
 	// Give access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
@@ -52,7 +53,7 @@ func (s *Storage) GrantAccess(to string) error {
 
 // RevokeAccess removes `to` field in contract table
 func (s *Storage) RevokeAccess(to string) error {
-	s.log.Printf("Eos::revokeAccess(%s) called", to)
+	s.log.Debugf("Eos::revokeAccess(%s) called", to)
 	// Remove access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
@@ -67,13 +68,13 @@ func (s *Storage) RevokeAccess(to string) error {
 }
 
 // AccessGranted checks if connection between `from` and `to` is establisehd
+// return true if connection is established and false if it is not
 // Due to uint32 limitations this functions allows connection for up to 4294967295 doctors to a single client
 func (s *Storage) AccessGranted(from, to string) (bool, error) {
-	s.log.Printf("Eos::accessGranted(%s, %s) called", from, to)
+	s.log.Debugf("Eos::accessGranted(%s, %s) called", from, to)
 	// Get the table
-	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: to, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
+	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: from, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
 
-	s.log.Debugf("Got table: %s", r)
 	a := make([]map[string]string, 0)
 	r.JSONToStructs(&a)
 	// Check if `to` has its field in the table
@@ -90,7 +91,7 @@ func (s *Storage) AccessGranted(from, to string) (bool, error) {
 
 // DeployContract pushes contract located in contract/eos to blockchain under name specified in config
 func (s *Storage) DeployContract() error {
-	s.log.Printf("Eos::deployContract() called")
+	s.log.Debugf("Eos::deployContract() called")
 
 	if s.config.EosContractName == "" {
 		return fmt.Errorf("No config.EosContractName specified, unable to deploy contract")
@@ -119,7 +120,16 @@ func (s *Storage) DeployContract() error {
 }
 
 func (s *Storage) pushContract(n, cn string) error {
-	s.CreateAccount(n)
+	// import key
+	key, err := s.ImportKey(s.config.EosPrivate)
+	if err != nil {
+		return err
+	}
+	// create account
+	err = s.CreateAccount(n, key.PublicKey().String())
+	if err != nil {
+		return err
+	}
 
 	// Get newcontract actions
 	contract, err := system.NewSetContract(eos.AN(n), "../../contract/eos/"+cn+".wasm", "../../contract/eos/"+cn+".abi")
@@ -135,28 +145,67 @@ func (s *Storage) pushContract(n, cn string) error {
 
 	return nil
 }
-func (s *Storage) SetupSession() error {
-	err := s.CreateAccount(s.config.EosAccount)
-	return err
-}
 
-// CreateAccount creates account using key specified in config.EosPrivate.
-// The key is imported, then account is created
-func (s *Storage) CreateAccount(account string) error {
-	s.log.Printf("Eos::createAccount(%s) called", account)
-
-	key, err := ecc.NewPrivateKey(s.config.EosPrivate)
-	if err != nil {
-		return err
-	}
-	s.api.Signer.ImportPrivateKey(s.config.EosPrivate)
+// CreateAccount creates account named `account` using key `key_str`
+func (s *Storage) CreateAccount(account, key_str string) error {
+	s.log.Debugf("Eos::createAccount(%s) called", account)
+	key, err := ecc.NewPublicKey(key_str)
 	// Create new account
-	action := system.NewNewAccount(eos.AN("master"), eos.AN(account), key.PublicKey())
+	action := system.NewNewAccount(eos.AN("master"), eos.AN(account), key)
 	res, err := s.api.SignPushActions(action)
-	s.log.Printf("newAccount action response: %#v", res)
+	s.log.Debugf("newAccount action response: %#v", res)
 	if err != nil {
-		s.log.Printf("%s", err)
 		return err
 	}
 	return nil
+}
+
+// ImportKey imports private key
+// returns  privatekey struct or error
+func (s *Storage) ImportKey(prkey string) (*ecc.PrivateKey, error) {
+	key, err := ecc.NewPrivateKey(prkey)
+	if err != nil {
+		return key, err
+	}
+	s.api.Signer.ImportPrivateKey(prkey)
+	return key, nil
+}
+
+// CheckAccountKey checks if the key is authority of account
+func (s *Storage) CheckAccountKey(account, key string) (bool, error) {
+	adata, err := s.api.GetAccount(eos.AN(account))
+	if err != nil {
+		return false, err
+	}
+	ret := false
+	for _, p := range adata.Permissions {
+		for _, keys := range p.RequiredAuth.Keys {
+			if keys.PublicKey.String() == key {
+				ret = true
+			}
+		}
+	}
+	return ret, nil
+}
+
+// Sign creates string signature of data
+func (s *Storage) Sign(data []byte) (string, error) {
+	sk, err := ecc.NewPrivateKey(s.config.EosPrivate)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	h.Write(data)
+	sum := h.Sum(nil)
+	sign, err := sk.Sign(sum)
+	return sign.String(), err
+}
+
+func (s *Storage) CheckExists(account string) bool {
+	_, err := s.api.GetAccount(eos.AN(account))
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
 }

@@ -6,45 +6,55 @@ import (
 	"net/http"
 
 	"github.com/iryonetwork/network-poc/config"
+	client "github.com/iryonetwork/network-poc/eosclient"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 func main() {
+	// config
 	config, err := config.New()
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)
 	}
 	config.ClientType = "Patient"
-
+	// log
 	log := logger.New(config)
-
+	// eos
 	eos, err := eos.New(config, log)
 	if err != nil {
 		log.Fatalf("failed to setup eth storage; %v", err)
 	}
+	// ehr
 	ehr := ehr.New()
 
-	err = eos.SetupSession()
+	client, err := client.New(config, eos, ehr, log)
 	if err != nil {
-		log.Fatalf("Failed to create new account; %v", err)
+		log.Fatalf("Failed to get client: %v", err)
 	}
+	_, err = eos.ImportKey(config.EosPrivate)
+	log.Debugf("pkeyt: %v", config.GetEosPublicKey())
+	if err != nil {
+		log.Fatalf("Failed to import key: %v", err)
+	}
+
+	acc, err := client.CreateAccount(config.GetEosPublicKey())
+	if err != nil {
+		log.Fatalf("Failed to create account: %v", err)
+	}
+	config.EosAccount = acc
 
 	key := make([]byte, 32)
 	_, err = rand.Read(key)
 	if err != nil {
 		log.Fatalf("failed to generate random key: %v", err)
 	}
-	config.EncryptionKeys[config.GetEosPublicKey()] = key
-	err = ehr.Encrypt(config.GetEosPublicKey(), []byte{}, key)
-	if err != nil {
-		log.Fatalf("failed to encrypt data: %v", err)
-	}
+	config.EncryptionKeys[config.EosAccount] = key
 
 	h := &handlers{
 		config: config,
-		eos:    eos,
+		client: client,
 		ehr:    ehr,
 	}
 

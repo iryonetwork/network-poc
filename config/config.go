@@ -14,7 +14,7 @@ import (
 type Config struct {
 	IryoAddr        string           `env:"IRYO_ADDR" envDefault:"localhost:8000"`
 	EosAPI          string           `env:"EOS_API" envDefault:"http://localhost:8888"`
-	EosPrivate      string           `env:"EOS_PRIVATE,required"`
+	EosPrivate      string           `env:"EOS_PRIVATE"`
 	EosAccount      string           `env:"EOS_ACCOUNT"`
 	EosContractName string           `env:"EOS_CONTRACT_NAME"`
 	EosTokenAccount string           `env:"EOS_TOKEN_ACCOUNT"`
@@ -25,7 +25,7 @@ type Config struct {
 	EthContractAddr string           `env:"ETH_CONTRACT_ADDR"`
 	ClientType      string           `env:"CLIENT_TYPE" envDefault:"Patient"`
 	ClientAddr      string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
-	Debug           bool             `env:"DEBUG"`
+	Debug           bool             `env:"DEBUG" envDefault:"1"`
 	EncryptionKeys  map[string][]byte
 	Connections     []string
 	Tokens          map[string]string
