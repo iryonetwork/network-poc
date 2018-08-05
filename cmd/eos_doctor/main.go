@@ -4,6 +4,8 @@ import (
 	stdlog "log"
 	"net/http"
 
+	"github.com/iryonetwork/network-poc/storage/ws"
+
 	"github.com/iryonetwork/network-poc/config"
 	client "github.com/iryonetwork/network-poc/eosclient"
 	"github.com/iryonetwork/network-poc/logger"
@@ -26,14 +28,31 @@ func main() {
 	}
 	ehr := ehr.New()
 
-	// if err := eos.SetupSession(); err != nil {
-	// 	log.Fatalf("Failed to setup eth connection; %v", err)
-	// }
-
 	client, err := client.New(config, eos, ehr, log)
 	if err != nil {
 		log.Fatalf("Failed to setup client; %v", err)
 	}
+	_, err = eos.ImportKey(config.EosPrivate)
+	log.Debugf("Imported key: %v", config.GetEosPublicKey())
+	if err != nil {
+		log.Fatalf("Failed to import key: %v", err)
+	}
+
+	acc, err := client.CreateAccount(config.GetEosPublicKey())
+	if err != nil {
+		log.Fatalf("Failed to create account: %v", err)
+	}
+	config.EosAccount = acc
+
+	ws, err := ws.Connect(config, log)
+	if err != nil {
+		log.Fatalf("Error connecting to websocket: %v", err)
+	}
+	defer ws.Close()
+
+	client.AddWs(ws)
+	client.Subscribe()
+
 	h := &handlers{
 		config: config,
 		ehr:    ehr,

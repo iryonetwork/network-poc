@@ -4,6 +4,8 @@ import (
 	stdlog "log"
 	"net/http"
 
+	"github.com/iryonetwork/network-poc/storage/ws"
+
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
@@ -22,17 +24,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	hub := ws.NewHub(log)
+	go hub.Run()
 	eos.ImportKey(config.EosPrivate)
 	h := &handlers{
 		config: config,
 		eos:    eos,
 		log:    log,
+		hub:    hub,
 	}
+
 	http.HandleFunc("/upload", h.UploadHandler)
 	http.HandleFunc("/ls", h.lsHandler)
 	http.HandleFunc("/download", h.downloadHandler)
 	http.HandleFunc("/createaccount", h.createaccHandler)
+	http.HandleFunc("/ws", h.wsHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.IryoAddr)
 

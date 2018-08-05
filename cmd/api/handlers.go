@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iryonetwork/network-poc/storage/ws"
+
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
 	"github.com/lucasjones/reggen"
@@ -23,6 +25,7 @@ type handlers struct {
 	config *config.Config
 	log    *logger.Log
 	eos    *eos.Storage
+	hub    *ws.Hub
 }
 
 type uploadResponse struct {
@@ -220,6 +223,8 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		response.Err = append(response.Err, err.Error())
 		json.NewEncoder(w).Encode(response)
 	}
+	h.log.Debugf("Attempting to create account %s", accountname)
+
 	err = h.eos.CreateAccount(accountname, key)
 	if err != nil {
 		response.Err = append(response.Err, err.Error())

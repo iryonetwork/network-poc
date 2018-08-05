@@ -54,10 +54,13 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	err = h.client.Update(owner)
 
 	ehr := make(map[string]string)
-	if err == nil {
-		for k, v := range h.ehr.Get(owner) {
-			ehr[k] = string(v)
+	for k, v := range h.ehr.Get(owner) {
+		ehr[k] = string(h.ehr.Getid(owner, k))
+		v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
+		if err != nil {
+			break
 		}
+		ehr[k+"_dec"] = string(v)
 	}
 
 	if err != nil {

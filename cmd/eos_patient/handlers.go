@@ -11,7 +11,6 @@ import (
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
-// TODO: Implement eos in client
 type handlers struct {
 	config *config.Config
 	client *client.Client
@@ -65,7 +64,9 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	err := h.client.GrantAccess(r.Form["to"][0])
-
+	if err != nil {
+		log.Fatalf("Error granting access: %v", err)
+	}
 	url := "/"
 	if err != nil {
 		url += "?error=" + err.Error()
@@ -76,7 +77,9 @@ func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	err := h.client.RevokeAccess(r.Form["to"][0])
-
+	if err != nil {
+		log.Fatalf("Error revoking key: %v", err)
+	}
 	url := "/"
 	if err != nil {
 		url += "?error=" + err.Error()

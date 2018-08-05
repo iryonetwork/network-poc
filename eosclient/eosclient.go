@@ -12,6 +12,7 @@ import (
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 const tokenKey = "token"
@@ -21,6 +22,7 @@ type Client struct {
 	eos    *eos.Storage
 	ehr    *ehr.Storage
 	log    *logger.Log
+	ws     *ws.Storage
 }
 
 func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) (*Client, error) {
@@ -31,14 +33,17 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 		log:    log,
 	}, nil
 }
+func (c *Client) AddWs(ws *ws.Storage) {
+	c.ws = ws
+}
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
 
 	r, err := http.PostForm("http://"+c.config.IryoAddr+"/createaccount",
 		url.Values{"key": {key}})
 	var a map[string]string
-	c.log.Debugf("createaccount returned: %v", r.Body)
 	err = json.NewDecoder(r.Body).Decode(&a)
+	c.log.Debugf("createaccount returned: %v", a)
 	if err != nil {
 		return "", err
 	}
@@ -174,12 +179,11 @@ func (c *Client) GrantAccess(to string) error {
 		return fmt.Errorf("failed to call grantAccess; %v", err)
 	}
 
-	// // send key for storage encryption
-	// err = retry(10, 2*time.Second, func() error {
-	// 	_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
-	// 		To:  to,
-	// 		Key: c.config.EncryptionKeys[c.config.GetEthPublicAddress()],
-	// 	})
+	// send key for storage encryption
+	err = c.ws.SendKey(to)
+	if err != nil {
+		return fmt.Errorf("failed to send key; %v", err)
+	}
 
 	found := false
 	for _, connection := range c.config.Connections {
@@ -201,14 +205,11 @@ func (c *Client) GrantAccess(to string) error {
 func (c *Client) RevokeAccess(to string) error {
 	c.log.Debugf("Client::revokeAccess(%s) called", to)
 
-	// // send empty key to doctor to revoke the access
-	// _, err := c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
-	// 	To:  to,
-	// 	Key: []byte{},
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("failed to call SendKey: %v", err)
-	// }
+	// send empty key to doctor to revoke the access
+	err := c.ws.RevokeKey(to)
+	if err != nil {
+		return fmt.Errorf("Error revoking key: %v", err)
+	}
 
 	// remove doctor from our connections
 	found := false
@@ -227,47 +228,12 @@ func (c *Client) RevokeAccess(to string) error {
 	return c.eos.RevokeAccess(to)
 }
 
-func (c *Client) Subscribe() error {
+func (c *Client) Subscribe() {
 	c.log.Debugf("Client::subscribe() called")
 
-	// // subscribe to key sent event
-	// stream, err := c.client.Subscribe(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.Empty{})
-	// if err != nil {
-	// 	return fmt.Errorf("failed to call subscribe; %v", err)
-	// }
+	//subscribe to key sent event
+	c.ws.Subscribe()
 
-	// go func() {
-	// 	for {
-	// 		event, err := stream.Recv()
-	// 		if err == io.EOF {
-	// 			break
-	// 		}
-	// 		if err != nil {
-	// 			c.log.Fatalf("error receiving events: %v", err)
-	// 		}
-
-	// 		if event.Type == specs.Event_KeySent {
-	// 			c.config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
-	// 			found := false
-	// 			for i, connection := range c.config.Connections {
-	// 				if connection == event.KeySentDetails.From {
-	// 					if len(event.KeySentDetails.Key) == 0 {
-	// 						c.config.Connections = append(c.config.Connections[:i], c.config.Connections[i+1:]...)
-	// 					}
-	// 					found = true
-	// 					break
-	// 				}
-	// 			}
-	// 			if !found && len(event.KeySentDetails.Key) > 0 {
-	// 				c.config.Connections = append(c.config.Connections, event.KeySentDetails.From)
-	// 			}
-
-	// 			fmt.Printf("Received key for user %s", event.KeySentDetails.From)
-	// 		}
-	// 	}
-	// }()
-
-	return nil
 }
 
 func retry(attempts int, sleep time.Duration, f func() error) (err error) {

@@ -10,6 +10,7 @@ import (
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 		log.Fatalf("Failed to get client: %v", err)
 	}
 	_, err = eos.ImportKey(config.EosPrivate)
-	log.Debugf("pkeyt: %v", config.GetEosPublicKey())
+	log.Debugf("Imported key: %v", config.GetEosPublicKey())
 	if err != nil {
 		log.Fatalf("Failed to import key: %v", err)
 	}
@@ -51,6 +52,13 @@ func main() {
 		log.Fatalf("failed to generate random key: %v", err)
 	}
 	config.EncryptionKeys[config.EosAccount] = key
+
+	ws, err := ws.Connect(config, log)
+	if err != nil {
+		log.Fatalf("ws problem: %v", err.Error())
+	}
+	defer ws.Close()
+	client.AddWs(ws)
 
 	h := &handlers{
 		config: config,

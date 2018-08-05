@@ -105,6 +105,8 @@ services:
     command: nodeosd.sh -e --http-alias=server:8888 --http-alias=127.0.0.1:8888 --http-alias=localhost:8888
     ports:
     - 8888:8888
+    logging:
+      driver: none
 
 ## Create master account
   cleos:
@@ -155,6 +157,7 @@ services:
     - run
     - main.go
     - handlers.go
+    - wshandlers.go
     volumes:
     - ../../.././:/go/src/
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
