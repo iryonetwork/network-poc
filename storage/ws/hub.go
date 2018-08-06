@@ -29,7 +29,7 @@ func NewHub(log *logger.Log) *Hub {
 }
 
 func (h *Hub) Run() {
-	h.log.Debugf("Starting the hub")
+	h.log.Debugf("HUB:: Starting the hub")
 	for {
 		select {
 		case client := <-h.register:

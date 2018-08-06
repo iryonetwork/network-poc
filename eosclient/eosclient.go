@@ -43,7 +43,7 @@ func (c *Client) CreateAccount(key string) (string, error) {
 		url.Values{"key": {key}})
 	var a map[string]string
 	err = json.NewDecoder(r.Body).Decode(&a)
-	c.log.Debugf("createaccount returned: %v", a)
+	c.log.Debugf("Client:: createaccount returned: %v", a)
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +61,7 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	r, err := http.PostForm("http://"+c.config.IryoAddr+"/ls",
 		url.Values{"account": {owner}})
 	var a map[string][]map[string]string
-	c.log.Debugf("ls returned: %v", r.Body)
+	c.log.Debugf("Client:: ls returned: %v", r.Body)
 	err = json.NewDecoder(r.Body).Decode(&a)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,6 @@ func (c *Client) Download(owner, fileID, ehrID string) error {
 	err = json.NewDecoder(r.Body).Decode(&a)
 
 	// save file to local storage
-	c.log.Debugf("Calling EHR::SaveID(%s, %s, <Data>)", owner, ehrID)
 	c.ehr.Saveid(owner, ehrID, []byte(a))
 
 	return nil

@@ -37,7 +37,7 @@ type uploadResponse struct {
 
 func (h *handlers) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	h.log.Debugf("API got request \nFrom: %s \n For:%s", r.Form["owner"][0], r.Form["account"][0])
+	h.log.Debugf("API:: got upload request \nFrom: %s \nFor:%s", r.Form["owner"][0], r.Form["account"][0])
 
 	// create response
 	response := uploadResponse{}
@@ -157,7 +157,7 @@ type lsFile struct {
 
 func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	h.log.Debugf("Got request: ls(%v)", r.Form["account"][0])
+	h.log.Debugf("API:: got ls(%v) request", r.Form["account"][0])
 	response := lsResponse{}
 	files, err := filepath.Glob("./ehr/" + r.Form["account"][0] + "/*")
 	if err != nil {
@@ -169,7 +169,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	h.log.Debugf("Sending: %v", response)
+	h.log.Debugf("API:: Sending list: %v", response)
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -223,7 +223,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		response.Err = append(response.Err, err.Error())
 		json.NewEncoder(w).Encode(response)
 	}
-	h.log.Debugf("Attempting to create account %s", accountname)
+	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
 	err = h.eos.CreateAccount(accountname, key)
 	if err != nil {

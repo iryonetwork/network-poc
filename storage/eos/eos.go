@@ -21,7 +21,7 @@ type Storage struct {
 
 // New sets the connection to nodeos API up and adds keybag signer
 func New(cfg *config.Config, log *logger.Log) (*Storage, error) {
-	log.Debugf("Adding API from %s", cfg.EosAPI)
+	log.Debugf("Eos:: Adding EOS_API from %s", cfg.EosAPI)
 	node := eos.New(cfg.EosAPI)
 	node.SetSigner(eos.NewKeyBag())
 	s := &Storage{log: log, config: cfg, api: node}
@@ -152,8 +152,7 @@ func (s *Storage) CreateAccount(account, key_str string) error {
 	key, err := ecc.NewPublicKey(key_str)
 	// Create new account
 	action := system.NewNewAccount(eos.AN("master"), eos.AN(account), key)
-	res, err := s.api.SignPushActions(action)
-	s.log.Debugf("newAccount action response: %#v", res)
+	_, err = s.api.SignPushActions(action)
 	if err != nil {
 		return err
 	}

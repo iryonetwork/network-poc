@@ -39,7 +39,6 @@ func Connect(config *config.Config, log *logger.Log) (*Storage, error) {
 	if err != nil {
 		return &Storage{}, err
 	}
-	log.Debugf("Sent auth: %s", auth)
 	c.WriteMessage(2, auth)
 	return &Storage{conn: c, config: config, log: log}, nil
 }
@@ -87,7 +86,7 @@ func (s *Storage) Subscribe() {
 			// Import key
 			switch r.Name {
 			default:
-				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
+				s.log.Debugf("SUBSCRIBTION:: SUBSCRIBTION:: Got unknown request %v", r.Name)
 			case "ImportKey":
 				req, err := decode(message)
 				if err != nil {
@@ -101,10 +100,10 @@ func (s *Storage) Subscribe() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
-				s.log.Debugf("Improting key %s from user %s", key, from)
+				s.log.Debugf("SUBSCRIBTION:: Improting key %s from user %s", key, from)
 				s.config.EncryptionKeys[from] = key
 				s.config.Connections = append(s.config.Connections, from)
-				s.log.Debugf("Improted key %s ", s.config.EncryptionKeys[from])
+				s.log.Debugf("SUBSCRIBTION:: Improted key %s ", s.config.EncryptionKeys[from])
 
 				// Revoke key
 			case "RevokeKey":
@@ -116,11 +115,12 @@ func (s *Storage) Subscribe() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
-				s.log.Debugf("Revoking key from user %s", from)
+				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
 				delete(s.config.EncryptionKeys, from)
 				for i, v := range s.config.Connections {
 					if v == from {
 						s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
+						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
 
 					}
 				}

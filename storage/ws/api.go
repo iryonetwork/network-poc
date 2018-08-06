@@ -14,13 +14,13 @@ func (s *Storage) HandleRequest(r []byte, from string) error {
 	if err != nil {
 		return err
 	}
-	s.log.Debugf("Got request: %s", req)
+	s.log.Debugf("WS_API:: Got request: %s", req)
 
 	switch req.Name {
 	default:
 		return fmt.Errorf("Request not valid")
 	case "SendKey":
-		s.log.Debugf("Sending key")
+		s.log.Debugf("WS_API:: Sending key")
 		r := newReq("ImportKey")
 		key, err := req.getData("key")
 		if err != nil {
@@ -33,7 +33,7 @@ func (s *Storage) HandleRequest(r []byte, from string) error {
 			return err
 		}
 		if s.hub.Connected(sendTo) {
-			s.log.Debugf("Sending request %v to %s", r, sendTo)
+			s.log.Debugf("WS_API:: Sending key to %s", sendTo)
 			conn, err := s.hub.GetConn(sendTo)
 			if err != nil {
 				return err
@@ -45,11 +45,11 @@ func (s *Storage) HandleRequest(r []byte, from string) error {
 			}
 			conn.WriteMessage(2, req)
 		} else {
-			s.log.Debugf("User %s is not connected, can't send request", sendTo)
-			return fmt.Errorf("User %s is not connected, can't send request", sendTo)
+			s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
+			return nil
 		}
 	case "RevokeKey":
-		s.log.Debugf("Revoking key")
+		s.log.Debugf("WS_API:: Revoking key")
 		r := newReq("RevokeKey")
 		r.append("from", []byte(from))
 		sendTo, err := req.getDataString("to")
@@ -68,8 +68,8 @@ func (s *Storage) HandleRequest(r []byte, from string) error {
 			}
 			conn.WriteMessage(2, req)
 		} else {
-			s.log.Debugf("User %s is not connected, can't send request", sendTo)
-			return fmt.Errorf("User %s is not connected, can't send request", sendTo)
+			s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
+			return nil
 		}
 
 	}
