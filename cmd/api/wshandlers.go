@@ -12,19 +12,33 @@ var upgrader = websocket.Upgrader{}
 
 func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	h.log.Printf("Got ws request: %v", r.Header)
+	// Upgrade connection
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		h.log.Debugf("Error setting up ws: %v", err)
 		return
 	}
-	_, u, err := c.ReadMessage()
-	user := string(u)
+	defer c.Close()
+	_, message, err := c.ReadMessage()
+	// Authentication
+	token := r.Header.Get("Sec-Websocket-Key")
+	h.log.Debugf("Using token %s to auth request %s", token, message)
+	auth, user, err := ws.Authenticate([]byte(token), message, h.eos)
+	if err != nil {
+		h.log.Debugf("Error during authentication: %v", err)
+		c.Close()
+		return
+	}
+	if !auth {
+		h.log.Debugf("User %s could not be verified", user)
+		c.Close()
+		return
+	}
+
+	// Add user to hub
 	h.hub.Register(c, user)
 	ws := ws.NewStorage(c, h.config, h.log, h.hub)
-	defer func() {
-		h.hub.Unregister(c, user)
-		c.Close()
-	}()
+	defer h.hub.Unregister(c, user)
 
 	for {
 		_, message, err := c.ReadMessage()

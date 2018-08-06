@@ -1,6 +1,9 @@
 package ws
 
 import (
+	"crypto/sha256"
+
+	"github.com/eoscanada/eos-go/ecc"
 	"github.com/iryonetwork/network-poc/logger"
 
 	"github.com/gorilla/websocket"
@@ -21,16 +24,45 @@ func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hu
 
 // Connect connects client to api
 func Connect(config *config.Config, log *logger.Log) (*Storage, error) {
-	addr := "ws://eosapi:8000/ws"
+	addr := "ws://" + config.IryoAddr + "/ws"
 	log.Debugf("WS:: Connecting to %s", addr)
 
-	c, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	// Call API's WS
+	c, response, err := websocket.DefaultDialer.Dial(addr, nil)
 	if err != nil {
 		return &Storage{}, err
 	}
-	// TODO: Figure something better out
-	c.WriteMessage(2, []byte(config.EosAccount))
+	// Time to authenticate
+	token := response.Request.Header["Sec-WebSocket-Key"][0]
+	log.Debugf("WS:: Sending authentiction request")
+	auth, err := AuthenticateRequest(token, config)
+	if err != nil {
+		return &Storage{}, err
+	}
+	log.Debugf("Sent auth: %s", auth)
+	c.WriteMessage(2, auth)
 	return &Storage{conn: c, config: config, log: log}, nil
+}
+
+func AuthenticateRequest(token string, config *config.Config) ([]byte, error) {
+
+	sk, err := ecc.NewPrivateKey(config.EosPrivate)
+	if err != nil {
+		return nil, err
+	}
+	h := sha256.New()
+	h.Write([]byte(token))
+	sum := h.Sum(nil)
+	sign, err := sk.Sign(sum)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	r := newReq("Authenticate")
+	r.append("signature", []byte(sign.String()))
+	r.append("user", []byte(config.EosAccount))
+	r.append("key", []byte(config.GetEosPublicKey()))
+	return r.encode()
 }
 
 func (s *Storage) Close() error {

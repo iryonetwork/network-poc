@@ -30,10 +30,12 @@ func main() {
 	// ehr
 	ehr := ehr.New()
 
+	// Client
 	client, err := client.New(config, eos, ehr, log)
 	if err != nil {
 		log.Fatalf("Failed to get client: %v", err)
 	}
+	// Create account
 	_, err = eos.ImportKey(config.EosPrivate)
 	log.Debugf("Imported key: %v", config.GetEosPublicKey())
 	if err != nil {
@@ -46,6 +48,7 @@ func main() {
 	}
 	config.EosAccount = acc
 
+	// Create key
 	key := make([]byte, 32)
 	_, err = rand.Read(key)
 	if err != nil {
@@ -53,6 +56,7 @@ func main() {
 	}
 	config.EncryptionKeys[config.EosAccount] = key
 
+	// WS
 	ws, err := ws.Connect(config, log)
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
