@@ -134,13 +134,13 @@ services:
     tty: true
 ## Deploy contract
   eosdeploy:
-    image: iryo/go-futurehack
+    image: iryo
     command:
     - go
     - run
     - main.go
     volumes:
-    - ../../.././:/go/src/
+    - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/deploy_eos_contract
     environment:
     - EOS_API=http://server:8888
@@ -151,7 +151,7 @@ services:
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
 
   eosapi:
-    image: iryo/go-futurehack
+    image: iryo
     command:
     - go
     - run
@@ -159,7 +159,7 @@ services:
     - handlers.go
     - wshandlers.go
     volumes:
-    - ../../.././:/go/src/
+    - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
     environment:
     - IRYO_ADDR=0.0.0.0:8000
@@ -172,14 +172,14 @@ services:
     - 8000:8000
   ## patient server
   eospatient1:
-    image: iryo/go-futurehack
+    image: iryo
     command:
     - go
     - run
     - main.go
     - handlers.go
     volumes:
-    - ../../.././:/go/src/
+    - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
     - IRYO_ADDR=eosapi:8000
@@ -193,14 +193,14 @@ services:
     - 9001:9000
 
   eospatient2:
-    image: iryo/go-futurehack
+    image: iryo
     command:
     - go
     - run
     - main.go
     - handlers.go
     volumes:
-    - ../../.././:/go/src/
+    - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
     - IRYO_ADDR=eosapi:8000
@@ -214,14 +214,14 @@ services:
     - 9002:9000
   ## Doctor
   eosdoctor:
-    image: iryo/go-futurehack
+    image: iryo
     command:
     - go
     - run
     - main.go
     - handlers.go
     volumes:
-    - ../../.././:/go/src/
+    - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
     environment:
     - EOS_API=http://server:8888

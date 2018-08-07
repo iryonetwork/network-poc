@@ -133,30 +133,20 @@ cd network-poc
 
 # prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token, and create the patients)
 # master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
+make apiinit
 make apiup
-
 # check logs
 make logs
 
 # boot up the browsers
 open http://localhost:9001 #patient1
 open http://localhost:9002 #patient2
-open http://localhost:9003/ehr/<iryoUUID>
-
-# To check the connection table
-## start the tools
-make attach/tools
-
-## check the table for <iryoUUID>
-cleos -u $EOS_API get table iryo <iryoUUID> status
+open http://localhost:9003 #doctor
 ```
-Note: If you plan on running the commands again use `make clear` before that. The containers should not include any old data because account can only be created once. Recreating accounts causes errors and we dont't want that.  
-Note#2: Doctor's names can include characters /a-z/123456 and must not be more than 13 characters long. This is the limitation of EOS accounts
-
 
 ## API
 /createaccount
-```json
+```
 In:
 {
     "key": EOS_Public_Key
@@ -173,7 +163,7 @@ OR
 ```
 
 /upload
-```json
+```
 In:
 {
     "key": EOS_Public_Key_used_to_sign_data,
@@ -197,7 +187,7 @@ OR
 ```
 
 /ls
-```json
+```
 In:
 {
     "account": Account_to_list_files_for
@@ -225,7 +215,7 @@ OR
 ```
 
 /download
-```json
+```
 In:
 {
     "fileID": UUID,
