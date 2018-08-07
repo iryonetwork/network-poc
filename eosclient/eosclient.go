@@ -1,11 +1,13 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -42,9 +44,10 @@ func (c *Client) CloseWs() {
 }
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
-
-	r, err := http.PostForm("http://"+c.config.IryoAddr+"/createaccount",
-		url.Values{"key": {key}})
+	r, err := http.Get(fmt.Sprintf("http://%s/account/%s", c.config.IryoAddr, key))
+	if err != nil {
+		return "", err
+	}
 	var a map[string]string
 	err = json.NewDecoder(r.Body).Decode(&a)
 	c.log.Debugf("Client:: createaccount returned: %v", a)
@@ -62,8 +65,7 @@ func (c *Client) CreateAccount(key string) (string, error) {
 func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	c.log.Debugf("Client::Ls(%s) called", owner)
 
-	r, err := http.PostForm("http://"+c.config.IryoAddr+"/ls",
-		url.Values{"account": {owner}})
+	r, err := http.Get(fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner))
 	var a map[string][]map[string]string
 	c.log.Debugf("Client:: ls returned: %v", r.Body)
 	err = json.NewDecoder(r.Body).Decode(&a)
@@ -77,30 +79,21 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	}
 
 }
-func (c *Client) Download(owner, fileID, ehrID string) error {
-	c.log.Debugf("Client::Download(%s, %s,%s) called", owner, fileID, ehrID)
-
-	// check for permissions
-	granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
-	if err != nil {
-		return fmt.Errorf("failed to check accessGranted; %v", err)
-	}
-
-	if !granted {
-		return fmt.Errorf("You do not have permission to download this file")
-	}
+func (c *Client) Download(owner, fileID string) error {
+	c.log.Debugf("Client::Download(%s, %s) called", owner, fileID)
 
 	// download file from server
-	r, err := http.PostForm("http://"+c.config.IryoAddr+"/download",
-		url.Values{"ehrID": {ehrID}, "fileID": {fileID}, "account": {owner}})
+	r, err := http.Get(fmt.Sprintf("http://%s/%s/%s", c.config.IryoAddr, owner, fileID))
 	if err != nil {
 		return err
 	}
-	var a []byte
-	err = json.NewDecoder(r.Body).Decode(&a)
+	a, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
 
 	// save file to local storage
-	c.ehr.Saveid(owner, ehrID, []byte(a))
+	c.ehr.Save(owner, []byte(a))
 
 	return nil
 }
@@ -125,10 +118,10 @@ func (c *Client) Update(owner string) error {
 	}
 	// Download missing
 	for _, f := range list {
-		c.log.Debugf("Client::Fill: Checking file: %s ", f["fileID"])
+		c.log.Debugf("Client::Update: Checking file: %s ", f["fileID"])
 		if !c.ehr.Exists(owner, f["ehrID"]) {
-			c.log.Debugf("Client::Fill: Trying to download file: %s ", f["fileID"])
-			err = c.Download(owner, f["fileID"], f["ehrID"])
+			c.log.Debugf("Client::Update: Trying to download file: %s ", f["fileID"])
+			err = c.Download(owner, f["fileID"])
 			if err != nil {
 				return err
 			}
@@ -161,15 +154,36 @@ func (c *Client) Upload(owner, ehrid string) error {
 	if err != nil {
 		return err
 	}
-	// upload data to server
-	_, err = http.PostForm("http://"+c.config.IryoAddr+"/upload",
-		url.Values{"ehrID": {ehrid}, "data": {string(data)}, "account": {c.config.EosAccount},
-			"sign": {sign}, "key": {c.config.GetEosPublicKey()}, "owner": {owner}})
 
+	// Get body for the request
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("account", c.config.EosAccount)
+	writer.WriteField("key", c.config.GetEosPublicKey())
+	writer.WriteField("sign", sign)
+	part, err := writer.CreateFormFile("data", ehrid)
+	part.Write(data)
+
+	err = writer.Close()
+	if err != nil {
+		return err
+	}
+
+	// upload data to server
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), body)
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
 
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	client := &http.Client{}
+	r, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call Upload; %v", err)
+	}
+	ret := make(map[string]string)
+	json.NewDecoder(r.Body).Decode(ret)
+	c.log.Printf("Response: %s", ret)
 	return nil
 }
 
@@ -198,9 +212,6 @@ func (c *Client) GrantAccess(to string) error {
 	if !found {
 		c.config.Connections = append(c.config.Connections, to)
 	}
-
-	// 	return err
-	// })
 
 	return err
 }

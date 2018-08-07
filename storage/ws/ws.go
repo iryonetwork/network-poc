@@ -27,7 +27,7 @@ func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hu
 
 // Connect connects client to api
 func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage) (*Storage, error) {
-	addr := "ws://" + config.IryoAddr + "/ws"
+	addr := "ws://" + config.IryoAddr + "/ws/"
 	log.Debugf("WS:: Connecting to %s", addr)
 
 	// Call API's WS

@@ -3,22 +3,21 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/iryonetwork/network-poc/storage/ws"
-
+	"github.com/eoscanada/eos-go/ecc"
+	"github.com/gofrs/uuid"
+	"github.com/gorilla/mux"
+	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/ws"
 	"github.com/lucasjones/reggen"
-	"github.com/segmentio/ksuid"
-
-	"github.com/eoscanada/eos-go/ecc"
-	"github.com/iryonetwork/network-poc/config"
 )
 
 type handlers struct {
@@ -35,76 +34,108 @@ type uploadResponse struct {
 	CreatedAt string   `json:"createdAt,omitempty"`
 }
 
-func (h *handlers) UploadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	h.log.Debugf("API:: got upload request \nFrom: %s \nFor:%s", r.Form["owner"][0], r.Form["account"][0])
-
-	// create response
+func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	response := uploadResponse{}
 
+	err := r.ParseMultipartForm(0)
+	h.log.Debugf("API:: got upload request %s", r.Form)
+	if err != nil {
+		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	params := mux.Vars(r)
+	owner := params["account"]
+	account := r.PostForm["account"][0]
+	keystr := r.PostForm["key"][0]
+
+	// create response
+
 	// check if access is granted
-	if r.Form["account"][0] != r.Form["owner"][0] {
-		access, err := h.eos.AccessGranted(r.Form["owner"][0], r.Form["account"][0])
+	if account != owner {
+		access, err := h.eos.AccessGranted(owner, account)
 
 		if err != nil {
 			response.Err = append(response.Err, err.Error())
+			w.WriteHeader(500)
 			json.NewEncoder(w).Encode(response)
 			return
 		}
 		if !access {
 			response.Err = append(response.Err, "Account does not have access to owner")
+			w.WriteHeader(403)
 			json.NewEncoder(w).Encode(response)
 			return
 		}
 	}
 
 	// check if account and key match
-	auth, err := h.eos.CheckAccountKey(r.Form["account"][0], r.Form["key"][0])
+	auth, err := h.eos.CheckAccountKey(account, keystr)
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 	if !auth {
-		response.Err = append(response.Err, "Account and key does not match")
+		response.Err = append(response.Err, "Provided key is not associated with account")
+		w.WriteHeader(403)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Check if signature is correct
-	key, err := ecc.NewPublicKey(r.Form["key"][0])
+	key, err := ecc.NewPublicKey(keystr)
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 	// reconstruct signature
 	sign, err := ecc.NewSignature(r.Form["sign"][0])
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
+		response.Err = append(response.Err, "Error getting signature")
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 	// get hash
-	data := []byte(r.Form["data"][0])
+	file, head, err := r.FormFile("data")
+	if err != nil {
+		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	data := make([]byte, head.Size)
+	_, err = file.Read(data)
+	if err != nil {
+		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	hash := getHash(data)
 
 	// verify signature
 	if !sign.Verify(hash, key) {
 		response.Err = append(response.Err, "Data could not be verified")
+		w.WriteHeader(403)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Handle file saving
 	// create dir
-	owner := r.Form["owner"][0]
 	os.MkdirAll("ehr/"+owner, os.ModePerm)
-	fid := ksuid.New().String()
+	fid, err := uuid.NewV1()
 	// create file
-	f, err := os.Create("ehr/" + owner + "/" + fid)
+	f, err := os.Create("ehr/" + owner + "/" + fid.String())
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -113,29 +144,15 @@ func (h *handlers) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = f.WriteString(string(data))
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	//Generate response and save it to md
-	// create file
-	f, err = os.Create("ehr/" + owner + "/md_" + fid)
-	defer f.Close()
-
-	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-	// write md
-	response.FileID = fid
-	f.WriteString("f=" + fid + "\n")
-	response.EhrID = r.Form["ehrID"][0]
-	f.WriteString("e=" + r.Form["ehrID"][0] + "\n")
+	//Generate response
+	response.FileID = fid.String()
 	ts := time.Now().Format("2006-01-02T15:04:05.999Z")
 	response.CreatedAt = ts
-	f.WriteString("t=" + ts + "\n")
-
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -151,56 +168,38 @@ type lsResponse struct {
 }
 type lsFile struct {
 	FileID    string `json:"fileID,omitempty"`
-	EhrID     string `json:"ehrID,omitempty"`
 	CreatedAt string `json:"createdAt,omitempty"`
 }
 
 func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	h.log.Debugf("API:: got ls(%v) request", r.Form["account"][0])
+	params := mux.Vars(r)
+	account := params["account"]
+	h.log.Debugf("API:: got ls(%v) request", account)
 	response := lsResponse{}
-	files, err := filepath.Glob("./ehr/" + r.Form["account"][0] + "/*")
+	files, err := filepath.Glob("./ehr/" + account + "/*")
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 	} else {
 		for _, f := range files {
-			if filepath.Base(f)[:2] == "md" {
-				response.Files = append(response.Files, parseLs(f))
-			}
+			response.Files = append(response.Files, lsFile{filepath.Base(f), "Will be added soon"})
 		}
 	}
-	h.log.Debugf("API:: Sending list: %v", response)
+	h.log.Debugf("API:: Sending ls")
 	json.NewEncoder(w).Encode(response)
 }
 
-func parseLs(name string) lsFile {
-	// read
-	f, _ := ioutil.ReadFile(name)
-	c := strings.Split(string(f), "\n")
-	// parse
-	fid := strings.TrimLeft(strings.TrimRight(c[0], "\n"), "f=")
-	eid := strings.TrimLeft(strings.TrimRight(c[1], "\n"), "e=")
-	ts := strings.TrimLeft(strings.TrimRight(c[2], "\n"), "t=")
-	return lsFile{fid, eid, ts}
-}
-
 func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	params := mux.Vars(r)
 
-	req := r.Form["fileID"][0]
-	account := r.Form["account"][0]
+	fid := params["fid"]
+	account := params["account"]
 	// check if file exists
 	if _, err := os.Stat("ehr/" + account); !os.IsNotExist(err) {
-		_, err := os.Stat("ehr/" + account + "/" + req)
+		_, err := os.Stat("ehr/" + account + "/" + fid)
 		if err == nil {
-			// get its metadata
-			if parseLs("ehr/"+account+"/md_"+req).EhrID == r.Form["ehrID"][0] {
-				// return file
-				f, _ := ioutil.ReadFile("ehr/" + account + "/" + req)
-				json.NewEncoder(w).Encode(f)
-			} else {
-				json.NewEncoder(w).Encode("ERROR: ehrID error")
-			}
+			f, _ := ioutil.ReadFile("ehr/" + account + "/" + fid)
+			w.Write(f)
 		} else {
 			json.NewEncoder(w).Encode("ERROR:" + err.Error())
 		}
@@ -215,12 +214,13 @@ type createAccResponse struct {
 }
 
 func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	params := mux.Vars(r)
+	key := params["key"]
 	response := createAccResponse{}
-	key := r.Form["key"][0]
 	accountname, err := h.getAccName()
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
@@ -228,6 +228,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	err = h.eos.CreateAccount(accountname, key)
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
 	} else {
 		response.Name = accountname
 	}
@@ -237,14 +238,16 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 // Generate random name that satisfies EOS
 // regex: "iryo[a-z1-5]{8}"
 func (h *handlers) getAccName() (string, error) {
-	g, err := reggen.NewGenerator("[a-z1-5]{8}")
+	g, err := reggen.NewGenerator("[a-z1-5]{7}")
 	if err != nil {
 		return "", err
 	}
-	accname := "iryo" + g.Generate(8)
-
-	for h.eos.CheckExists(accname) {
-		accname = "iryo" + g.Generate(8)
+	var accname string
+	for {
+		accname = fmt.Sprintf("%s.iryo", g.Generate(7))
+		if !h.eos.CheckExists(accname) {
+			break
+		}
 	}
 	return accname, nil
 }

@@ -4,6 +4,8 @@ import (
 	stdlog "log"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	"github.com/iryonetwork/network-poc/storage/ws"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -33,16 +35,17 @@ func main() {
 		log:    log,
 		hub:    hub,
 	}
+	router := mux.NewRouter()
 
-	http.HandleFunc("/upload", h.UploadHandler)
-	http.HandleFunc("/ls", h.lsHandler)
-	http.HandleFunc("/download", h.downloadHandler)
-	http.HandleFunc("/createaccount", h.createaccHandler)
-	http.HandleFunc("/ws", h.wsHandler)
+	router.HandleFunc("/account/{key}", h.createaccHandler).Methods("GET")
+	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
+	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
+	router.HandleFunc("/{account}", h.uploadHandler).Methods("POST")
+	router.HandleFunc("/ws/", h.wsHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.IryoAddr)
 
-	if err := http.ListenAndServe(config.IryoAddr, nil); err != nil {
+	if err := http.ListenAndServe(config.IryoAddr, router); err != nil {
 		log.Fatalf("error serving HTTP: %v", err)
 	}
 }

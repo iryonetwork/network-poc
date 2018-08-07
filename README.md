@@ -145,87 +145,60 @@ open http://localhost:9003 #doctor
 ```
 
 ## API
-/createaccount
+### Create new account
+GET /account/<Eos_Key>
+```json
+{"account":"account.iryo"}
 ```
-In:
-{
-    "key": EOS_Public_Key
-}
+### Upload
+POST /<data_owner>
+```json
+In: "Content-type": multipart/form-data
 
-Out:
-{
-    "account": Account_name
-}
-OR
-{
-    "error": error
-}
-```
-
-/upload
-```
-In:
-{
     "key": EOS_Public_Key_used_to_sign_data,
     "sign": Signature_of_data's_sha256_hash,
-    "data": Data_to_upload,
-    "ehrID": UUID,
+    "data": file,
     "account": Name_of_account_signing,
-    "owner": ehr's_owner
-}
+
 
 Out:
 {
-    "fileID": UUID,
-    "ehrID": UUID(same as input),
-    "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+    "fileID": "UUID",
+    "createdAt": "YYYY-MM-DDTHH:MM:SS.MsMsMsZ"
 }
 OR
 {
-    "error": error
+    "error": "error"
 }
 ```
 
-/ls
-```
-In:
-{
-    "account": Account_to_list_files_for
-}
-
-Out:
+### List 
+GET /<account_name>
+```json
 {
     "files":[
         {
-            "fileID": UUID1,
-            "ehrID": UUID1,
-            "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+            "fileID": "UUID1",
+            "createdAt": "YYYY-MM-DDTHH:MM:SS.MsMsMsZ"
         },
         {
-            "fileID": UUID2,
-            "ehrID": UUID2,
-            "createdAt": YYYY-MM-DDTHH:MM:SS.MsMsMsZ
+            "fileID": "UUID2",
+            "createdAt": "YYYY-MM-DDTHH:MM:SS.MsMsMsZ"
         }
     ]
 }
 OR
 {
-    "error": error
+    "error": "error"
 }
 ```
-
-/download
+### Download
+GET /<account_name>/<file_id>
 ```
-In:
-{
-    "fileID": UUID,
-    "ehrID": UUID,
-    "account": account_name_to_which_the_file_belongs
-}
-Out:
 File's contents
 
 OR
+
 "ERROR: error"
 ```
 

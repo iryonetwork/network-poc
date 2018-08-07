@@ -10,5 +10,6 @@ RUN go get github.com/eoscanada/eos-go && \
 	go get github.com/gorilla/mux && \
 	go get github.com/gorilla/websocket && \
 	go get github.com/segmentio/ksuid && \
-	go get github.com/lucasjones/reggen
+	go get github.com/lucasjones/reggen && \
+	go get github.com/gofrs/uuid
 	
