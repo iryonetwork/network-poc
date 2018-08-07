@@ -6,15 +6,21 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/iryonetwork/network-poc/logger"
+
+	"github.com/iryonetwork/network-poc/storage/ws"
+
 	"github.com/iryonetwork/network-poc/config"
 	client "github.com/iryonetwork/network-poc/eosclient"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
 type handlers struct {
-	config *config.Config
-	client *client.Client
-	ehr    *ehr.Storage
+	config    *config.Config
+	client    *client.Client
+	ehr       *ehr.Storage
+	connected bool
+	log       *logger.Log
 }
 
 func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,11 +34,13 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Public      string
 		Connections []string
 		Contract    string
+		Connected   bool
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
 		h.config.Connections,
 		h.config.EosContractName,
+		h.connected,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -86,6 +94,28 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	if err := t.Execute(w, data); err != nil {
 		log.Printf("error executing template: %v", err)
 	}
+}
+
+func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
+	if h.connected {
+		h.client.CloseWs()
+		h.connected = false
+	}
+	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.connected {
+		ws, err := ws.Connect(h.config, h.log)
+		if err != nil {
+			log.Printf("error closing connection: %v", err)
+		}
+		h.client.AddWs(ws)
+		h.client.Subscribe()
+
+		h.connected = true
+	}
+	http.Redirect(w, r, "/", 302)
 }
 
 // func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {

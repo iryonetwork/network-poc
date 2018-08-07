@@ -4,8 +4,6 @@ import (
 	stdlog "log"
 	"net/http"
 
-	"github.com/iryonetwork/network-poc/storage/ws"
-
 	"github.com/iryonetwork/network-poc/config"
 	client "github.com/iryonetwork/network-poc/eosclient"
 	"github.com/iryonetwork/network-poc/logger"
@@ -44,24 +42,19 @@ func main() {
 	}
 	config.EosAccount = acc
 
-	ws, err := ws.Connect(config, log)
-	if err != nil {
-		log.Fatalf("Error connecting to websocket: %v", err)
-	}
-	defer ws.Close()
-
-	client.AddWs(ws)
-	client.Subscribe()
-
 	h := &handlers{
-		config: config,
-		ehr:    ehr,
-		client: client,
+		config:    config,
+		ehr:       ehr,
+		client:    client,
+		connected: false,
+		log:       log,
 	}
 
 	http.HandleFunc("/ehr/", h.ehrHandler)
 	// http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/", h.indexHandler)
+	http.HandleFunc("/close", h.closeHandler)
+	http.HandleFunc("/connect", h.connectHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 

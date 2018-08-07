@@ -36,6 +36,10 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 func (c *Client) AddWs(ws *ws.Storage) {
 	c.ws = ws
 }
+func (c *Client) CloseWs() {
+	c.ws.Close()
+	c.ws = nil
+}
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
 
@@ -232,7 +236,6 @@ func (c *Client) Subscribe() {
 
 	//subscribe to key sent event
 	c.ws.Subscribe()
-
 }
 
 func retry(attempts int, sleep time.Duration, f func() error) (err error) {

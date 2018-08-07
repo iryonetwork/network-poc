@@ -9,69 +9,57 @@ import (
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
-func (s *Storage) HandleRequest(r []byte, from string) error {
-	req, err := decode(r)
+func (s *Storage) HandleRequest(reqdata []byte, from string) error {
+	inReq, err := decode(reqdata)
 	if err != nil {
 		return err
 	}
-	s.log.Debugf("WS_API:: Got request: %s", req)
-
-	switch req.Name {
+	s.log.Debugf("WS_API:: Got request: %s", inReq)
+	var sendTo string
+	var r *request
+	switch inReq.Name {
 	default:
 		return fmt.Errorf("Request not valid")
 	case "SendKey":
 		s.log.Debugf("WS_API:: Sending key")
-		r := newReq("ImportKey")
-		key, err := req.getData("key")
+		r = newReq("ImportKey")
+		key, err := inReq.getData("key")
 		if err != nil {
 			return err
 		}
 		r.append("key", key)
 		r.append("from", []byte(from))
-		sendTo, err := req.getDataString("to")
-		if err != nil {
-			return err
-		}
-		if s.hub.Connected(sendTo) {
-			s.log.Debugf("WS_API:: Sending key to %s", sendTo)
-			conn, err := s.hub.GetConn(sendTo)
-			if err != nil {
-				return err
-			}
-
-			req, err := r.encode()
-			if err != nil {
-				return err
-			}
-			conn.WriteMessage(2, req)
-		} else {
-			s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
-			return nil
-		}
+		sendTo, err = inReq.getDataString("to")
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
-		r := newReq("RevokeKey")
+		r = newReq("RevokeKey")
 		r.append("from", []byte(from))
-		sendTo, err := req.getDataString("to")
+		sendTo, err = inReq.getDataString("to")
+	}
+	if err != nil {
+		return err
+	}
+	// Encode
+	req, err := r.encode()
+	if err != nil {
+		return err
+	}
+
+	// handle sending
+	// send if user is connected
+	if s.hub.Connected(sendTo) {
+		// get connection
+		conn, err := s.hub.GetConn(sendTo)
 		if err != nil {
 			return err
 		}
-		if s.hub.Connected(sendTo) {
-			conn, err := s.hub.GetConn(sendTo)
-			if err != nil {
-				return err
-			}
-
-			req, err := r.encode()
-			if err != nil {
-				return err
-			}
-			conn.WriteMessage(2, req)
-		} else {
-			s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
-			return nil
-		}
-
+		// send
+		conn.WriteMessage(2, req)
+	} else {
+		s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
+		// user is not connected, add the request to storage
+		s.hub.AddRequest(sendTo, req)
+		return nil
 	}
 	return nil
 }

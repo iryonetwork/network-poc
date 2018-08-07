@@ -17,29 +17,39 @@
         <h2>{{.Public}}</h2>
 
         <div class="content">
-            {{ if .Connections }}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <!--th scope="col">#</th>-->
-                        <th scope="col">Patient</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range $i, $c := .Connections}}
+            {{ if .Connected }}
+                {{ if .Connections }}
+                <table class="table">
+                    <thead>
                         <tr>
-                            <!--<th scope="row">{{ $i }}</th>-->
-                            <td><a href="/ehr/{{ $c }}">{{ $c }}</a></td>
+                            <!--th scope="col">#</th>-->
+                            <th scope="col">Patient</th>
                         </tr>
-                    {{end}}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {{range $i, $c := .Connections}}
+                            <tr>
+                                <!--<th scope="row">{{ $i }}</th>-->
+                                <td><a href="/ehr/{{ $c }}">{{ $c }}</a></td>
+                            </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                {{ else }}
+                    You have no patients
+                {{ end }}
+                <div class="footer">
+                    Contract address: {{ .Contract }}
+                </div>            
+                <div>
+                    <a href="/close">Close connection</a>
+                </div>
             {{ else }}
-                You have no patients
+                <div>
+                    <a href="/connect">Connect</a>
+                </div>  
             {{ end }}
-            <div class="footer">
-                Contract address: {{ .Contract }}
-            </div>
+
         </div>
     </div>
 
