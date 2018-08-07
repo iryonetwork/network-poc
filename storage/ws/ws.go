@@ -66,7 +66,7 @@ func AuthenticateRequest(token string, config *config.Config) ([]byte, error) {
 
 func (s *Storage) Close() error {
 	s.log.Debugf("WS:: Closing connection")
-	err := s.conn.Close()
+	err := s.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	return err
 }
 
@@ -77,7 +77,12 @@ func (s *Storage) Subscribe() {
 		for {
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
-				s.log.Fatalf("Error while subscribing: %v", err, message)
+				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+					s.log.Debugf("SUBSCRIBTION:: Closing due to closed connection")
+					break
+				} else {
+					s.log.Fatalf("Error while subscribing: %v", err)
+				}
 			}
 			r, err := decode(message)
 			if err != nil {
@@ -86,7 +91,7 @@ func (s *Storage) Subscribe() {
 			// Import key
 			switch r.Name {
 			default:
-				s.log.Debugf("SUBSCRIBTION:: SUBSCRIBTION:: Got unknown request %v", r.Name)
+				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
 			case "ImportKey":
 				req, err := decode(message)
 				if err != nil {
@@ -100,10 +105,10 @@ func (s *Storage) Subscribe() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
-				s.log.Debugf("SUBSCRIBTION:: Improting key %s from user %s", key, from)
+				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
 				s.config.EncryptionKeys[from] = key
 				s.config.Connections = append(s.config.Connections, from)
-				s.log.Debugf("SUBSCRIBTION:: Improted key %s ", s.config.EncryptionKeys[from])
+				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
 
 				// Revoke key
 			case "RevokeKey":

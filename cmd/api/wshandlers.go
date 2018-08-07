@@ -11,7 +11,6 @@ import (
 var upgrader = websocket.Upgrader{}
 
 func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
-	h.log.Debugf("Got ws request: %v", r.Header)
 	// Upgrade connection
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -20,6 +19,11 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 	_, message, err := c.ReadMessage()
+	if err != nil {
+		h.log.Printf("Error during authentication: %v", err)
+		c.Close()
+		return
+	}
 	// Authentication
 	token := r.Header.Get("Sec-Websocket-Key")
 	auth, user, err := ws.Authenticate([]byte(token), message, h.eos)
@@ -42,7 +46,11 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			h.log.Debugf("Error reading message: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+				h.log.Debugf("Error reading message: %v", err)
+			} else {
+				h.log.Debugf("User %s disconnected", user)
+			}
 			break
 		}
 		err = ws.HandleRequest(message, user)
