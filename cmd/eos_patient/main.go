@@ -57,7 +57,7 @@ func main() {
 	config.EncryptionKeys[config.EosAccount] = key
 
 	// WS
-	ws, err := ws.Connect(config, log)
+	ws, err := ws.Connect(config, log, ehr)
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
 	}

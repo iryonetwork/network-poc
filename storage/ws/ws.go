@@ -3,6 +3,8 @@ package ws
 import (
 	"crypto/sha256"
 
+	"github.com/iryonetwork/network-poc/storage/ehr"
+
 	"github.com/eoscanada/eos-go/ecc"
 	"github.com/iryonetwork/network-poc/logger"
 
@@ -15,15 +17,16 @@ type Storage struct {
 	config *config.Config
 	log    *logger.Log
 	hub    *Hub
+	ehr    *ehr.Storage
 }
 
 // NewStorage is APIside storage
 func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hub *Hub) *Storage {
-	return &Storage{conn, config, log, hub}
+	return &Storage{conn: conn, config: config, log: log, hub: hub}
 }
 
 // Connect connects client to api
-func Connect(config *config.Config, log *logger.Log) (*Storage, error) {
+func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage) (*Storage, error) {
 	addr := "ws://" + config.IryoAddr + "/ws"
 	log.Debugf("WS:: Connecting to %s", addr)
 
@@ -40,7 +43,7 @@ func Connect(config *config.Config, log *logger.Log) (*Storage, error) {
 		return &Storage{}, err
 	}
 	c.WriteMessage(2, auth)
-	return &Storage{conn: c, config: config, log: log}, nil
+	return &Storage{conn: c, config: config, log: log, ehr: ehr}, nil
 }
 
 func AuthenticateRequest(token string, config *config.Config) ([]byte, error) {
@@ -110,7 +113,6 @@ func (s *Storage) Subscribe() {
 				s.config.Connections = append(s.config.Connections, from)
 				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
 
-				// Revoke key
 			case "RevokeKey":
 				req, err := decode(message)
 				if err != nil {
@@ -121,12 +123,12 @@ func (s *Storage) Subscribe() {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
 				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
+				s.ehr.Remove(from)
 				delete(s.config.EncryptionKeys, from)
 				for i, v := range s.config.Connections {
 					if v == from {
 						s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
 						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
-
 					}
 				}
 			}

@@ -106,7 +106,7 @@ func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 	if !h.connected {
-		ws, err := ws.Connect(h.config, h.log)
+		ws, err := ws.Connect(h.config, h.log, h.ehr)
 		if err != nil {
 			log.Printf("error closing connection: %v", err)
 		}
