@@ -188,18 +188,20 @@ func (s *Storage) CheckAccountKey(account, key string) (bool, error) {
 }
 
 // Sign creates string signature of data
-func (s *Storage) Sign(data []byte) (string, error) {
+func (s *Storage) SignHash(data []byte) (string, error) {
+	h := sha256.New()
+	h.Write(data)
+	return s.SignByte(h.Sum(nil))
+}
+
+func (s *Storage) SignByte(data []byte) (string, error) {
 	sk, err := ecc.NewPrivateKey(s.config.EosPrivate)
 	if err != nil {
 		return "", err
 	}
-	h := sha256.New()
-	h.Write(data)
-	sum := h.Sum(nil)
-	sign, err := sk.Sign(sum)
+	sign, err := sk.Sign(data)
 	return sign.String(), err
 }
-
 func (s *Storage) CheckAccountExists(account string) bool {
 	_, err := s.api.GetAccount(eos.AN(account))
 	if err != nil {

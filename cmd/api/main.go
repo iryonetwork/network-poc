@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/iryonetwork/network-poc/storage/token"
 	"github.com/iryonetwork/network-poc/storage/ws"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -34,9 +35,11 @@ func main() {
 		eos:    eos,
 		log:    log,
 		hub:    hub,
+		token:  token.Init(log),
 	}
 	router := mux.NewRouter()
 
+	router.HandleFunc("/login", h.loginHandler).Methods("POST")
 	router.HandleFunc("/account/{key}", h.createaccHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")

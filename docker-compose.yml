@@ -185,7 +185,6 @@ services:
     - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_ACCOUNT=patient1
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
@@ -206,7 +205,6 @@ services:
     - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_ACCOUNT=patient2
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
@@ -227,7 +225,6 @@ services:
     - EOS_API=http://server:8888
     - IRYO_ADDR=eosapi:8000
     - EOS_CONTRACT_NAME=iryo
-    - EOS_ACCOUNT=doctor
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1

@@ -35,6 +35,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get client: %v", err)
 	}
+	if err := client.Login(); err != nil {
+		log.Fatalf("Failed to log in: %v", err)
+	}
+
 	// Create account
 	_, err = eos.ImportKey(config.EosPrivate)
 	log.Debugf("Imported key: %v", config.GetEosPublicKey())

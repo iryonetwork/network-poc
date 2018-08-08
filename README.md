@@ -145,6 +145,20 @@ open http://localhost:9003 #doctor
 ```
 
 ## API
+### Login
+POST /login
+```
+IN
+hash: "random hash"
+sign: "signature of hash made with key"
+key: "key"
+account: "acount_name" optional
+
+OUT:
+token in uuid format
+```
+if account is not sent in the only endpoint accessable with token is create new account
+
 ### Create new account
 GET /account/<Eos_Key>
 ```json

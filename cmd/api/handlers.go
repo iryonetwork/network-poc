@@ -16,6 +16,7 @@ import (
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/token"
 	"github.com/iryonetwork/network-poc/storage/ws"
 	"github.com/lucasjones/reggen"
 )
@@ -25,6 +26,7 @@ type handlers struct {
 	log    *logger.Log
 	eos    *eos.Storage
 	hub    *ws.Hub
+	token  *token.TokenList
 }
 
 type uploadResponse struct {
@@ -34,9 +36,77 @@ type uploadResponse struct {
 	CreatedAt string   `json:"createdAt,omitempty"`
 }
 
+func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
+	h.log.Debugf("Got login request")
+	r.ParseForm()
+	keystr := r.Form["key"][0]
+	var id string
+	exists := false
+	// if name is provided use it
+	if name, ok := r.Form["account"]; ok {
+		id = name[0]
+		// check that key is part of account
+		if ok, err := h.eos.CheckAccountKey(id, keystr); !ok {
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte("Key provided is not assigned to provided account"))
+				return
+			}
+			w.WriteHeader(403)
+			w.Write([]byte("Key provided is not assigned to provided account"))
+			return
+		}
+		exists = true
+		// if acc does not exists use key instead and make it usable only for account creation
+	} else {
+		id = r.Form["key"][0]
+	}
+	// Check if signature is correct
+	key, err := ecc.NewPublicKey(keystr)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("Error creating key"))
+		return
+	}
+	// reconstruct signature
+	sign, err := ecc.NewSignature(r.Form["sign"][0])
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("Error creating signature"))
+		return
+	}
+
+	// verify signature
+	if !sign.Verify([]byte(r.Form["hash"][0]), key) {
+		w.WriteHeader(403)
+		w.Write([]byte("Error creating signature"))
+		return
+	}
+
+	token, err := h.token.NewToken(id, exists)
+	h.log.Debugf("Token %s created", token)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("Error while generating token"))
+		return
+	}
+	w.WriteHeader(201)
+	w.Write([]byte(token))
+
+}
 func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	response := uploadResponse{}
-
+	// Authorize the user
+	token := r.Header.Get("Authorization")
+	if !h.validateToken(w, token) {
+		return
+	}
+	if !h.token.IsAccount(token) {
+		response.Err = append(response.Err, "You don't have an account")
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	err := r.ParseMultipartForm(0)
 	h.log.Debugf("API:: got upload request")
 	if err != nil {
@@ -47,7 +117,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	params := mux.Vars(r)
 	owner := params["account"]
-	account := r.PostForm["account"][0]
+	account := h.token.GetAccount(token)
 	keystr := r.PostForm["key"][0]
 
 	if exists := h.eos.CheckAccountExists(owner); !exists {
@@ -179,12 +249,40 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	account := params["account"]
 	h.log.Debugf("API:: got ls(%v) request", account)
+	response := lsResponse{}
+	//Authorize
+	token := r.Header.Get("Authorization")
+	if !h.validateToken(w, token) {
+		return
+	}
+	if !h.token.IsAccount(token) {
+		response.Err = append(response.Err, "You don't have an account")
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	// make sure connected has access to data
+	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
+	if err != nil {
+		response.Err = append(response.Err, err.Error())
+		w.WriteHeader(500)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	if !access {
+		response.Err = append(response.Err, "403")
+		w.WriteHeader(403)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Check if requested account exists
 	if exists := h.eos.CheckAccountExists(account); !exists {
 		w.WriteHeader(404)
 		w.Write([]byte("404 account not found"))
 		return
 	}
-	response := lsResponse{}
+
 	files, err := filepath.Glob("./ehr/" + account + "/*")
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
@@ -208,6 +306,29 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	fid := params["fid"]
 	account := params["account"]
+	//Authorize
+	token := r.Header.Get("Authorization")
+	if !h.validateToken(w, token) {
+		return
+	}
+	if !h.token.IsAccount(token) {
+		w.WriteHeader(400)
+		w.Write([]byte("You don't have an account"))
+		return
+	}
+	// make sure connected has access to data
+	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("Internal server error"))
+		return
+	}
+	if !access {
+		w.WriteHeader(403)
+		w.Write([]byte("You don't have access to requested data"))
+		return
+	}
+
 	if exists := h.eos.CheckAccountExists(account); !exists {
 		w.WriteHeader(404)
 		w.Write([]byte("404 account not found"))
@@ -239,11 +360,23 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	key := params["key"]
 	response := createAccResponse{}
+	// Authorize the user
+	token := r.Header.Get("Authorization")
+	if !h.validateToken(w, token) {
+		return
+	}
+	if exists := h.token.IsAccount(token); exists {
+		response.Err = append(response.Err, "You already have an account")
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	accountname, err := h.getAccName()
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(response)
+		return
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
@@ -253,6 +386,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 	} else {
 		response.Name = accountname
+		h.token.AccCreated(token, accountname, key)
 		w.WriteHeader(201)
 	}
 	json.NewEncoder(w).Encode(response)
@@ -273,4 +407,13 @@ func (h *handlers) getAccName() (string, error) {
 		}
 	}
 	return accname, nil
+}
+
+func (h *handlers) validateToken(w http.ResponseWriter, token string) bool {
+	if h.token.IsValid(token) {
+		return true
+	}
+	w.WriteHeader(401)
+	w.Write([]byte("unknown token"))
+	return false
 }

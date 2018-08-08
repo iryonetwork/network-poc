@@ -2,12 +2,14 @@ package client
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -25,6 +27,7 @@ type Client struct {
 	ehr    *ehr.Storage
 	log    *logger.Log
 	ws     *ws.Storage
+	token  string
 }
 
 func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) (*Client, error) {
@@ -42,17 +45,58 @@ func (c *Client) CloseWs() {
 	c.ws.Close()
 	c.ws = nil
 }
+
+func (c *Client) Login() error {
+	// generate random hash
+	hash := make([]byte, 32)
+	_, err := rand.Read(hash)
+	if err != nil {
+		return fmt.Errorf("failed to generate random hash; %v", err)
+	}
+
+	// sign hash with private key
+	sig, err := c.eos.SignByte(hash)
+	if err != nil {
+		return fmt.Errorf("Failed to sign the login request; %v", err)
+	}
+	req := url.Values{"sign": {sig}, "key": {c.config.GetEosPublicKey()}, "hash": {string(hash)}}
+	if account := c.config.EosAccount; account != "" {
+		req["account"] = []string{account}
+	}
+	// send login request
+	response, err := http.PostForm(fmt.Sprintf("http://%s/login", c.config.IryoAddr), req)
+	if err != nil {
+		return fmt.Errorf("failed to call login; %v", err)
+	}
+	if response.StatusCode != 201 {
+		return fmt.Errorf("Code: %d", response.StatusCode)
+	}
+	// save token to client
+	token, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	c.token = string(token)
+	return nil
+}
+
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
-	r, err := http.Get(fmt.Sprintf("http://%s/account/%s", c.config.IryoAddr, key))
+	r, err := http.NewRequest("GET", fmt.Sprintf("http://%s/account/%s", c.config.IryoAddr, key), nil)
 	if err != nil {
 		return "", err
 	}
-	if r.StatusCode != 201 {
-		return "", fmt.Errorf("Code: %d", r.StatusCode)
+	r.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != 201 {
+		return "", fmt.Errorf("Code: %d", res.StatusCode)
 	}
 	var a map[string]string
-	err = json.NewDecoder(r.Body).Decode(&a)
+	err = json.NewDecoder(res.Body).Decode(&a)
 	c.log.Debugf("Client:: createaccount returned: %v", a)
 	if err != nil {
 		return "", err
@@ -68,16 +112,23 @@ func (c *Client) CreateAccount(key string) (string, error) {
 func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	c.log.Debugf("Client::Ls(%s) called", owner)
 
-	r, err := http.Get(fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner))
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), nil)
 	if err != nil {
 		return nil, err
 	}
-	if r.StatusCode != 200 {
-		return nil, fmt.Errorf("Code: %d", r.StatusCode)
+	req.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Code: %d", res.StatusCode)
 	}
 	var a map[string][]map[string]string
-	c.log.Debugf("Client:: ls returned: %v", r.Body)
-	err = json.NewDecoder(r.Body).Decode(&a)
+	c.log.Debugf("Client:: ls returned: %v", res.Body)
+	err = json.NewDecoder(res.Body).Decode(&a)
 	if err != nil {
 		return nil, err
 	}
@@ -91,21 +142,28 @@ func (c *Client) Download(owner, fileID string) error {
 	c.log.Debugf("Client::Download(%s, %s) called", owner, fileID)
 
 	// download file from server
-	r, err := http.Get(fmt.Sprintf("http://%s/%s/%s", c.config.IryoAddr, owner, fileID))
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s/%s", c.config.IryoAddr, owner, fileID), nil)
 	if err != nil {
 		return err
 	}
-	if r.StatusCode != 200 {
-		return fmt.Errorf("Code: %d", r.StatusCode)
+	req.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("Code: %d", res.StatusCode)
 	}
 
-	a, err := ioutil.ReadAll(r.Body)
+	a, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}
 
 	// save file to local storage
-	c.ehr.Save(owner, []byte(a))
+	c.ehr.Saveid(owner, fileID, []byte(a))
 
 	return nil
 }
@@ -131,7 +189,7 @@ func (c *Client) Update(owner string) error {
 	// Download missing
 	for _, f := range list {
 		c.log.Debugf("Client::Update: Checking file: %s ", f["fileID"])
-		if !c.ehr.Exists(owner, f["ehrID"]) {
+		if !c.ehr.Exists(owner, f["fileID"]) {
 			c.log.Debugf("Client::Update: Trying to download file: %s ", f["fileID"])
 			err = c.Download(owner, f["fileID"])
 			if err != nil {
@@ -144,25 +202,13 @@ func (c *Client) Update(owner string) error {
 
 func (c *Client) Upload(owner, ehrid string) error {
 	c.log.Debugf("Client::upload(%s) called", owner)
-
-	// check for permissions
-	if owner != c.config.EosAccount {
-		granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
-		if err != nil {
-			return fmt.Errorf("failed to check accessGranted; %v", err)
-		}
-
-		if !granted {
-			return fmt.Errorf("You do not have permission to upload this file")
-		}
-	}
 	// get data from local storage
 	data := c.ehr.Getid(owner, ehrid)
 	if data == nil {
 		return fmt.Errorf("Document for %s does not exist", owner)
 	}
 	// lets get a signature
-	sign, err := c.eos.Sign(data)
+	sign, err := c.eos.SignHash(data)
 	if err != nil {
 		return err
 	}
@@ -186,17 +232,22 @@ func (c *Client) Upload(owner, ehrid string) error {
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
+	req.Header.Add("Authorization", c.token)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
-	r, err := client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
-	if r.StatusCode != 201 {
-		return fmt.Errorf("Got code: %d", r.StatusCode)
+	b, _ := ioutil.ReadAll(res.Body)
+	if string(b) == "unknown token" {
+		return fmt.Errorf(string(b))
+	}
+	if res.StatusCode != 201 {
+		return fmt.Errorf("Got code: %d", res.StatusCode)
 	}
 	ret := make(map[string]string)
-	json.NewDecoder(r.Body).Decode(ret)
+	json.NewDecoder(res.Body).Decode(ret)
 	c.log.Printf("Response: %s", ret)
 	return nil
 }
