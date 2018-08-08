@@ -64,9 +64,6 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	err := h.client.GrantAccess(r.Form["to"][0])
-	if err != nil {
-		log.Fatalf("Error granting access: %v", err)
-	}
 	url := "/"
 	if err != nil {
 		url += "?error=" + err.Error()
@@ -77,19 +74,9 @@ func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	err := h.client.RevokeAccess(r.Form["to"][0])
-	if err != nil {
-		log.Fatalf("Error revoking key: %v", err)
-	}
 	url := "/"
 	if err != nil {
 		url += "?error=" + err.Error()
-	} else {
-		//TODO: Would having a map[doctor]doctor be better performace wise / would it take too much space?
-		for n, v := range h.config.Connections {
-			if v == r.Form["to"][0] {
-				h.config.Connections = append(h.config.Connections[:n], h.config.Connections[n+1:]...)
-			}
-		}
 	}
 	http.Redirect(w, r, url, 302)
 }

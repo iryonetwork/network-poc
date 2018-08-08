@@ -48,17 +48,20 @@ func (c *Client) CreateAccount(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if r.StatusCode != 201 {
+		return "", fmt.Errorf("Code: %d", r.StatusCode)
+	}
 	var a map[string]string
 	err = json.NewDecoder(r.Body).Decode(&a)
 	c.log.Debugf("Client:: createaccount returned: %v", a)
 	if err != nil {
 		return "", err
 	}
-	if _, ok := a["error"]; !ok {
-		return a["account"], nil
-	} else {
+
+	if _, ok := a["error"]; ok {
 		return "", fmt.Errorf(a["error"])
 	}
+	return a["account"], nil
 
 }
 
@@ -66,17 +69,22 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	c.log.Debugf("Client::Ls(%s) called", owner)
 
 	r, err := http.Get(fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner))
+	if err != nil {
+		return nil, err
+	}
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("Code: %d", r.StatusCode)
+	}
 	var a map[string][]map[string]string
 	c.log.Debugf("Client:: ls returned: %v", r.Body)
 	err = json.NewDecoder(r.Body).Decode(&a)
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := a["error"]; !ok {
-		return a["files"], nil
-	} else {
+	if _, ok := a["error"]; ok {
 		return nil, fmt.Errorf("Could not list files")
 	}
+	return a["files"], nil
 
 }
 func (c *Client) Download(owner, fileID string) error {
@@ -87,6 +95,10 @@ func (c *Client) Download(owner, fileID string) error {
 	if err != nil {
 		return err
 	}
+	if r.StatusCode != 200 {
+		return fmt.Errorf("Code: %d", r.StatusCode)
+	}
+
 	a, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return err
@@ -174,12 +186,14 @@ func (c *Client) Upload(owner, ehrid string) error {
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
-
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
 	r, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
+	}
+	if r.StatusCode != 201 {
+		return fmt.Errorf("Got code: %d", r.StatusCode)
 	}
 	ret := make(map[string]string)
 	json.NewDecoder(r.Body).Decode(ret)
@@ -189,6 +203,29 @@ func (c *Client) Upload(owner, ehrid string) error {
 
 func (c *Client) GrantAccess(to string) error {
 	c.log.Debugf("Client::grantAccess(%s) called", to)
+
+	// Make sure that reciever exists
+	if !c.eos.CheckAccountExists(to) {
+		return fmt.Errorf("User does not exists")
+	}
+
+	// Check that users are not yet connected
+	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
+		if err != nil {
+			return err
+		}
+		// make sure doctor is on list of connected
+		conn := false
+		for _, v := range c.config.Connections {
+			if v == to {
+				conn = true
+			}
+		}
+		if !conn {
+			c.config.Connections = append(c.config.Connections, to)
+		}
+		return nil
+	}
 
 	// write access granted to blockchain
 	err := c.eos.GrantAccess(to)

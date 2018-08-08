@@ -38,7 +38,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	response := uploadResponse{}
 
 	err := r.ParseMultipartForm(0)
-	h.log.Debugf("API:: got upload request %s", r.Form)
+	h.log.Debugf("API:: got upload request")
 	if err != nil {
 		response.Err = append(response.Err, err.Error())
 		w.WriteHeader(500)
@@ -50,8 +50,11 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	account := r.PostForm["account"][0]
 	keystr := r.PostForm["key"][0]
 
-	// create response
-
+	if exists := h.eos.CheckAccountExists(owner); !exists {
+		w.WriteHeader(404)
+		w.Write([]byte("404 account not found"))
+		return
+	}
 	// check if access is granted
 	if account != owner {
 		access, err := h.eos.AccessGranted(owner, account)
@@ -153,6 +156,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	response.FileID = fid.String()
 	ts := time.Now().Format("2006-01-02T15:04:05.999Z")
 	response.CreatedAt = ts
+	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -175,6 +179,11 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	account := params["account"]
 	h.log.Debugf("API:: got ls(%v) request", account)
+	if exists := h.eos.CheckAccountExists(account); !exists {
+		w.WriteHeader(404)
+		w.Write([]byte("404 account not found"))
+		return
+	}
 	response := lsResponse{}
 	files, err := filepath.Glob("./ehr/" + account + "/*")
 	if err != nil {
@@ -183,6 +192,11 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		for _, f := range files {
 			response.Files = append(response.Files, lsFile{filepath.Base(f), "Will be added soon"})
+		}
+		if len(response.Files) == 0 {
+			w.WriteHeader(404)
+			w.Write([]byte("404 files not found"))
+			return
 		}
 	}
 	h.log.Debugf("API:: Sending ls")
@@ -194,17 +208,25 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	fid := params["fid"]
 	account := params["account"]
+	if exists := h.eos.CheckAccountExists(account); !exists {
+		w.WriteHeader(404)
+		w.Write([]byte("404 account not found"))
+		return
+	}
 	// check if file exists
 	if _, err := os.Stat("ehr/" + account); !os.IsNotExist(err) {
 		_, err := os.Stat("ehr/" + account + "/" + fid)
 		if err == nil {
 			f, _ := ioutil.ReadFile("ehr/" + account + "/" + fid)
+			w.WriteHeader(200)
 			w.Write(f)
 		} else {
-			json.NewEncoder(w).Encode("ERROR:" + err.Error())
+			w.WriteHeader(404)
+			w.Write([]byte("404 file not found"))
 		}
 	} else {
-		json.NewEncoder(w).Encode("ERROR: Account does not exists")
+		w.WriteHeader(404)
+		w.Write([]byte("404 account not found"))
 	}
 }
 
@@ -231,6 +253,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 	} else {
 		response.Name = accountname
+		w.WriteHeader(201)
 	}
 	json.NewEncoder(w).Encode(response)
 }
@@ -245,7 +268,7 @@ func (h *handlers) getAccName() (string, error) {
 	var accname string
 	for {
 		accname = fmt.Sprintf("%s.iryo", g.Generate(7))
-		if !h.eos.CheckExists(accname) {
+		if !h.eos.CheckAccountExists(accname) {
 			break
 		}
 	}

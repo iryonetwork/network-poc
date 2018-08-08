@@ -200,11 +200,11 @@ func (s *Storage) Sign(data []byte) (string, error) {
 	return sign.String(), err
 }
 
-func (s *Storage) CheckExists(account string) bool {
+func (s *Storage) CheckAccountExists(account string) bool {
 	_, err := s.api.GetAccount(eos.AN(account))
 	if err != nil {
 		return false
-	} else {
-		return true
 	}
+	return true
+
 }
