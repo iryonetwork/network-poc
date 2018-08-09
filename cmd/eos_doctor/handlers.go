@@ -74,6 +74,9 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		outErr = err.Error()
 	}
+	if outErr == "Code: 404" {
+		outErr = ""
+	}
 
 	data := struct {
 		Type     string
@@ -131,24 +134,24 @@ func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 302)
 }
 
-// func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
-// 	r.ParseForm()
+func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
 
-// 	owner := r.Form["owner"][0]
-// 	data := []byte(r.Form["data"][0])
+	owner := r.Form["owner"][0]
+	data := []byte(r.Form["data"][0])
 
-// 	err := h.ehr.Encrypt(owner, data, h.config.EncryptionKeys[owner])
-// 	if err != nil {
-// 		http.Redirect(w, r, "/ehr/"+owner+"?error="+err.Error(), 302)
-// 		return
-// 	}
+	id, err := h.ehr.Encrypt(owner, data, h.config.EncryptionKeys[owner])
+	if err != nil {
+		http.Redirect(w, r, "/ehr/"+owner+"?error="+err.Error(), 302)
+		return
+	}
 
-// 	err = h.client.Upload(owner)
+	err = h.client.Upload(owner, id)
 
-// 	url := "/ehr/" + owner
-// 	if err != nil {
-// 		url += "?error=" + err.Error()
-// 	}
+	url := "/ehr/" + owner
+	if err != nil {
+		url += "?error=" + err.Error()
+	}
 
-// 	http.Redirect(w, r, url, 302)
-// }
+	http.Redirect(w, r, url, 302)
+}

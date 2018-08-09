@@ -127,7 +127,6 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("Code: %d", res.StatusCode)
 	}
 	var a map[string][]map[string]string
-	c.log.Debugf("Client:: ls returned: %v", res.Body)
 	err = json.NewDecoder(res.Body).Decode(&a)
 	if err != nil {
 		return nil, err
@@ -171,15 +170,16 @@ func (c *Client) Download(owner, fileID string) error {
 // Update downloads files for user, if they do not exist. Remove them if access was removed
 func (c *Client) Update(owner string) error {
 	// First check if access is granted
-	granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
-	if err != nil {
-		return err
+	if owner != c.config.EosAccount {
+		granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
+		if err != nil {
+			return err
+		}
+		if !granted {
+			c.ehr.Remove(owner)
+			return fmt.Errorf("You don't have permission granted to access this data")
+		}
 	}
-	if !granted {
-		c.ehr.Remove(owner)
-		return fmt.Errorf("You don't have permission granted to access this data")
-	}
-
 	// List files
 	c.log.Debugf("Client::Update(%s) called", owner)
 	list, err := c.Ls(owner)
@@ -188,9 +188,8 @@ func (c *Client) Update(owner string) error {
 	}
 	// Download missing
 	for _, f := range list {
-		c.log.Debugf("Client::Update: Checking file: %s ", f["fileID"])
 		if !c.ehr.Exists(owner, f["fileID"]) {
-			c.log.Debugf("Client::Update: Trying to download file: %s ", f["fileID"])
+			c.log.Debugf("Client::Update: Downloading file: %s ", f["fileID"])
 			err = c.Download(owner, f["fileID"])
 			if err != nil {
 				return err
@@ -200,10 +199,10 @@ func (c *Client) Update(owner string) error {
 	return nil
 }
 
-func (c *Client) Upload(owner, ehrid string) error {
+func (c *Client) Upload(owner, id string) error {
 	c.log.Debugf("Client::upload(%s) called", owner)
 	// get data from local storage
-	data := c.ehr.Getid(owner, ehrid)
+	data := c.ehr.Getid(owner, id)
 	if data == nil {
 		return fmt.Errorf("Document for %s does not exist", owner)
 	}
@@ -219,7 +218,7 @@ func (c *Client) Upload(owner, ehrid string) error {
 	writer.WriteField("account", c.config.EosAccount)
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
-	part, err := writer.CreateFormFile("data", ehrid)
+	part, err := writer.CreateFormFile("data", id)
 	part.Write(data)
 
 	err = writer.Close()
@@ -246,9 +245,13 @@ func (c *Client) Upload(owner, ehrid string) error {
 	if res.StatusCode != 201 {
 		return fmt.Errorf("Got code: %d", res.StatusCode)
 	}
-	ret := make(map[string]string)
-	json.NewDecoder(res.Body).Decode(ret)
-	c.log.Printf("Response: %s", ret)
+	a := make(map[string]string)
+	json.Unmarshal(b, &a)
+	if err != nil {
+		return err
+	}
+	newid := a["fileID"]
+	c.ehr.Rename(owner, id, newid)
 	return nil
 }
 

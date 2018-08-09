@@ -72,6 +72,9 @@ func (s *Storage) RevokeAccess(to string) error {
 // Due to uint32 limitations this functions allows connection for up to 4294967295 doctors to a single client
 func (s *Storage) AccessGranted(from, to string) (bool, error) {
 	s.log.Debugf("Eos::accessGranted(%s, %s) called", from, to)
+	if from == to {
+		return true, nil
+	}
 	// Get the table
 	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: from, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
 

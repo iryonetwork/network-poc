@@ -55,6 +55,11 @@ func (s *Storage) Remove(user string) {
 	s.documents[user] = make(map[string][]byte)
 }
 
+func (s *Storage) Rename(user, id, newid string) {
+	s.documents[user][newid] = s.documents[user][id]
+	delete(s.documents[user], id)
+}
+
 const nonceLength = 12
 
 // Encrypt encrypts and saves document to user's storage using key

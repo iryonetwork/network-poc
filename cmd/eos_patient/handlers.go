@@ -23,14 +23,14 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}
-
 	outErr := r.URL.Query().Get("error")
 
 	user := h.config.EosAccount
+	err = h.client.Update(user)
 	ehr := make(map[string]string)
-	for k, v := range h.ehr.Get(user) {
+	for k := range h.ehr.Get(user) {
 		ehr[k] = string(h.ehr.Getid(user, k))
-		v, err = h.ehr.Decrypt(user, k, h.config.EncryptionKeys[user])
+		v, err := h.ehr.Decrypt(user, k, h.config.EncryptionKeys[user])
 		if err != nil {
 			break
 		}
@@ -39,6 +39,10 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		outErr = err.Error()
+	}
+	// If there are no ehr entries yet 404 error is retuned
+	if outErr == "Code: 404" {
+		outErr = ""
 	}
 
 	data := struct {

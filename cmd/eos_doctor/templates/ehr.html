@@ -30,19 +30,25 @@
             </div>
             {{else}}
 
-            {{if .EHRData}}
-            <div>
                 <h3>EHR for {{.Owner}}</h3>
-                {{range $i, $c := .EHRData}}
-                    <h1>{{ $i }}</h1>
-                    <div class="form-control" name="data" rows="10">{{ $c }}</div>
+                <form action="/save">
+                    <textarea class="form-control" name="data" rows="10"></textarea>
+                    <canvas id="chart"></canvas>
+                    <input name="owner" type="hidden" value="{{ .Owner }}"/>
+                    <button class="btn btn-primary" type="button" id="add">Add data point</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </form>
+                {{ if .EHRData }}
+                <div>
+                    {{range $i, $c := .EHRData}}
+                        <h1>{{ $i }}</h1>
+                        <div class="form-control" name="data" rows="10">{{ $c }}</div>
+                    {{end}}
+                </div>
+                {{else}}
+                <div> No data found for {{ .Owner }}</div> 
                 {{end}}
-            </div>
-            {{else}}
-            <div> No data found for {{ .Owner }}</div> 
-            {{end}}
-            {{end}}
-            
+            {{ end }}
             <div class="footer">
                 Contract address: {{ .Contract }}
             </div>

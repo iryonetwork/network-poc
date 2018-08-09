@@ -55,7 +55,7 @@ func main() {
 
 	http.HandleFunc("/ehr/", h.ehrHandler)
 	http.HandleFunc("/request", h.requestHandler)
-	// http.HandleFunc("/save", h.saveEHRHandler)
+	http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/", h.indexHandler)
 	http.HandleFunc("/close", h.closeHandler)
 	http.HandleFunc("/connect", h.connectHandler)
