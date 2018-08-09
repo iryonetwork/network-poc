@@ -5,17 +5,18 @@ import (
 	"fmt"
 
 	"github.com/eoscanada/eos-go/ecc"
+	"github.com/gorilla/websocket"
 
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 func (s *Storage) HandleRequest(reqdata []byte, from string) error {
+
 	inReq, err := decode(reqdata)
 	if err != nil {
 		return err
 	}
-	s.log.Debugf("WS_API:: Got request: %s", inReq)
-	var sendTo string
+	s.log.Debugf("WS_API:: Got request: %s", inReq.Name)
 	var r *request
 	switch inReq.Name {
 	default:
@@ -29,13 +30,24 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		}
 		r.append("key", key)
 		r.append("from", []byte(from))
-		sendTo, err = inReq.getDataString("to")
+
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
 		r = newReq("RevokeKey")
 		r.append("from", []byte(from))
-		sendTo, err = inReq.getDataString("to")
+
+	case "RequestKey":
+		s.log.Debugf("WS_API:: Requesting key")
+		r = newReq("RequestKey")
+		key, err := inReq.getData("key")
+		if err != nil {
+			return err
+		}
+		r.append("from", []byte(from))
+		r.append("key", key)
 	}
+
+	sendTo, err := inReq.getDataString("to")
 	if err != nil {
 		return err
 	}
@@ -54,7 +66,7 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 			return err
 		}
 		// send
-		conn.WriteMessage(2, req)
+		conn.WriteMessage(websocket.BinaryMessage, req)
 	} else {
 		s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
 		// user is not connected, add the request to storage

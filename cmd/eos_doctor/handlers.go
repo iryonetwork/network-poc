@@ -118,6 +118,19 @@ func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 302)
 }
 
+func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	to := r.Form["to"][0]
+	// rsa key generation takes a few seconds, lets do that in the background
+	go func() {
+		err := h.client.RequestAccess(to)
+		if err != nil {
+			h.log.Fatalf("Error requesting access: %v ", err)
+		}
+	}()
+	http.Redirect(w, r, "/", 302)
+}
+
 // func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 // 	r.ParseForm()
 

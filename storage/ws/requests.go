@@ -1,6 +1,9 @@
 package ws
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -10,6 +13,7 @@ import (
 type Requests interface {
 	SendKey(to string)
 	RevokeKey(to string)
+	RequestKey(to string)
 }
 
 func (s *Storage) SendKey(to string) error {
@@ -17,14 +21,23 @@ func (s *Storage) SendKey(to string) error {
 
 	r := newReq("SendKey")
 	r.append("to", []byte(to))
-	r.append("key", s.config.EncryptionKeys[s.config.EosAccount])
+	// Encrypt key
+	if _, ok := s.config.Requested[to]; !ok {
+		return fmt.Errorf("No key from user %s found", to)
+	}
+	sha256 := sha256.New()
+	encKey, err := rsa.EncryptOAEP(sha256, rand.Reader, s.config.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], nil)
+	if err != nil {
+		return err
+	}
+	r.append("key", encKey)
 	req, err := r.encode()
 	if err != nil {
 		return err
 	}
-	s.conn.WriteMessage(websocket.BinaryMessage, req)
-	s.log.Debugf("Sent request: %v", r)
-	return nil
+	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
+	s.log.Debugf("Sent SendKey request")
+	return err
 }
 
 func (s *Storage) RevokeKey(to string) error {
@@ -36,8 +49,28 @@ func (s *Storage) RevokeKey(to string) error {
 	if err != nil {
 		return err
 	}
-	s.conn.WriteMessage(websocket.BinaryMessage, req)
-	return nil
+	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
+	return err
+}
+
+func (s *Storage) RequestsKey(to string) error {
+	s.log.Debugf("WS:: Requesting encryption key from %s", to)
+
+	r := newReq("RequestKey")
+	r.append("to", []byte(to))
+
+	reader := rand.Reader
+	bitSize := 4096
+	key, err := rsa.GenerateKey(reader, bitSize)
+	if err != nil {
+		return err
+	}
+	s.config.RequestKeys[to] = key
+	r.append("key", marshalPKCS1PublicKey(&key.PublicKey))
+	req, err := r.encode()
+	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
+
+	return err
 }
 
 type request struct {

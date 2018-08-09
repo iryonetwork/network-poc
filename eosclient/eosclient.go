@@ -259,7 +259,10 @@ func (c *Client) GrantAccess(to string) error {
 	if !c.eos.CheckAccountExists(to) {
 		return fmt.Errorf("User does not exists")
 	}
-
+	// Do we have the key from reciever?
+	if _, ok := c.config.Requested[to]; !ok {
+		return fmt.Errorf("No key found for requested user")
+	}
 	// Check that users are not yet connected
 	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
 		if err != nil {
@@ -290,18 +293,21 @@ func (c *Client) GrantAccess(to string) error {
 		return fmt.Errorf("failed to send key; %v", err)
 	}
 
-	found := false
-	for _, connection := range c.config.Connections {
-		if connection == to {
-			found = true
-			break
+	// add doctor to list of connected
+	conn := false
+	for _, v := range c.config.Connections {
+		if v == to {
+			conn = true
 		}
 	}
-	if !found {
+	if !conn {
 		c.config.Connections = append(c.config.Connections, to)
 	}
 
-	return err
+	/// remove key from storage
+	delete(c.config.Requested, to)
+
+	return nil
 }
 
 func (c *Client) RevokeAccess(to string) error {
@@ -334,7 +340,19 @@ func (c *Client) Subscribe() {
 	c.log.Debugf("Client::subscribe() called")
 
 	//subscribe to key sent event
-	c.ws.Subscribe()
+	switch c.config.ClientType {
+	default:
+		c.log.Fatalf("Unknown client type")
+	case "Patient":
+		c.ws.SubscribePatient()
+	case "Doctor":
+		c.ws.SubscribeDoctor()
+	}
+}
+
+func (c *Client) RequestAccess(to string) error {
+	err := c.ws.RequestsKey(to)
+	return err
 }
 
 func retry(attempts int, sleep time.Duration, f func() error) (err error) {

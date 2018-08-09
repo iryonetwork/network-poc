@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"html/template"
 	"log"
 	"net/http"
@@ -47,6 +48,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		EHRData     map[string]string
 		Error       string
 		Contract    string
+		Requested   map[string]*rsa.PublicKey
 	}{
 		h.config.ClientType,
 		user,
@@ -54,6 +56,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		ehr,
 		outErr,
 		h.config.EosContractName,
+		h.config.Requested,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -69,6 +72,12 @@ func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 		url += "?error=" + err.Error()
 	}
 	http.Redirect(w, r, url, 302)
+}
+func (h *handlers) denyAccessHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	to := r.Form["to"][0]
+	delete(h.config.Requested, to)
+	http.Redirect(w, r, "/", 302)
 }
 
 func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {

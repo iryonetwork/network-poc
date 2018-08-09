@@ -1,7 +1,11 @@
 package ws
 
 import (
+	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/asn1"
+	"errors"
+	"math/big"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 
@@ -73,66 +77,39 @@ func (s *Storage) Close() error {
 	return err
 }
 
-func (s *Storage) Subscribe() {
-	s.log.Debugf("WS::Subscribe called")
+// crypto/x509 is not supported before go 1.10. These are the functions needed here
+func parsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+	var pub pkcs1PublicKey
+	rest, err := asn1.Unmarshal(der, &pub)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) > 0 {
+		return nil, asn1.SyntaxError{Msg: "trailing data"}
+	}
 
-	go func() {
-		for {
-			_, message, err := s.conn.ReadMessage()
-			if err != nil {
-				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					s.log.Debugf("SUBSCRIBTION:: Closing due to closed connection")
-					break
-				} else {
-					s.log.Fatalf("Error while subscribing: %v", err)
-				}
-			}
-			r, err := decode(message)
-			if err != nil {
-				s.log.Fatalf("Error decoding: %v", err)
-			}
-			// Import key
-			switch r.Name {
-			default:
-				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
-			case "ImportKey":
-				req, err := decode(message)
-				if err != nil {
-					s.log.Fatalf("Error during subscribtion: %v", err)
-				}
-				key, err := req.getData("key")
-				if err != nil {
-					s.log.Fatalf("Error getting `key`: %v", err)
-				}
-				from, err := req.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
-				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
-				s.config.EncryptionKeys[from] = key
-				s.config.Connections = append(s.config.Connections, from)
-				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
+	if pub.N.Sign() <= 0 || pub.E <= 0 {
+		return nil, errors.New("x509: public key contains zero or negative value")
+	}
+	if pub.E > 1<<31-1 {
+		return nil, errors.New("x509: public key contains large public exponent")
+	}
 
-			case "RevokeKey":
-				req, err := decode(message)
-				if err != nil {
-					s.log.Fatalf("Error during subscribtion: %v", err)
-				}
-				from, err := req.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
-				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
-				s.ehr.Remove(from)
-				delete(s.config.EncryptionKeys, from)
-				for i, v := range s.config.Connections {
-					if v == from {
-						s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
-						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
-					}
-				}
-			}
+	return &rsa.PublicKey{
+		E: pub.E,
+		N: pub.N,
+	}, nil
+}
 
-		}
-	}()
+type pkcs1PublicKey struct {
+	N *big.Int
+	E int
+}
+
+func marshalPKCS1PublicKey(key *rsa.PublicKey) []byte {
+	derBytes, _ := asn1.Marshal(pkcs1PublicKey{
+		N: key.N,
+		E: key.E,
+	})
+	return derBytes
 }

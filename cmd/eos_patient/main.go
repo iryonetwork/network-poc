@@ -67,6 +67,7 @@ func main() {
 	}
 	defer ws.Close()
 	client.AddWs(ws)
+	client.Subscribe()
 
 	h := &handlers{
 		config: config,
@@ -76,6 +77,7 @@ func main() {
 
 	http.HandleFunc("/", h.indexHandler)
 	http.HandleFunc("/grant", h.grantAccessHandler)
+	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
 	http.HandleFunc("/save", h.saveEHRHandler)
 

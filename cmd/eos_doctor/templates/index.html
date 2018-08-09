@@ -38,6 +38,15 @@
                 {{ else }}
                     You have no patients
                 {{ end }}
+                <form action="/request">
+                    <div class="input-group mb-3">
+                        <input name="to" type="text" class="form-control" placeholder="Patient's account name" aria-label="Patient's account name" aria-describedby="basic-addon2">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="submit">Request access</button>
+                        </div>
+                    </div>
+                </form>
+
                 <div class="footer">
                     Contract address: {{ .Contract }}
                 </div>            

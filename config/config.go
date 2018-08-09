@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -27,12 +28,16 @@ type Config struct {
 	ClientAddr      string           `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
 	Debug           bool             `env:"DEBUG" envDefault:"1"`
 	EncryptionKeys  map[string][]byte
+	RequestKeys     map[string]*rsa.PrivateKey
+	Requested       map[string]*rsa.PublicKey
 	Connections     []string
 	Tokens          map[string]string
 }
 
 func New() (*Config, error) {
 	cfg := &Config{
+		Requested:      make(map[string]*rsa.PublicKey),
+		RequestKeys:    make(map[string]*rsa.PrivateKey),
 		EncryptionKeys: make(map[string][]byte),
 		Connections:    []string{},
 		Tokens:         make(map[string]string),

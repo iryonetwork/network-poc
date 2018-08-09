@@ -145,6 +145,71 @@ open http://localhost:9003 #doctor
 ```
 
 ## API
+### WS
+/ws/
+all requests are json websocket messages of type `websocket.BinaryMessage`
+```
+Request Key
+doctor sends request to patient using
+IN:
+{
+    "Name":"RequestKey",
+    "Fields":{
+        "key":"RSA public key",
+        "to":"Account name"
+    }
+}
+
+OUT:
+{
+    "Name":"RequestKey",
+    "Fields":{
+        "key":"RSA public key"
+        "from":"sender of request"
+    }
+}
+```
+```
+Send Key
+IN:
+{
+    "Name":"SendKey",
+    "Fields":{
+        "key":"encrypted ehr signing key",
+        "to":"account which made RequestKey request"
+    }
+}
+
+OUT:
+{
+    "Name":"ImportKey",
+    "Fields":{
+        "key":"encrypted ehr signing key"
+        "from":"sender of request"
+    }
+}
+
+```
+```
+Revoke Key
+IN:
+{
+    "Name":"RevokeKey",
+    "Fields":{
+        "to":"account which's key must be revoked"
+    }
+}
+
+OUT:
+{
+    "Name":"RevokeKey",
+    "Fields":{
+        "from":"sender of request"
+    }
+}
+
+```
+
 ### Login
 POST /login
 ```

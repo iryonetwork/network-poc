@@ -25,7 +25,7 @@
             </button>
         </div>
         {{end}}
-
+        
         <div class="content">
 
             <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -62,14 +62,26 @@
                             {{end}}
                         </tbody>
                     </table>
+                    {{ range $i, $c := .Requested}}
+                    {{ $i }}
                     <form action="/grant">
                         <div class="input-group mb-3">
-                            <input name="to" type="text" class="form-control" placeholder="Doctor's account name" aria-label="Doctor's account name" aria-describedby="basic-addon2">
+                            <input name="to" type="hidden" class="form-control" value="{{ $i }}">
                             <div class="input-group-append">
                                 <button class="btn btn-outline-secondary" type="submit">Grant access</button>
                             </div>
                         </div>
                     </form>
+                    <form action="/deny">
+                        <p class="input-group mb-3">
+                            <input name="to" type="hidden" class="form-control" value="{{ $i }}">
+                            <p class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="submit">Deny access</button>
+                            </p>
+                        </p>
+                    </form>
+
+                    {{ end }}
                 </div>
                
 
