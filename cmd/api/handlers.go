@@ -29,13 +29,6 @@ type handlers struct {
 	token  *token.TokenList
 }
 
-type uploadResponse struct {
-	Err       []string `json:"error,omitempty"`
-	FileID    string   `json:"fileID,omitempty"`
-	EhrID     string   `json:"ehrID,omitempty"`
-	CreatedAt string   `json:"createdAt,omitempty"`
-}
-
 func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 	h.log.Debugf("Got login request")
 	r.ParseForm()
@@ -48,12 +41,10 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 		// check that key is part of account
 		if ok, err := h.eos.CheckAccountKey(id, keystr); !ok {
 			if err != nil {
-				w.WriteHeader(500)
-				w.Write([]byte("Key provided is not assigned to provided account"))
+				writeErrorBody(w, 500, "Key provided is not assigned to provided account")
 				return
 			}
-			w.WriteHeader(403)
-			w.Write([]byte("Key provided is not assigned to provided account"))
+			writeErrorBody(w, 403, "Key provided is not assigned to provided account")
 			return
 		}
 		exists = true
@@ -64,36 +55,38 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if signature is correct
 	key, err := ecc.NewPublicKey(keystr)
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("Error creating key"))
+		writeErrorBody(w, 500, "Error creating key")
 		return
 	}
 	// reconstruct signature
 	sign, err := ecc.NewSignature(r.Form["sign"][0])
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("Error creating signature"))
+		writeErrorBody(w, 500, "Error creating signature")
 		return
 	}
 
 	// verify signature
 	if !sign.Verify([]byte(r.Form["hash"][0]), key) {
-		w.WriteHeader(403)
-		w.Write([]byte("Error creating signature"))
+		writeErrorBody(w, 403, "Error creating signature")
 		return
 	}
 
 	token, err := h.token.NewToken(id, exists)
 	h.log.Debugf("Token %s created", token)
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("Error while generating token"))
+		writeErrorBody(w, 500, "Error while generating token")
 		return
 	}
 	w.WriteHeader(201)
 	w.Write([]byte(token))
 
 }
+
+type uploadResponse struct {
+	FileID    string `json:"fileID,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
+}
+
 func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	response := uploadResponse{}
 	// Authorize the user
@@ -102,17 +95,13 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.token.IsAccount(token) {
-		response.Err = append(response.Err, "You don't have an account")
-		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 400, "You don't have an account")
 		return
 	}
 	err := r.ParseMultipartForm(0)
 	h.log.Debugf("API:: got upload request")
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 500, err.Error())
 		return
 	}
 	params := mux.Vars(r)
@@ -121,8 +110,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	keystr := r.PostForm["key"][0]
 
 	if exists := h.eos.CheckAccountExists(owner); !exists {
-		w.WriteHeader(404)
-		w.Write([]byte("404 account not found"))
+		writeErrorBody(w, 404, "404 account not found")
 		return
 	}
 	// check if access is granted
@@ -130,15 +118,11 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		access, err := h.eos.AccessGranted(owner, account)
 
 		if err != nil {
-			response.Err = append(response.Err, err.Error())
-			w.WriteHeader(500)
-			json.NewEncoder(w).Encode(response)
+			writeErrorBody(w, 500, err.Error())
 			return
 		}
 		if !access {
-			response.Err = append(response.Err, "Account does not have access to owner")
-			w.WriteHeader(403)
-			json.NewEncoder(w).Encode(response)
+			writeErrorJson(w, 403, "Account does not have access to owner")
 			return
 		}
 	}
@@ -146,57 +130,43 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// check if account and key match
 	auth, err := h.eos.CheckAccountKey(account, keystr)
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	if !auth {
-		response.Err = append(response.Err, "Provided key is not associated with account")
-		w.WriteHeader(403)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 403, "Provided key is not associated with account")
 		return
 	}
 
 	// Check if signature is correct
 	key, err := ecc.NewPublicKey(keystr)
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	// reconstruct signature
 	sign, err := ecc.NewSignature(r.Form["sign"][0])
 	if err != nil {
-		response.Err = append(response.Err, "Error getting signature")
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	// get hash
 	file, head, err := r.FormFile("data")
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	data := make([]byte, head.Size)
 	_, err = file.Read(data)
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	hash := getHash(data)
 
 	// verify signature
 	if !sign.Verify(hash, key) {
-		response.Err = append(response.Err, "Data could not be verified")
-		w.WriteHeader(403)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 403, "Data could not be verified")
 		return
 	}
 
@@ -207,18 +177,14 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// create file
 	f, err := os.Create("ehr/" + owner + "/" + fid.String())
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	defer f.Close()
 	// add data to file
 	_, err = f.WriteString(string(data))
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 
@@ -237,7 +203,6 @@ func getHash(in []byte) []byte {
 }
 
 type lsResponse struct {
-	Err   []string `json:"error,omitempty"`
 	Files []lsFile `json:"files,omitempty"`
 }
 type lsFile struct {
@@ -256,44 +221,37 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.token.IsAccount(token) {
-		response.Err = append(response.Err, "You don't have an account")
-		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 400, "You don't have an account")
 		return
 	}
 	// make sure connected has access to data
 	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorBody(w, 500, err.Error())
 		return
 	}
 	if !access {
-		response.Err = append(response.Err, "403")
-		w.WriteHeader(403)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 403, "403")
 		return
 	}
 
 	// Check if requested account exists
 	if exists := h.eos.CheckAccountExists(account); !exists {
-		w.WriteHeader(404)
-		w.Write([]byte("404 account not found"))
+		writeErrorBody(w, 404, "404 account not found")
 		return
 	}
 
 	files, err := filepath.Glob("./ehr/" + account + "/*")
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
+		writeErrorBody(w, 500, err.Error())
+		return
 	} else {
 		for _, f := range files {
 			response.Files = append(response.Files, lsFile{filepath.Base(f), "Will be added soon"})
 		}
 		if len(response.Files) == 0 {
-			w.WriteHeader(404)
-			w.Write([]byte("404 files not found"))
+			writeErrorBody(w, 404, "404 files not found")
+
 			return
 		}
 	}
@@ -312,26 +270,22 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.token.IsAccount(token) {
-		w.WriteHeader(400)
-		w.Write([]byte("You don't have an account"))
+		writeErrorBody(w, 400, "You don't have an account")
 		return
 	}
 	// make sure connected has access to data
 	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("Internal server error"))
+		writeErrorBody(w, 500, "Internal server error")
 		return
 	}
 	if !access {
-		w.WriteHeader(403)
-		w.Write([]byte("You don't have access to requested data"))
+		writeErrorBody(w, 403, "You don't have access to requested data")
 		return
 	}
 
 	if exists := h.eos.CheckAccountExists(account); !exists {
-		w.WriteHeader(404)
-		w.Write([]byte("404 account not found"))
+		writeErrorBody(w, 404, "404 account not found")
 		return
 	}
 	// check if file exists
@@ -342,54 +296,55 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
 			w.Write(f)
 		} else {
-			w.WriteHeader(404)
-			w.Write([]byte("404 file not found"))
+			writeErrorBody(w, 404, "404 file not found")
 		}
 	} else {
-		w.WriteHeader(404)
-		w.Write([]byte("404 account not found"))
+		writeErrorBody(w, 404, "404 account not found")
 	}
-}
-
-type createAccResponse struct {
-	Err  []string `json:"error,omitempty"`
-	Name string   `json:"account,omitempty"`
 }
 
 func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	key := params["key"]
-	response := createAccResponse{}
+	response := make(map[string]string)
 	// Authorize the user
 	token := r.Header.Get("Authorization")
 	if !h.validateToken(w, token) {
 		return
 	}
 	if exists := h.token.IsAccount(token); exists {
-		response.Err = append(response.Err, "You already have an account")
-		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 400, "You already have an account")
 		return
 	}
 	accountname, err := h.getAccName()
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(response)
+		writeErrorJson(w, 500, err.Error())
 		return
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
 	err = h.eos.CreateAccount(accountname, key)
 	if err != nil {
-		response.Err = append(response.Err, err.Error())
-		w.WriteHeader(500)
+		writeErrorJson(w, 400, err.Error())
+		return
 	} else {
-		response.Name = accountname
+		response["account"] = accountname
 		h.token.AccCreated(token, accountname, key)
 		w.WriteHeader(201)
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+func writeErrorJson(w http.ResponseWriter, statuscode int, err string) {
+	w.WriteHeader(statuscode)
+	r := make(map[string]string)
+	r["error"] = err
+	json.NewEncoder(w).Encode(r)
+}
+
+func writeErrorBody(w http.ResponseWriter, statuscode int, err string) {
+	w.WriteHeader(statuscode)
+	w.Write([]byte(err))
 }
 
 // Generate random name that satisfies EOS
@@ -413,7 +368,6 @@ func (h *handlers) validateToken(w http.ResponseWriter, token string) bool {
 	if h.token.IsValid(token) {
 		return true
 	}
-	w.WriteHeader(401)
-	w.Write([]byte("unknown token"))
+	writeErrorBody(w, 401, "unknown token")
 	return false
 }
