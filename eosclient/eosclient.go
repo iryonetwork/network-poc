@@ -60,7 +60,7 @@ func (c *Client) Login() error {
 	}
 
 	// sign hash with private key
-	sig, err := c.eos.SignByte(hash)
+	sig, err := c.eos.SignHash(hash)
 	if err != nil {
 		return fmt.Errorf("Failed to sign the login request; %v", err)
 	}

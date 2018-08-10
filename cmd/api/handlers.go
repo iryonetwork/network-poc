@@ -64,10 +64,10 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorBody(w, 500, "Error creating signature")
 		return
 	}
-
+	hash := getHash([]byte(r.Form["hash"][0]))
 	// verify signature
-	if !sign.Verify([]byte(r.Form["hash"][0]), key) {
-		writeErrorBody(w, 403, "Error creating signature")
+	if !sign.Verify(hash, key) {
+		writeErrorBody(w, 403, "Error verifying signature")
 		return
 	}
 
