@@ -303,7 +303,26 @@ OR
 ## Notes
 
 ### Available accounts (private + public)
+#### EOS
+```
+1) patient1
+Private: 5KEVFho54n5B2sHuNL7sDgbbgFNGcGhtpJqUB3XMmkHMz5fGrqz
+Public: EOS84k3ReZpdBpUAeAdCyYEhKZewCExBAxMwTRonTcc8g4K9Uxc2U
 
+2) patient2
+Private: 5KF9vHG4jc7eZXD84m2RmZLgbcBYuT55nRcBaMrwFXAhBNWDHD5
+Public: EOS7j7gRAS2gHTyn4qL2nPhmtgzaqJyo2AU7G9GRJjzNFc9dSxCjx
+
+3) doctor
+Private: 5JvuPL6XJ4cRKvB6wuXxDHveMkyfBRPLtB4oRFiijsyto1f7peV
+Public: EOS6fbq994kQnkxqcRcNN4uG1X3JR2TgWQF8qrHfnstHovFVFmccs
+
+4) master
+Private: 5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn
+Public: EOS8Bi2k2R4Zv3Go2FEBAM6X8nu7aDPBDWGZeNhewhQZQThe61nc7
+
+```
+#### EHR
 ```
 (0) 896772721092967eb44d6c72e3ebdd97babbada1c29eace2d8c1dd7bd1f9ee99 [IRYO]
     0xF5CB47467d3da58e456Bd62Fc1B3e4FB74f8E64C

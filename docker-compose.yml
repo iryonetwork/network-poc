@@ -185,7 +185,7 @@ services:
     - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - EOS_PRIVATE=5KEVFho54n5B2sHuNL7sDgbbgFNGcGhtpJqUB3XMmkHMz5fGrqz # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -205,7 +205,7 @@ services:
     - IRYO_ADDR=eosapi:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - EOS_PRIVATE=5KF9vHG4jc7eZXD84m2RmZLgbcBYuT55nRcBaMrwFXAhBNWDHD5 # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -225,7 +225,7 @@ services:
     - EOS_API=http://server:8888
     - IRYO_ADDR=eosapi:8000
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
+    - EOS_PRIVATE=5JvuPL6XJ4cRKvB6wuXxDHveMkyfBRPLtB4oRFiijsyto1f7peV # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
