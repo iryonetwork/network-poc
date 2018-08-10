@@ -17,7 +17,7 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 		h.log.Debugf("Error upgrading request: %v", err)
 		return
 	}
-	defer c.Close()
+	defer c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	_, message, err := c.ReadMessage()
 	if err != nil {
 		h.log.Printf("Error during authentication: %v", err)

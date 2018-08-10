@@ -10,7 +10,6 @@ import (
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
-	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 func main() {
@@ -60,14 +59,11 @@ func main() {
 	}
 	config.EncryptionKeys[config.EosAccount] = key
 
-	// WS
-	ws, err := ws.Connect(config, log, ehr)
+	err = client.ConnectWs()
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
 	}
-	defer ws.Close()
-	client.AddWs(ws)
-	client.Subscribe()
+	defer client.CloseWs()
 
 	h := &handlers{
 		config: config,

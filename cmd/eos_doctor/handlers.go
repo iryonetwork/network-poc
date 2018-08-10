@@ -8,8 +8,6 @@ import (
 
 	"github.com/iryonetwork/network-poc/logger"
 
-	"github.com/iryonetwork/network-poc/storage/ws"
-
 	"github.com/iryonetwork/network-poc/config"
 	client "github.com/iryonetwork/network-poc/eosclient"
 	"github.com/iryonetwork/network-poc/storage/ehr"
@@ -109,13 +107,7 @@ func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 	if !h.connected {
-		ws, err := ws.Connect(h.config, h.log, h.ehr)
-		if err != nil {
-			log.Printf("error closing connection: %v", err)
-		}
-		h.client.AddWs(ws)
-		h.client.Subscribe()
-
+		h.client.ConnectWs()
 		h.connected = true
 	}
 	http.Redirect(w, r, "/", 302)

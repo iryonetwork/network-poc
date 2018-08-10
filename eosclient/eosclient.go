@@ -38,9 +38,14 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 		log:    log,
 	}, nil
 }
-func (c *Client) AddWs(ws *ws.Storage) {
+
+func (c *Client) ConnectWs() error {
+	ws, err := ws.Connect(c.config, c.log, c.ehr)
 	c.ws = ws
+	c.Subscribe()
+	return err
 }
+
 func (c *Client) CloseWs() {
 	c.ws.Close()
 	c.ws = nil

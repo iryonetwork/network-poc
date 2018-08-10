@@ -45,11 +45,16 @@ func main() {
 	}
 	config.EosAccount = acc
 
+	err = client.ConnectWs()
+	if err != nil {
+		log.Fatalf("ws problem: %v", err.Error())
+	}
+	defer client.CloseWs()
 	h := &handlers{
 		config:    config,
 		ehr:       ehr,
 		client:    client,
-		connected: false,
+		connected: true,
 		log:       log,
 	}
 
