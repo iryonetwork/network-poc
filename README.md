@@ -147,7 +147,10 @@ open http://localhost:9003 #doctor
 ## API
 ### WS
 /ws/
-all requests are json websocket messages of type `websocket.BinaryMessage`
+all requests are json websocket messages of type `websocket.BinaryMessage`  
+
+When connecting to websocket endpoint provide token in `Authorization` field in header to authorize.
+When authorized a message will be sendt back saying `Authorized`
 ```
 Request Key
 doctor sends request to patient using

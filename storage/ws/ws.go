@@ -2,14 +2,14 @@ package ws
 
 import (
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/asn1"
 	"errors"
+	"fmt"
 	"math/big"
+	"net/http"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 
-	"github.com/eoscanada/eos-go/ecc"
 	"github.com/iryonetwork/network-poc/logger"
 
 	"github.com/gorilla/websocket"
@@ -30,45 +30,24 @@ func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hu
 }
 
 // Connect connects client to api
-func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage) (*Storage, error) {
+func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, token string) (*Storage, error) {
 	addr := "ws://" + config.IryoAddr + "/ws/"
 	log.Debugf("WS:: Connecting to %s", addr)
 
 	// Call API's WS
-	c, response, err := websocket.DefaultDialer.Dial(addr, nil)
-	if err != nil {
-		return &Storage{}, err
-	}
-	// Time to authenticate
-	token := response.Request.Header["Sec-WebSocket-Key"][0]
-	log.Debugf("WS:: Sending authentiction request")
-	auth, err := AuthenticateRequest(token, config)
-	if err != nil {
-		return &Storage{}, err
-	}
-	c.WriteMessage(2, auth)
-	return &Storage{conn: c, config: config, log: log, ehr: ehr}, nil
-}
-
-func AuthenticateRequest(token string, config *config.Config) ([]byte, error) {
-
-	sk, err := ecc.NewPrivateKey(config.EosPrivate)
+	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Authorization": []string{token}})
 	if err != nil {
 		return nil, err
 	}
-	h := sha256.New()
-	h.Write([]byte(token))
-	sum := h.Sum(nil)
-	sign, err := sk.Sign(sum)
+	// Check if authorized
+	_, msg, err := c.ReadMessage()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
-
-	r := newReq("Authenticate")
-	r.append("signature", []byte(sign.String()))
-	r.append("user", []byte(config.EosAccount))
-	r.append("key", []byte(config.GetEosPublicKey()))
-	return r.encode()
+	if string(msg) == "Authorized" {
+		return &Storage{conn: c, config: config, log: log, ehr: ehr}, nil
+	}
+	return nil, fmt.Errorf("Error authorizing: %s", string(msg))
 }
 
 func (s *Storage) Close() error {
