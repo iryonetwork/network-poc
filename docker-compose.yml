@@ -1,104 +1,5 @@
 version: "3"
 services:
-  mew: # local instance of myetherwallet
-    build:
-      context: ./services/mew
-    ports:
-    - 8080:80
-
-  bootstrapGeth:
-    image: ethereum/client-go:v1.7.3
-    command: --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" init /root/files/genesis.json
-    volumes:
-    - devchain:/root
-    - ./services/geth/genesis.json:/root/files/genesis.json:ro
-
-  geth:
-    image: ethereum/client-go:v1.7.3
-    command: --nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322 --rpcapi "db,personal,eth,net,web3" --rpccorsdomain='*' --networkid=1234 --rpc --rpcaddr="0.0.0.0" --mine --etherbase="0xe93247262a6737B0af86c647c665513e8323AD96"
-    volumes:
-    - devchain:/root
-    - ./services/geth/password:/root/files/password:ro
-    - ./services/geth/genesis.json:/root/files/genesis.json:ro
-    - ./services/geth/keystore:/root/.ethereum/devchain/keystore:rw
-    ports:
-    - "30303:30303"
-    - "30303:30303/udp"
-    - "8545:8545"
-
-  iryo:
-    image: iryo/go-futurehack
-    command:
-    - go
-    - run
-    - main.go
-    - server.go
-    volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/iryo
-    environment:
-    - ETH_PRIVATE=896772721092967eb44d6c72e3ebdd97babbada1c29eace2d8c1dd7bd1f9ee99
-    - ETH_ADDR=http://geth:8545
-    - IRYO_ADDR=0.0.0.0:8000
-    - DEBUG=1
-
-  patient1:
-    image: iryo/go-futurehack
-    command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
-    environment:
-    - ETH_PRIVATE=30fa8b6d85a5aa024cd3286907c96318b27217546d28232373f94cc76bb74b76
-    - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://geth:8545
-    - CLIENT_ADDR=0.0.0.0:9000
-    - DEBUG=1
-    ports:
-    - 9001:9000
-
-  patient2:
-    image: iryo/go-futurehack
-    command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
-    environment:
-    - ETH_PRIVATE=d43cd3f2c6e210fc263e6cf6ad5db8cd9eb746e206df43f5f07eaf2d2e72bac0
-    - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://geth:8545
-    - CLIENT_ADDR=0.0.0.0:9000
-    - DEBUG=1
-    ports:
-    - 9002:9000
-
-  doctor:
-    image: iryo/go-futurehack
-    command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
-    environment:
-    - ETH_PRIVATE=188a9155c8588b67e3083834e970e8fcb40ad9fd069eae0f247d16cb8c0a8173
-    - IRYO_ADDR=iryo:8000
-    - ETH_ADDR=http://geth:8545
-    - CLIENT_ADDR=0.0.0.0:9000
-    - DEBUG=1
-    ports:
-    - 9003:9000
-######################## EOS starts here
   nodeos:
     container_name: server
     image: eosio/eos:v1.1.0
@@ -133,7 +34,7 @@ services:
     - EOS_API=http://server:8888 # url on which nodeos is running
     tty: true
 ## Deploy contract
-  eosdeploy:
+  deploy:
     image: iryo
     command:
     - go
@@ -150,7 +51,7 @@ services:
     - EOS_TOKEN_NAME=eosio.token
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
 
-  eosapi:
+  api:
     image: iryo
     command:
     - go
@@ -171,7 +72,7 @@ services:
     ports:
     - 8000:8000
   ## patient server
-  eospatient1:
+  patient1:
     image: iryo
     command:
     - go
@@ -182,7 +83,7 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
-    - IRYO_ADDR=eosapi:8000
+    - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
     - EOS_PRIVATE=5KEVFho54n5B2sHuNL7sDgbbgFNGcGhtpJqUB3XMmkHMz5fGrqz # key with which go-eos signs actions
@@ -191,7 +92,7 @@ services:
     ports:
     - 9001:9000
 
-  eospatient2:
+  patient2:
     image: iryo
     command:
     - go
@@ -202,7 +103,7 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
     environment:
-    - IRYO_ADDR=eosapi:8000
+    - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
     - EOS_PRIVATE=5KF9vHG4jc7eZXD84m2RmZLgbcBYuT55nRcBaMrwFXAhBNWDHD5 # key with which go-eos signs actions
@@ -211,7 +112,7 @@ services:
     ports:
     - 9002:9000
   ## Doctor
-  eosdoctor:
+  doctor1:
     image: iryo
     command:
     - go
@@ -223,13 +124,33 @@ services:
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
     environment:
     - EOS_API=http://server:8888
-    - IRYO_ADDR=eosapi:8000
+    - IRYO_ADDR=api:8000
     - EOS_CONTRACT_NAME=iryo
     - EOS_PRIVATE=5JvuPL6XJ4cRKvB6wuXxDHveMkyfBRPLtB4oRFiijsyto1f7peV # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9003:9000
+  ## Doctor
+  doctor2:
+    image: iryo
+    command:
+    - go
+    - run
+    - main.go
+    - handlers.go
+    volumes:
+    - ./:/go/src/github.com/iryonetwork/network-poc
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
+    environment:
+    - EOS_API=http://server:8888
+    - IRYO_ADDR=api:8000
+    - EOS_CONTRACT_NAME=iryo
+    - EOS_PRIVATE=5KTTcXKdJeG1FgJv5UUhWysWgaDsjbsVCoMizpjSxhfwNswKyQF # key with which go-eos signs actions
+    - CLIENT_ADDR=0.0.0.0:9000
+    - DEBUG=1
+    ports:
+    - 9004:9000
 
 volumes:
   devchain:

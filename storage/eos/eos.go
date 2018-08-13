@@ -135,7 +135,7 @@ func (s *Storage) pushContract(n, cn string) error {
 	}
 
 	// Get newcontract actions
-	contract, err := system.NewSetContract(eos.AN(n), "../../contract/eos/"+cn+".wasm", "../../contract/eos/"+cn+".abi")
+	contract, err := system.NewSetContract(eos.AN(n), "../../contract/"+cn+".wasm", "../../contract/"+cn+".abi")
 	if err != nil {
 		return err
 	}

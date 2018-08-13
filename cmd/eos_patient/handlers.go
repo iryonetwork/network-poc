@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
-	client "github.com/iryonetwork/network-poc/eosclient"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )

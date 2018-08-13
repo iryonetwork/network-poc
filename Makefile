@@ -1,22 +1,20 @@
 .PHONY: up run stop build specs
 
-ALL: run/bootstrapGeth up/geth
+ALL: clear init up
+
+attach/%:
+	docker-compose run $*
+
+buildImage:
+	docker build -t iryo .
 
 clear: ## clears generated artifacts
 	docker-compose down -v --remove-orphans --rmi local
 	rm -fr vendor/*/
 
-apiinit: init up/nodeos up/cleos up/eosdeploy
+init: buildImage up/nodeos up/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
-init:
-	docker build -t iryo .
-	
-apiup: up/nodeos up/eosapi up/eospatient1 up/eospatient2 up/eosdoctor  ## sets the nodeos up - creates accounts and publishes contracts on them
-
-attach/%:
-	docker-compose run $*
-
-up: up/iryo up/patient1 up/patient2 up/doctor up/mew ## start all basic services
+up: up/nodeos up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
 
 up/%: stop/% ## start a service in background
 	docker-compose up -d $*
@@ -37,11 +35,6 @@ stop/%: ## stop a service in docker-compose
 # 	else \
 # 		echo "No sources found in cmd/$*/main.go"; \
 # 	fi
-
-buildContract: contract/contract.go ## rebuilds the smart contract
-
-contract/contract.go: contract/contract.sol
-	abigen --sol=contract/contract.sol --pkg=contract --out=contract/contract.go
 
 logs: ## shows docker compose logs
 	docker-compose logs -f --tail=0 $*

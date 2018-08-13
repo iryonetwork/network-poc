@@ -1,177 +1,346 @@
 package client
 
 import (
-	"context"
+	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
-	"github.com/iryonetwork/network-poc/specs"
 	"github.com/iryonetwork/network-poc/storage/ehr"
-	"github.com/iryonetwork/network-poc/storage/eth"
-	"google.golang.org/grpc/metadata"
+	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 const tokenKey = "token"
 
-type RPCClient struct {
-	client   specs.CloudClient
-	config   *config.Config
-	metadata metadata.MD
-	eth      *eth.Storage
-	ehr      *ehr.Storage
-	log      *logger.Log
+type Client struct {
+	config *config.Config
+	eos    *eos.Storage
+	ehr    *ehr.Storage
+	log    *logger.Log
+	ws     *ws.Storage
+	token  string
 }
 
-func New(config *config.Config, client specs.CloudClient, eth *eth.Storage, ehr *ehr.Storage, log *logger.Log) (*RPCClient, error) {
+func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) (*Client, error) {
+	return &Client{
+		config: config,
+		eos:    eos,
+		ehr:    ehr,
+		log:    log,
+	}, nil
+}
+
+func (c *Client) ConnectWs() error {
+	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.token)
+	if err != nil {
+		return err
+	}
+	c.ws = wsstorage
+	c.Subscribe()
+	return nil
+}
+
+func (c *Client) CloseWs() {
+	c.ws.Close()
+	c.ws = nil
+}
+
+func (c *Client) Login() error {
 	// generate random hash
 	hash := make([]byte, 32)
 	_, err := rand.Read(hash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate random hash; %v", err)
+		return fmt.Errorf("failed to generate random hash; %v", err)
 	}
 
 	// sign hash with private key
-	sig, err := config.EthPrivate.Sign(rand.Reader, hash, nil)
+	sig, err := c.eos.SignHash(hash)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to sign the login request; %v", err)
+		return fmt.Errorf("Failed to sign the login request; %v", err)
 	}
-
-	// login with gRPC
-	response, err := client.Login(context.Background(), &specs.LoginRequest{
-		Public:    crypto.CompressPubkey(&config.EthPrivate.PublicKey),
-		Signature: sig,
-		Hash:      hash,
-	})
+	req := url.Values{"sign": {sig}, "key": {c.config.GetEosPublicKey()}, "hash": {string(hash)}}
+	if account := c.config.EosAccount; account != "" {
+		req["account"] = []string{account}
+	}
+	// send login request
+	response, err := http.PostForm(fmt.Sprintf("http://%s/login", c.config.IryoAddr), req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call login; %v", err)
+		return fmt.Errorf("failed to call login; %v", err)
 	}
-
-	// save login token to metadata for later gRPC calls
-	md := metadata.Pairs(tokenKey, response.Token)
-	config.EthContractAddr = response.ContractAddress
-
-	return &RPCClient{
-		client:   client,
-		config:   config,
-		metadata: md,
-		eth:      eth,
-		ehr:      ehr,
-		log:      log,
-	}, nil
+	if response.StatusCode != 201 {
+		return fmt.Errorf("Code: %d", response.StatusCode)
+	}
+	data := make(map[string]string)
+	err = json.NewDecoder(response.Body).Decode(&data)
+	// Login again after token expires
+	go c.loginWaiter(data["validUntil"])
+	// save token to client
+	c.token = data["token"]
+	return nil
+}
+func (c *Client) loginWaiter(str string) {
+	i, err := strconv.ParseInt(str, 10, 64)
+	// make request 5 seconds before token expires
+	i -= 5
+	if err != nil {
+		c.log.Fatalf("Error getting validUntil")
+	}
+	time.Sleep(time.Until(time.Unix(i, 0)))
+	if err := c.Login(); err != nil {
+		log.Fatalf("Error logging in")
+	}
 }
 
-func (c *RPCClient) Download(owner string) error {
-	c.log.Debugf("RPCClient::Download(%s) called", owner)
-
-	// check for permissions
-	granted, err := c.eth.AccessGranted(owner, c.config.GetEthPublicAddress())
+func (c *Client) CreateAccount(key string) (string, error) {
+	c.log.Debugf("Client::createaccount(%s) called", key)
+	r, err := http.NewRequest("GET", fmt.Sprintf("http://%s/account/%s", c.config.IryoAddr, key), nil)
 	if err != nil {
-		return fmt.Errorf("failed to check accessGranted; %v", err)
+		return "", err
+	}
+	r.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != 201 {
+		return "", fmt.Errorf("Code: %d", res.StatusCode)
+	}
+	var a map[string]string
+	err = json.NewDecoder(res.Body).Decode(&a)
+	c.log.Debugf("Client:: createaccount returned: %v", a)
+	if err != nil {
+		return "", err
 	}
 
-	if !granted {
-		return fmt.Errorf("You do not have permission to download this file")
+	if _, ok := a["error"]; ok {
+		return "", fmt.Errorf(a["error"])
 	}
+	return a["account"], nil
+
+}
+
+func (c *Client) Ls(owner string) ([]map[string]string, error) {
+	c.log.Debugf("Client::Ls(%s) called", owner)
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Code: %d", res.StatusCode)
+	}
+	var a map[string][]map[string]string
+	err = json.NewDecoder(res.Body).Decode(&a)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := a["error"]; ok {
+		return nil, fmt.Errorf("Could not list files")
+	}
+	return a["files"], nil
+
+}
+func (c *Client) Download(owner, fileID string) error {
+	c.log.Debugf("Client::Download(%s, %s) called", owner, fileID)
 
 	// download file from server
-	response, err := c.client.Download(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.DownloadRequest{
-		Owner: owner,
-	})
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s/%s", c.config.IryoAddr, owner, fileID), nil)
 	if err != nil {
-		return fmt.Errorf("failed to call download; %v", err)
+		return err
+	}
+	req.Header.Add("Authorization", c.token)
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("Code: %d", res.StatusCode)
+	}
+
+	a, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
 	}
 
 	// save file to local storage
-	c.ehr.Save(owner, response.Data)
+	c.ehr.Saveid(owner, fileID, []byte(a))
 
 	return nil
 }
 
-func (c *RPCClient) Upload(owner string) error {
-	c.log.Debugf("RPCClient::upload(%s) called", owner)
-
-	// check for permissions
-	granted, err := c.eth.AccessGranted(owner, c.config.GetEthPublicAddress())
+// Update downloads files for user, if they do not exist. Remove them if access was removed
+func (c *Client) Update(owner string) error {
+	// First check if access is granted
+	if owner != c.config.EosAccount {
+		granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
+		if err != nil {
+			return err
+		}
+		if !granted {
+			c.ehr.Remove(owner)
+			return fmt.Errorf("You don't have permission granted to access this data")
+		}
+	}
+	// List files
+	c.log.Debugf("Client::Update(%s) called", owner)
+	list, err := c.Ls(owner)
 	if err != nil {
-		return fmt.Errorf("failed to check accessGranted; %v", err)
+		return err
 	}
-
-	if !granted {
-		return fmt.Errorf("You do not have permission to upload this file")
+	// Download missing
+	for _, f := range list {
+		if !c.ehr.Exists(owner, f["fileID"]) {
+			c.log.Debugf("Client::Update: Downloading file: %s ", f["fileID"])
+			err = c.Download(owner, f["fileID"])
+			if err != nil {
+				return err
+			}
+		}
 	}
+	return nil
+}
 
+func (c *Client) Upload(owner, id string) error {
+	c.log.Debugf("Client::upload(%s) called", owner)
 	// get data from local storage
-	data := c.ehr.Get(owner)
+	data := c.ehr.Getid(owner, id)
 	if data == nil {
 		return fmt.Errorf("Document for %s does not exist", owner)
 	}
+	// lets get a signature
+	sign, err := c.eos.SignHash(data)
+	if err != nil {
+		return err
+	}
+
+	// Get body for the request
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("account", c.config.EosAccount)
+	writer.WriteField("key", c.config.GetEosPublicKey())
+	writer.WriteField("sign", sign)
+	part, err := writer.CreateFormFile("data", id)
+	part.Write(data)
+
+	err = writer.Close()
+	if err != nil {
+		return err
+	}
 
 	// upload data to server
-	_, err = c.client.Upload(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.UploadRequest{
-		Owner: owner,
-		Data:  data,
-	})
-
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), body)
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
-
+	req.Header.Add("Authorization", c.token)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call Upload; %v", err)
+	}
+	b, _ := ioutil.ReadAll(res.Body)
+	if string(b) == "unknown token" {
+		return fmt.Errorf(string(b))
+	}
+	if res.StatusCode != 201 {
+		return fmt.Errorf("Got code: %d", res.StatusCode)
+	}
+	a := make(map[string]string)
+	json.Unmarshal(b, &a)
+	if err != nil {
+		return err
+	}
+	newid := a["fileID"]
+	c.ehr.Rename(owner, id, newid)
 	return nil
 }
 
-func (c *RPCClient) GrantAccess(to string) error {
-	c.log.Debugf("RPCClient::grantAccess(%s) called", to)
+func (c *Client) GrantAccess(to string) error {
+	c.log.Debugf("Client::grantAccess(%s) called", to)
+
+	// Make sure that reciever exists
+	if !c.eos.CheckAccountExists(to) {
+		return fmt.Errorf("User does not exists")
+	}
+	// Do we have the key from reciever?
+	if _, ok := c.config.Requested[to]; !ok {
+		return fmt.Errorf("No key found for requested user")
+	}
+	// Check that users are not yet connected
+	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
+		if err != nil {
+			return err
+		}
+		// make sure doctor is on list of connected
+		conn := false
+		for _, v := range c.config.Connections {
+			if v == to {
+				conn = true
+			}
+		}
+		if !conn {
+			c.config.Connections = append(c.config.Connections, to)
+		}
+		return nil
+	}
 
 	// write access granted to blockchain
-	err := c.eth.GrantAccess(to)
+	err := c.eos.GrantAccess(to)
 	if err != nil {
 		return fmt.Errorf("failed to call grantAccess; %v", err)
 	}
 
 	// send key for storage encryption
-	err = retry(10, 2*time.Second, func() error {
-		_, err = c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
-			To:  to,
-			Key: c.config.EncryptionKeys[c.config.GetEthPublicAddress()],
-		})
+	err = c.ws.SendKey(to)
+	if err != nil {
+		return fmt.Errorf("failed to send key; %v", err)
+	}
 
-		if err == nil {
-			found := false
-			for _, connection := range c.config.Connections {
-				if connection == to {
-					found = true
-					break
-				}
-			}
-			if !found {
-				c.config.Connections = append(c.config.Connections, to)
-			}
-		} else {
-			err = fmt.Errorf("failed to call SendKey; %v", err)
+	// add doctor to list of connected
+	conn := false
+	for _, v := range c.config.Connections {
+		if v == to {
+			conn = true
 		}
+	}
+	if !conn {
+		c.config.Connections = append(c.config.Connections, to)
+	}
 
-		return err
-	})
+	/// remove key from storage
+	delete(c.config.Requested, to)
 
-	return err
+	return nil
 }
 
-func (c *RPCClient) RevokeAccess(to string) error {
-	c.log.Debugf("RPCClient::revokeAccess(%s) called", to)
+func (c *Client) RevokeAccess(to string) error {
+	c.log.Debugf("Client::revokeAccess(%s) called", to)
 
 	// send empty key to doctor to revoke the access
-	_, err := c.client.SendKey(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.SendKeyRequest{
-		To:  to,
-		Key: []byte{},
-	})
+	err := c.ws.RevokeKey(to)
 	if err != nil {
-		return fmt.Errorf("failed to call SendKey: %v", err)
+		return fmt.Errorf("Error revoking key: %v", err)
 	}
 
 	// remove doctor from our connections
@@ -188,50 +357,26 @@ func (c *RPCClient) RevokeAccess(to string) error {
 	}
 
 	// write revoke access to blockchain
-	return c.eth.RevokeAccess(to)
+	return c.eos.RevokeAccess(to)
 }
 
-func (c *RPCClient) Subscribe() error {
-	c.log.Debugf("RPCClient::subscribe() called")
+func (c *Client) Subscribe() {
+	c.log.Debugf("Client::subscribe() called")
 
-	// subscribe to key sent event
-	stream, err := c.client.Subscribe(metadata.NewOutgoingContext(context.Background(), c.metadata), &specs.Empty{})
-	if err != nil {
-		return fmt.Errorf("failed to call subscribe; %v", err)
+	//subscribe to key sent event
+	switch c.config.ClientType {
+	default:
+		c.log.Fatalf("Unknown client type")
+	case "Patient":
+		c.ws.SubscribePatient()
+	case "Doctor":
+		c.ws.SubscribeDoctor()
 	}
+}
 
-	go func() {
-		for {
-			event, err := stream.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				c.log.Fatalf("error receiving events: %v", err)
-			}
-
-			if event.Type == specs.Event_KeySent {
-				c.config.EncryptionKeys[event.KeySentDetails.From] = event.KeySentDetails.Key
-				found := false
-				for i, connection := range c.config.Connections {
-					if connection == event.KeySentDetails.From {
-						if len(event.KeySentDetails.Key) == 0 {
-							c.config.Connections = append(c.config.Connections[:i], c.config.Connections[i+1:]...)
-						}
-						found = true
-						break
-					}
-				}
-				if !found && len(event.KeySentDetails.Key) > 0 {
-					c.config.Connections = append(c.config.Connections, event.KeySentDetails.From)
-				}
-
-				fmt.Printf("Received key for user %s", event.KeySentDetails.From)
-			}
-		}
-	}()
-
-	return nil
+func (c *Client) RequestAccess(to string) error {
+	err := c.ws.RequestsKey(to)
+	return err
 }
 
 func retry(attempts int, sleep time.Duration, f func() error) (err error) {
