@@ -223,7 +223,10 @@ key: "key"
 account: "acount_name" optional
 
 OUT:
-token in uuid format
+{
+    token: uuid    
+    validUntil: unix format
+}
 ```
 if account is not sent in the only endpoint accessable with token is create new account
 

@@ -56,19 +56,21 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	owner := parts[2]
 	outErr := ""
 
+	ehr := make(map[string]string)
 	// Download missing/new files/ check if access was removed
 	err = h.client.Update(owner)
+	if err != nil {
 
-	ehr := make(map[string]string)
-	for k, v := range h.ehr.Get(owner) {
-		ehr[k] = string(h.ehr.Getid(owner, k))
-		v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
-		if err != nil {
-			break
+	} else {
+		for k, v := range h.ehr.Get(owner) {
+			ehr[k] = string(h.ehr.Getid(owner, k))
+			v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
+			if err != nil {
+				break
+			}
+			ehr[k+"_dec"] = string(v)
 		}
-		ehr[k+"_dec"] = string(v)
 	}
-
 	if err != nil {
 		outErr = err.Error()
 	}

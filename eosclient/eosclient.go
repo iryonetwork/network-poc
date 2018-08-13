@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -79,13 +80,25 @@ func (c *Client) Login() error {
 	if response.StatusCode != 201 {
 		return fmt.Errorf("Code: %d", response.StatusCode)
 	}
+	data := make(map[string]string)
+	err = json.NewDecoder(response.Body).Decode(&data)
+	// Login again after token expires
+	go c.loginWaiter(data["validUntil"])
 	// save token to client
-	token, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-	c.token = string(token)
+	c.token = data["token"]
 	return nil
+}
+func (c *Client) loginWaiter(str string) {
+	i, err := strconv.ParseInt(str, 10, 64)
+	// make request 5 seconds before token expires
+	i -= 5
+	if err != nil {
+		c.log.Fatalf("Error getting validUntil")
+	}
+	time.Sleep(time.Until(time.Unix(i, 0)))
+	if err := c.Login(); err != nil {
+		log.Fatalf("Error logging in")
+	}
 }
 
 func (c *Client) CreateAccount(key string) (string, error) {

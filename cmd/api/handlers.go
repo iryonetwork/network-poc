@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/eoscanada/eos-go/ecc"
@@ -71,14 +72,18 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.token.NewToken(id, exists)
+	token, validUntil, err := h.token.NewToken(id, exists)
 	h.log.Debugf("Token %s created", token)
 	if err != nil {
 		writeErrorBody(w, 500, "Error while generating token")
 		return
 	}
+	ret := make(map[string]string)
+	ret["token"] = token
+	ret["validUntil"] = strconv.FormatInt(validUntil.Unix(), 10)
 	w.WriteHeader(201)
-	w.Write([]byte(token))
+	json.NewEncoder(w).Encode(ret)
+	// w.Write([]byte(token))
 
 }
 

@@ -23,10 +23,12 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	if token == "" {
 		h.log.Debugf("No token sent")
 		c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "No token recieved"))
+		return
 	}
 	if !h.token.IsValid(token) {
 		h.log.Debugf("Invalid token")
 		c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Unatuhorized"))
+		return
 	}
 	h.log.Debugf("Token ok")
 	c.WriteMessage(websocket.BinaryMessage, []byte("Authorized"))

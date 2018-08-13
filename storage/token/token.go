@@ -9,11 +9,12 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const viableFor time.Duration = 1 * time.Hour
+const viableFor time.Duration = 1 * time.Minute
 
 type token struct {
-	hasAcc bool
-	id     string
+	hasAcc      bool
+	id          string
+	viableUntil time.Time
 }
 type TokenList struct {
 	tokens map[string]*token
@@ -24,20 +25,21 @@ func Init(log *logger.Log) *TokenList {
 	return &TokenList{make(map[string]*token), log}
 }
 
-func (t *TokenList) NewToken(id string, exists bool) (string, error) {
+func (t *TokenList) NewToken(id string, exists bool) (string, time.Time, error) {
 	// Generate new token
 	tok, err := uuid.NewV4()
 	if err != nil {
-		return "", err
+		return "", time.Now(), err
 	}
-	t.tokens[tok.String()] = &token{exists, id}
+	viableUntil := time.Now().Add(viableFor)
+	t.tokens[tok.String()] = &token{exists, id, viableUntil}
 	// Revoke token after `viableFor`
 	go func() {
 		time.Sleep(viableFor)
 		t.RevokeToken(tok.String())
 		t.log.Debugf("Revoked token")
 	}()
-	return tok.String(), nil
+	return tok.String(), viableUntil, nil
 }
 
 func (t *TokenList) IsValid(tok string) bool {
