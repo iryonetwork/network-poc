@@ -78,7 +78,7 @@ func (h *Hub) GetConn(user string) (*websocket.Conn, error) {
 	if h.Connected(user) {
 		return h.clients[user], nil
 	} else {
-		return nil, fmt.Errorf("Connection for user %s found", user)
+		return nil, fmt.Errorf("Connection for user %s not found", user)
 	}
 }
 

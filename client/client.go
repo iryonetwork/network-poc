@@ -41,7 +41,7 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 }
 
 func (c *Client) ConnectWs() error {
-	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.token)
+	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos, c.token)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,6 @@ func (c *Client) CreateAccount(key string) (string, error) {
 }
 
 func (c *Client) Ls(owner string) ([]map[string]string, error) {
-	c.log.Debugf("Client::Ls(%s) called", owner)
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), nil)
 	if err != nil {
@@ -197,12 +196,11 @@ func (c *Client) Update(owner string) error {
 			return err
 		}
 		if !granted {
-			c.ehr.Remove(owner)
+			c.ehr.RemoveUser(owner)
 			return fmt.Errorf("You don't have permission granted to access this data")
 		}
 	}
 	// List files
-	c.log.Debugf("Client::Update(%s) called", owner)
 	list, err := c.Ls(owner)
 	if err != nil {
 		return err
@@ -210,7 +208,6 @@ func (c *Client) Update(owner string) error {
 	// Download missing
 	for _, f := range list {
 		if !c.ehr.Exists(owner, f["fileID"]) {
-			c.log.Debugf("Client::Update: Downloading file: %s ", f["fileID"])
 			err = c.Download(owner, f["fileID"])
 			if err != nil {
 				return err
@@ -220,7 +217,7 @@ func (c *Client) Update(owner string) error {
 	return nil
 }
 
-func (c *Client) Upload(owner, id string) error {
+func (c *Client) Upload(owner, id string, reencrypt bool) error {
 	c.log.Debugf("Client::upload(%s) called", owner)
 	// get data from local storage
 	data := c.ehr.Getid(owner, id)
@@ -239,6 +236,9 @@ func (c *Client) Upload(owner, id string) error {
 	writer.WriteField("account", c.config.EosAccount)
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
+	if reencrypt {
+		writer.WriteField("reencrypt", "true")
+	}
 	part, err := writer.CreateFormFile("data", id)
 	part.Write(data)
 
@@ -276,6 +276,36 @@ func (c *Client) Upload(owner, id string) error {
 	return nil
 }
 
+func (c *Client) Reencrypt(key []byte) error {
+	c.log.Debugf("Client:: Reencrypting")
+	err := c.Update(c.config.EosAccount)
+	if err != nil {
+		return err
+	}
+	err = c.ehr.Reencrypt(c.config.EosAccount, c.config.EncryptionKeys[c.config.EosAccount], key)
+	if err != nil {
+		return err
+	}
+
+	// Save the new key
+	c.config.EncryptionKeys[c.config.EosAccount] = key
+
+	// Send notification about reencrypting to api
+	err = c.ws.ReencryptRequest()
+	if err != nil {
+		return err
+	}
+
+	// Take some time, to make sure that api folder no loger contains files
+	time.Sleep(2 * time.Second)
+
+	// Upload new files
+	for id := range c.ehr.Get(c.config.EosAccount) {
+		c.log.Debugf("Uploading %s", id)
+		c.Upload(c.config.EosAccount, id, true)
+	}
+	return nil
+}
 func (c *Client) GrantAccess(to string) error {
 	c.log.Debugf("Client::grantAccess(%s) called", to)
 

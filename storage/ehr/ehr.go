@@ -51,7 +51,7 @@ func (s *Storage) Exists(user, id string) bool {
 	return ok
 }
 
-func (s *Storage) Remove(user string) {
+func (s *Storage) RemoveUser(user string) {
 	s.documents[user] = make(map[string][]byte)
 }
 
@@ -103,6 +103,25 @@ func (s *Storage) Decrypt(owner, id string, key []byte) ([]byte, error) {
 	}
 
 	return aesgcm.Open(nil, document[:nonceLength], document[nonceLength:], nil)
+}
+
+// Reencrypt reencrypts the whole storage
+// it does NOT upload the data to the api
+func (s *Storage) Reencrypt(owner string, oldkey, newkey []byte) error {
+	// Reencrypt every entry
+	for id, _ := range s.Get(owner) {
+		data, err := s.Decrypt(owner, id, oldkey)
+		if err != nil {
+			return err
+		}
+		newid, err := s.Encrypt(owner, data, newkey)
+		if err != nil {
+			return err
+		}
+		s.Rename(owner, newid, id)
+	}
+
+	return nil
 }
 
 func newID() string {

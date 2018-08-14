@@ -77,6 +77,9 @@ func (s *Storage) AccessGranted(from, to string) (bool, error) {
 	}
 	// Get the table
 	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: from, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
+	if err != nil {
+		return false, err
+	}
 
 	a := make([]map[string]string, 0)
 	r.JSONToStructs(&a)
@@ -90,6 +93,30 @@ func (s *Storage) AccessGranted(from, to string) (bool, error) {
 		}
 	}
 	return b, err
+}
+
+func (s *Storage) ListConnected(to string) ([]string, error) {
+	s.log.Debugf("Eos::listConnected(%s) called", to)
+
+	// Get the table
+	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: to, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill the map with data
+	a := make([]map[string]string, 0)
+	r.JSONToStructs(&a)
+
+	// fill the list
+	ret := []string{}
+	for _, st := range a {
+		for _, n := range st {
+			ret = append(ret, n)
+		}
+	}
+
+	return ret, nil
 }
 
 // DeployContract pushes contract located in contract/eos to blockchain under name specified in config

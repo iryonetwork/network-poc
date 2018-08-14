@@ -3,7 +3,6 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -25,8 +24,7 @@ func (s *Storage) SendKey(to string) error {
 	if _, ok := s.config.Requested[to]; !ok {
 		return fmt.Errorf("No key from user %s found", to)
 	}
-	sha256 := sha256.New()
-	encKey, err := rsa.EncryptOAEP(sha256, rand.Reader, s.config.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], nil)
+	encKey, err := rsa.EncryptPKCS1v15(rand.Reader, s.config.Requested[to], s.config.EncryptionKeys[s.config.EosAccount])
 	if err != nil {
 		return err
 	}
@@ -68,6 +66,19 @@ func (s *Storage) RequestsKey(to string) error {
 	s.config.RequestKeys[to] = key
 	r.append("key", marshalPKCS1PublicKey(&key.PublicKey))
 	req, err := r.encode()
+	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
+
+	return err
+}
+
+func (s *Storage) ReencryptRequest() error {
+	s.log.Debugf("WS: Sending reeencrypted notification")
+
+	r := newReq("Reencrypt")
+	req, err := r.encode()
+	if err != nil {
+		return err
+	}
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
 	return err

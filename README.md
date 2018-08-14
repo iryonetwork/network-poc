@@ -174,7 +174,7 @@ In: "Content-type": multipart/form-data
     "sign": Signature_of_data's_sha256_hash,
     "data": file,
     "account": Name_of_account_signing,
-
+    "reencrypt": string, if "true" filename of uploaded file will be used as fileID
 
 Out:
 {

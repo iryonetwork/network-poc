@@ -35,7 +35,7 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	user := h.token.GetAccount(token)
 	// Add user to hub
 	h.hub.Register(c, user)
-	ws := ws.NewStorage(c, h.config, h.log, h.hub)
+	ws := ws.NewStorage(c, h.config, h.log, h.hub, h.eos)
 	defer h.hub.Unregister(c, user)
 
 	for {

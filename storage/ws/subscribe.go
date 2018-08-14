@@ -1,8 +1,8 @@
 package ws
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 
 	"github.com/gorilla/websocket"
 )
@@ -38,14 +38,22 @@ func (s *Storage) SubscribeDoctor() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
-				key, err := rsa.DecryptOAEP(sha256.New(), nil, s.config.RequestKeys[from], keyenc, nil)
+				key, err := rsa.DecryptPKCS1v15(rand.Reader, s.config.RequestKeys[from], keyenc)
 				if err != nil {
 					s.log.Fatalf("Error decrypting key: %v", err)
 				}
 
 				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
 				s.config.EncryptionKeys[from] = key
-				s.config.Connections = append(s.config.Connections, from)
+				exists := false
+				for _, name := range s.config.Connections {
+					if name == from {
+						exists = true
+					}
+				}
+				if !exists {
+					s.config.Connections = append(s.config.Connections, from)
+				}
 				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
 
 			case "RevokeKey":
@@ -54,13 +62,23 @@ func (s *Storage) SubscribeDoctor() {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
 				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
-				s.ehr.Remove(from)
+				s.ehr.RemoveUser(from)
 				delete(s.config.EncryptionKeys, from)
 				for i, v := range s.config.Connections {
 					if v == from {
 						s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
 						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
 					}
+				}
+			case "Reencrypt":
+				from, err := r.getDataString("from")
+				if err != nil {
+					s.log.Fatalf("Error getting `from`: %v", err)
+				}
+				s.ehr.RemoveUser(from)
+				err = s.RequestsKey(from)
+				if err != nil {
+					s.log.Fatalf("Error creating RequestKey: %v", err)
 				}
 			}
 		}
@@ -99,8 +117,25 @@ func (s *Storage) SubscribePatient() {
 					s.log.Fatalf("Error getting `key`: %v", err)
 				}
 				s.config.Requested[from], err = parsePKCS1PublicKey(key)
+				// Check if access is already granted
+				// if it is, send the key without prompting the user for confirmation
+				granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
 				if err != nil {
 					s.log.Fatalf("Error getting key: %v", err)
+				}
+				if granted {
+					s.SendKey(from)
+					// make sure they are on the list
+					add := false
+					for _, name := range s.config.Connections {
+						if name == from {
+							add = false
+						}
+					}
+					if add {
+						s.config.Connections = append(s.config.Connections, from)
+					}
+					delete(s.config.Requested, from)
 				}
 			}
 		}

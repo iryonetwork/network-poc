@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
+	"github.com/iryonetwork/network-poc/storage/eos"
 
 	"github.com/iryonetwork/network-poc/logger"
 
@@ -19,18 +20,19 @@ import (
 type Storage struct {
 	conn   *websocket.Conn
 	config *config.Config
-	log    *logger.Log
-	hub    *Hub
 	ehr    *ehr.Storage
+	eos    *eos.Storage
+	hub    *Hub
+	log    *logger.Log
 }
 
 // NewStorage is APIside storage
-func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hub *Hub) *Storage {
-	return &Storage{conn: conn, config: config, log: log, hub: hub}
+func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hub *Hub, eos *eos.Storage) *Storage {
+	return &Storage{conn: conn, config: config, log: log, hub: hub, eos: eos}
 }
 
 // Connect connects client to api
-func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, token string) (*Storage, error) {
+func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.Storage, token string) (*Storage, error) {
 	addr := "ws://" + config.IryoAddr + "/ws/"
 	log.Debugf("WS:: Connecting to %s", addr)
 
@@ -45,7 +47,7 @@ func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, token str
 		return nil, err
 	}
 	if string(msg) == "Authorized" {
-		return &Storage{conn: c, config: config, log: log, ehr: ehr}, nil
+		return &Storage{conn: c, config: config, log: log, ehr: ehr, eos: eos}, nil
 	}
 	return nil, fmt.Errorf("Error authorizing: %s", string(msg))
 }

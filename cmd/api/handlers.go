@@ -178,9 +178,19 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Handle file saving
 	// create dir
 	os.MkdirAll("ehr/"+owner, os.ModePerm)
-	fid, err := uuid.NewV1()
+	var fid string
+	if v, ok := r.Form["reencrypt"]; ok && v[0] == "true" {
+		fid = head.Filename
+	} else {
+		uuid, err := uuid.NewV1()
+		if err != nil {
+			writeErrorBody(w, 500, err.Error())
+			return
+		}
+		fid = uuid.String()
+	}
 	// create file
-	f, err := os.Create("ehr/" + owner + "/" + fid.String())
+	f, err := os.Create("ehr/" + owner + "/" + fid)
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -194,9 +204,10 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Generate response
-	response.FileID = fid.String()
+	response.FileID = fid
 	ts := time.Now().Format("2006-01-02T15:04:05.999Z")
 	response.CreatedAt = ts
+	h.log.Debugf("API:: File %s uploaded", fid)
 	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(response)
 }
@@ -218,7 +229,6 @@ type lsFile struct {
 func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	account := params["account"]
-	h.log.Debugf("API:: got ls(%v) request", account)
 	response := lsResponse{}
 	//Authorize
 	token := r.Header.Get("Authorization")

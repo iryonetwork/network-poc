@@ -76,6 +76,7 @@ func main() {
 	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
 	http.HandleFunc("/save", h.saveEHRHandler)
+	http.HandleFunc("/reencrypt", h.reencryptHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 

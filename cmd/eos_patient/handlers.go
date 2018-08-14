@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"html/template"
 	"log"
@@ -104,7 +105,7 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?error="+err.Error(), 302)
 		return
 	}
-	err = h.client.Upload(user, id)
+	err = h.client.Upload(user, id, false)
 
 	url := "/"
 	if err != nil {
@@ -112,4 +113,22 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, url, 302)
+}
+
+func (h *handlers) reencryptHandler(w http.ResponseWriter, r *http.Request) {
+	// We need new key
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		http.Redirect(w, r, "/?error="+err.Error(), 302)
+		return
+	}
+
+	err = h.client.Reencrypt(key)
+	if err != nil {
+		http.Redirect(w, r, "/?error="+err.Error(), 302)
+		return
+	}
+
+	http.Redirect(w, r, "/", 302)
 }

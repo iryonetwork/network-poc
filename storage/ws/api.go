@@ -1,13 +1,10 @@
 package ws
 
 import (
-	"crypto/sha256"
 	"fmt"
+	"os"
 
-	"github.com/eoscanada/eos-go/ecc"
 	"github.com/gorilla/websocket"
-
-	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 func (s *Storage) HandleRequest(reqdata []byte, from string) error {
@@ -45,6 +42,10 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		}
 		r.append("from", []byte(from))
 		r.append("key", key)
+	case "Reencrypt":
+		s.log.Debugf("WS_API:: Got reencrypted notification")
+		err := s.reencrypt(&inReq, from)
+		return err
 	}
 
 	sendTo, err := inReq.getDataString("to")
@@ -68,7 +69,7 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		// send
 		conn.WriteMessage(websocket.BinaryMessage, req)
 	} else {
-		s.log.Debugf("WS_API:: User %s is not connected, can't send request", sendTo)
+		s.log.Debugf("User %s not connected, can't send message. Message will be sent when connented", sendTo)
 		// user is not connected, add the request to storage
 		s.hub.AddRequest(sendTo, req)
 		return nil
@@ -76,53 +77,35 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 	return nil
 }
 
-// Authenticate takes connection token, authentication message and eos package storage
-// Returns true and account name if user used his key to sign and the signature is correct
-// Returns false if signature could not be verifyed
-func Authenticate(token, msg []byte, eos *eos.Storage) (bool, string, error) {
-	req, err := decode(msg)
+func (s *Storage) reencrypt(r *request, from string) error {
+	// Backup current data
+	os.Rename(fmt.Sprintf("ehr/%s", from), fmt.Sprintf("ehr/%s_backup", from))
 
+	// Create list of doctors to send message to
+	sendTo, err := s.eos.ListConnected(from)
 	if err != nil {
-		return false, "", err
+		return err
 	}
-	if req.Name != "Authenticate" {
-		return false, "", fmt.Errorf("Request is not authenticate")
-	}
-	user, err := req.getDataString("user")
+	// Construct request
+	r = newReq("Reencrypt")
+	r.append("from", []byte(from))
+	req, err := r.encode()
 	if err != nil {
-		return false, "", err
-	}
-	key, err := req.getDataString("key")
-	if err != nil {
-		return false, "", err
+		return err
 	}
 
-	correctKey, err := eos.CheckAccountKey(user, key)
-	if err != nil {
-		return false, "", err
+	// Send to all connected users
+	for _, to := range sendTo {
+		if s.hub.Connected(to) {
+			conn, err := s.hub.GetConn(to)
+			if err != nil {
+				return err
+			}
+			err = conn.WriteMessage(websocket.BinaryMessage, req)
+		} else {
+			s.log.Debugf("User %s not connected, can't send message. Message will be sent when connented", to)
+			s.hub.AddRequest(to, req)
+		}
 	}
-	if !correctKey {
-		return false, "", fmt.Errorf("Provided key is not connected to provided account")
-	}
-	// Get signature and check it
-	signature, err := req.getDataString("signature")
-	if err != nil {
-		return false, "", err
-	}
-	valid, err := checkSignature(token, signature, key)
-	return valid, user, nil
-}
-
-func checkSignature(data []byte, sig, key string) (bool, error) {
-	signature, err := ecc.NewSignature(sig)
-	if err != nil {
-		return false, err
-	}
-	pk, err := ecc.NewPublicKey(key)
-	if err != nil {
-		return false, err
-	}
-	h := sha256.New()
-	h.Write(data)
-	return signature.Verify(h.Sum(nil), pk), nil
+	return err
 }

@@ -140,7 +140,7 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.client.Upload(owner, id)
+	err = h.client.Upload(owner, id, false)
 
 	url := "/ehr/" + owner
 	if err != nil {
