@@ -1,8 +1,11 @@
 package ws
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
+
+	"github.com/eoscanada/eos-go/ecc"
 
 	"github.com/gorilla/websocket"
 )
@@ -13,11 +16,24 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 	if err != nil {
 		return err
 	}
+
+	sendTo, err := inReq.getDataString("to")
+	if err != nil {
+		return err
+	}
+	// Check if reciever exists
+	if !s.eos.CheckAccountExists(sendTo) {
+		s.log.Debugf("User %s does not exists, trashing the request", sendTo)
+		return nil
+	}
+
 	s.log.Debugf("WS_API:: Got request: %s", inReq.Name)
 	var r *request
+
 	switch inReq.Name {
 	default:
 		return fmt.Errorf("Request not valid")
+
 	case "SendKey":
 		s.log.Debugf("WS_API:: Sending key")
 		r = newReq("ImportKey")
@@ -35,27 +51,24 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	case "RequestKey":
 		s.log.Debugf("WS_API:: Requesting key")
-		r = newReq("RequestKey")
-		key, err := inReq.getData("key")
-		if err != nil {
-			return err
-		}
-		r.append("from", []byte(from))
-		r.append("key", key)
+		err := s.requestKey(&inReq, from)
+		return err
+
 	case "Reencrypt":
 		s.log.Debugf("WS_API:: Got reencrypted notification")
 		err := s.reencrypt(&inReq, from)
 		return err
+
 	case "NotifyGranted":
 		s.log.Debugf("WS_API:: Got access granted notification from %s", from)
 		r = newReq("NotifyGranted")
 		r.append("from", []byte(from))
 	}
 
-	sendTo, err := inReq.getDataString("to")
-	if err != nil {
-		return err
-	}
+	return s.sendRequest(r, sendTo)
+}
+
+func (s *Storage) sendRequest(r *request, to string) error {
 	// Encode
 	req, err := r.encode()
 	if err != nil {
@@ -64,21 +77,22 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	// handle sending
 	// send if user is connected
-	if s.hub.Connected(sendTo) {
+	if s.hub.Connected(to) {
 		// get connection
-		conn, err := s.hub.GetConn(sendTo)
+		conn, err := s.hub.GetConn(to)
 		if err != nil {
 			return err
 		}
 		// send
 		conn.WriteMessage(websocket.BinaryMessage, req)
 	} else {
-		s.log.Debugf("User %s not connected, can't send message. Message will be sent when connented", sendTo)
+		s.log.Debugf("User %s not connected, can't send message. Message will be sent when connented", to)
 		// user is not connected, add the request to storage
-		s.hub.AddRequest(sendTo, req)
+		s.hub.AddRequest(to, req)
 		return nil
 	}
 	return nil
+
 }
 
 func (s *Storage) reencrypt(r *request, from string) error {
@@ -112,4 +126,72 @@ func (s *Storage) reencrypt(r *request, from string) error {
 		}
 	}
 	return err
+}
+
+func (s *Storage) requestKey(r *request, from string) error {
+	// Get the data in request
+	eoskey, err := r.getDataString("eoskey")
+	if err != nil {
+		return err
+	}
+	rsakey, err := r.getData("key")
+	if err != nil {
+		return err
+	}
+	sign, err := r.getDataString("signature")
+	if err != nil {
+		return err
+	}
+	// Are key and account connected?
+	if ok, err := s.eos.CheckAccountKey(from, eoskey); !ok || err != nil {
+		if err != nil {
+			return err
+		}
+		conn, err := s.hub.GetConn(from)
+		if err != nil {
+			return err
+		}
+		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
+	}
+	// verify it
+	valid, err := checkRequestKeySignature(eoskey, sign, rsakey)
+	if err != nil {
+		return err
+	}
+
+	// send if valid
+	if valid {
+		s.log.Debugf("Request verified")
+
+		sendto, err := r.getDataString("to")
+		if err != nil {
+			return err
+		}
+		r.remove("to")
+		r.append("from", []byte(from))
+		s.sendRequest(r, sendto)
+	}
+	return nil
+}
+
+func checkRequestKeySignature(eoskey, strsign string, rsakey []byte) (bool, error) {
+
+	sign, err := ecc.NewSignature(strsign)
+	if err != nil {
+		return false, err
+	}
+	key, err := ecc.NewPublicKey(eoskey)
+	if err != nil {
+		return false, err
+	}
+	if !sign.Verify(getHash(rsakey), key) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func getHash(in []byte) []byte {
+	sha := sha256.New()
+	sha.Write(in)
+	return sha.Sum(nil)
 }

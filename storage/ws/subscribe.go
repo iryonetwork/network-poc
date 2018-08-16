@@ -134,6 +134,31 @@ func (s *Storage) SubscribePatient() {
 				if err != nil {
 					s.log.Fatalf("Error getting `key`: %v", err)
 				}
+				eoskey, err := r.getDataString("eoskey")
+				if err != nil {
+					s.log.Fatalf("Error getting `eoskey`: %v", err)
+				}
+				sign, err := r.getDataString("signature")
+				if err != nil {
+					s.log.Fatalf("Error getting `signature`: %v", err)
+				}
+				valid, err := s.eos.CheckAccountKey(from, eoskey)
+				if err != nil {
+					s.log.Fatalf("Error checking valid account: %v", err)
+				}
+				if !valid {
+					s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account ")
+					break
+				}
+				valid, err = checkRequestKeySignature(eoskey, sign, key)
+				if err != nil {
+					s.log.Fatalf("Error checking valid signature: %v", err)
+				}
+				if !valid {
+					s.log.Debugf("SUBSCRIBE:: signature not valid")
+					break
+				}
+
 				s.config.Requested[from], err = parsePKCS1PublicKey(key)
 				// Check if access is already granted
 				// if it is, send the key without prompting the user for confirmation

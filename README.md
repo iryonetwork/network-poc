@@ -82,6 +82,24 @@ all requests are json websocket messages of type `websocket.BinaryMessage`
 When connecting to websocket endpoint provide token in `Authorization` field in header to authorize.
 When authorized a message will be sendt back saying `Authorized`
 ```
+Notify that access was granted
+IN:
+{
+    "Name":"NotifyGranted"
+    "Fields":{
+        "to":"user recieving access"
+    }
+}
+
+OUT:
+{
+    "Name":"NotifyGranted"
+    "Fields":{
+        "from":"Sender"
+    }
+}
+```
+```
 Request Key
 doctor sends request to patient using
 IN:
@@ -89,6 +107,8 @@ IN:
     "Name":"RequestKey",
     "Fields":{
         "key":"RSA public key",
+        "signature":"EOS's signature of sha256 hash of RSA public key"
+        "eoskey":"eoskey used to sign the hash",
         "to":"Account name"
     }
 }
@@ -123,6 +143,23 @@ OUT:
 }
 
 ```
+```
+Reencrypt
+after patient reencrypts the data usign new key
+IN:
+{
+    "Name":"Reencrypt"
+}
+
+OUT: - sent to all connected doctors
+{
+    "Name":"Reencrypt"
+    "Fields":{
+        "from":"sender of in request"
+    }
+}
+```
+
 ```
 Revoke Key
 IN:

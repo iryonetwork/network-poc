@@ -59,14 +59,27 @@ func (s *Storage) RequestsKey(to string) error {
 	r := newReq("RequestKey")
 	r.append("to", []byte(to))
 
+	// We need a key
 	reader := rand.Reader
 	bitSize := 4096
-	key, err := rsa.GenerateKey(reader, bitSize)
+	rsakey, err := rsa.GenerateKey(reader, bitSize)
 	if err != nil {
 		return err
 	}
-	s.config.RequestKeys[to] = key
-	r.append("key", marshalPKCS1PublicKey(&key.PublicKey))
+	s.config.RequestKeys[to] = rsakey
+	key := marshalPKCS1PublicKey(&rsakey.PublicKey)
+	r.append("key", key)
+
+	// Sign the key
+	sign, err := s.eos.SignHash(key)
+	if err != nil {
+		return err
+	}
+	r.append("signature", []byte(sign))
+
+	// And add your EOS key
+	r.append("eoskey", []byte(s.config.GetEosPublicKey()))
+
 	req, err := r.encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
@@ -91,8 +104,6 @@ func (s *Storage) NotifyGranted(to string) error {
 	}
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 	return err
-
-	return nil
 }
 
 func (s *Storage) ReencryptRequest() error {
@@ -111,10 +122,6 @@ func (s *Storage) ReencryptRequest() error {
 type request struct {
 	Name   string
 	Fields map[string][]byte
-}
-type field struct {
-	Name string
-	Data []byte
 }
 
 func newReq(name string) *request {
@@ -150,4 +157,9 @@ func (r *request) getDataString(key string) (string, error) {
 		return string(d), nil
 	}
 	return "", fmt.Errorf("No data found for key %s", key)
+}
+func (r *request) remove(key string) {
+	if _, ok := r.Fields[key]; ok {
+		delete(r.Fields, key)
+	}
 }
