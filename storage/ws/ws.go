@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
@@ -37,9 +36,13 @@ func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.
 	log.Debugf("WS:: Connecting to %s", addr)
 
 	// Call API's WS
-	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Authorization": []string{token}})
+	c, _, err := websocket.DefaultDialer.Dial(addr, nil)
 	if err != nil {
 		return nil, err
+	}
+	err = c.WriteMessage(2, []byte(token))
+	if err != nil {
+		return nil, fmt.Errorf("Error authorizing: %s", err)
 	}
 	// Check if authorized
 	_, msg, err := c.ReadMessage()
