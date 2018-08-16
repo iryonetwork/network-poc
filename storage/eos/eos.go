@@ -31,88 +31,135 @@ func New(cfg *config.Config, log *logger.Log) (*Storage, error) {
 
 // AccessReq contains fields needed in sending access-contract related actions
 type AccessReq struct {
-	From eos.AccountName `json:"from"`
-	To   eos.AccountName `json:"to"`
+	Patient eos.AccountName `json:"patient"`
+	Account eos.AccountName `json:"account"`
+}
+
+type AddToTableReq struct {
+	Patient        eos.AccountName `json:"patient"`
+	Account        eos.AccountName `json:"account"`
+	IsDoctorValue  uint64          `json:"isDoctorValue"`
+	IsEnabledValue uint64          `json:"isenabledValue"`
 }
 
 // GrantAccess adds `to` field in contract table
 func (s *Storage) GrantAccess(to string) error {
 	s.log.Debugf("Eos::grantAccess(%s) called", to)
+	// Check if user is alreday on the table
+	onTable, err := s.isOnTable(to)
+	if err != nil {
+		return err
+	}
+	if !onTable {
+		s.log.Debugf("EOS::grantAccess(%s) User is not on table. Adding")
+		action := &eos.Action{
+			Account: eos.AN(s.config.EosContractName),
+			Name:    eos.ActN("add"),
+			Authorization: []eos.PermissionLevel{
+				{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
+			},
+			ActionData: eos.NewActionData(AddToTableReq{eos.AN(s.config.EosAccount), eos.AN(to), 1, 1}),
+		}
+		_, err := s.api.SignPushActions(action)
+		return err
+	}
+
 	// Give access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
-		Name:    eos.ActN("give"),
+		Name:    eos.ActN("grantaccess"),
 		Authorization: []eos.PermissionLevel{
 			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{From: eos.AN(s.config.EosAccount), To: eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
 	}
-	_, err := s.api.SignPushActions(action)
+	_, err = s.api.SignPushActions(action)
 	return err
 }
 
-// RevokeAccess removes `to` field in contract table
+func (s *Storage) isOnTable(user string) (bool, error) {
+	ls, err := s.listAccountFromTable(s.config.EosAccount, false)
+	if err != nil {
+		return false, err
+	}
+
+	for _, v := range ls {
+		if v == user {
+			s.log.Debugf("User is on table")
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// RevokeAccess changes isEnabled field in table to 0
 func (s *Storage) RevokeAccess(to string) error {
 	s.log.Debugf("Eos::revokeAccess(%s) called", to)
 	// Remove access action
 	action := &eos.Action{
 		Account: eos.AN(s.config.EosContractName),
-		Name:    eos.ActN("premove"),
+		Name:    eos.ActN("revokeaccess"),
 		Authorization: []eos.PermissionLevel{
 			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{From: eos.AN(s.config.EosAccount), To: eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
 	return err
 }
 
-// AccessGranted checks if connection between `from` and `to` is establisehd
+// AccessGranted checks if connection between `patient` and `to` is establisehd
 // return true if connection is established and false if it is not
 // Due to uint32 limitations this functions allows connection for up to 4294967295 doctors to a single client
-func (s *Storage) AccessGranted(from, to string) (bool, error) {
-	s.log.Debugf("Eos::accessGranted(%s, %s) called", from, to)
-	if from == to {
+func (s *Storage) AccessGranted(patient, to string) (bool, error) {
+	s.log.Debugf("Eos::accessGranted(%s, %s) called", patient, to)
+	if patient == to {
 		return true, nil
 	}
-	// Get the table
-	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: from, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
-	if err != nil {
-		return false, err
-	}
-
-	a := make([]map[string]string, 0)
-	r.JSONToStructs(&a)
-	// Check if `to` has its field in the table
+	// Check if `patient` has its field in the table
 	b := false
-	for _, st := range a {
-		for _, n := range st {
-			if n == to {
-				b = true
-			}
+	list, err := s.ListConnected(patient)
+	if err != nil {
+		return b, nil
+	}
+	for _, entry := range list {
+		if entry == to {
+			b = true
+			break
 		}
 	}
-	return b, err
+	return b, nil
 }
 
 func (s *Storage) ListConnected(to string) ([]string, error) {
-	s.log.Debugf("Eos::listConnected(%s) called", to)
+	return s.listAccountFromTable(to, true)
+}
+
+type TableEntry struct {
+	AccountName string `json:"account_name"`
+	IsDoctor    int    `json:"isDoctor"`
+	IsEnabled   int    `json:"isEnabled"`
+}
+
+func (s *Storage) listAccountFromTable(patient string, onlyConnected bool) ([]string, error) {
+	s.log.Debugf("Eos::listAccountFromTable(%s, %v) called", patient, onlyConnected)
 
 	// Get the table
-	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: to, Code: s.config.EosContractName, Table: "status", Limit: math.MaxUint32})
+	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractName, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
 	if err != nil {
 		return nil, err
 	}
 
 	// Fill the map with data
-	a := make([]map[string]string, 0)
+	a := make([]TableEntry, 0)
 	r.JSONToStructs(&a)
 
 	// fill the list
 	ret := []string{}
-	for _, st := range a {
-		for _, n := range st {
-			ret = append(ret, n)
+	for _, entry := range a {
+		if entry.IsEnabled == 1 || !onlyConnected {
+			s.log.Debugf("Adding %s to list", entry.AccountName)
+			ret = append(ret, entry.AccountName)
 		}
 	}
 

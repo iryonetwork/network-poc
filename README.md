@@ -54,7 +54,7 @@ git clone git@github.com:iryonetwork/network-poc.git
 # go to the folder
 cd network-poc
 
-# prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token, and create the patients)
+# prapare the repository (this will initialize and start the testnet, create accounts master, iryo and iryo.token)
 # master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
 make
 

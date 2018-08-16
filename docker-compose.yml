@@ -11,7 +11,7 @@ services:
 
 ## Create master account
   cleos:
-    image: eosio/eos:v1.1.0
+    image: eosio/eos-dev:v1.1.0
     command:
     - /bin/bash
     - -c
@@ -20,6 +20,11 @@ services:
       cleos wallet import --private-key $$EOS_PRIVATE 
       cleos wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 #default eosio account private key
       cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
+      eosiocpp -g iryo.abi iryo.cpp
+      eosiocpp -o iryo.wast iryo.cpp
+    volumes: 
+    - ./contract:/contract
+    working_dir: /contract
     environment:
     - EOS_API=http://server:8888 # url on which nodeos is running
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account

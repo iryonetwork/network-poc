@@ -1,6 +1,6 @@
 .PHONY: up run stop build specs
 
-ALL: clear init up
+ALL: init
 
 attach/%:
 	docker-compose run $*
