@@ -32,7 +32,7 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Debugf("Token ok")
 	c.WriteMessage(websocket.BinaryMessage, []byte("Authorized"))
-	user := h.token.GetAccount(token)
+	user := h.token.GetID(token)
 	// Add user to hub
 	h.hub.Register(c, user)
 	ws := ws.NewStorage(c, h.config, h.log, h.hub, h.eos)

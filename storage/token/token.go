@@ -9,7 +9,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const viableFor time.Duration = 1 * time.Minute
+const viableFor time.Duration = 1 * time.Hour
 
 type token struct {
 	hasAcc      bool
@@ -61,7 +61,7 @@ func (t *TokenList) AccCreated(tok, account, key string) error {
 	t.tokens[tok].hasAcc = true
 	return nil
 }
-func (t *TokenList) GetAccount(tok string) string {
+func (t *TokenList) GetID(tok string) string {
 	return t.tokens[tok].id
 }
 

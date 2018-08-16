@@ -111,7 +111,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	params := mux.Vars(r)
 	owner := params["account"]
-	account := h.token.GetAccount(token)
+	account := h.token.GetID(token)
 	keystr := r.PostForm["key"][0]
 
 	if exists := h.eos.CheckAccountExists(owner); !exists {
@@ -240,7 +240,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// make sure connected has access to data
-	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
+	access, err := h.eos.AccessGranted(account, h.token.GetID(token))
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -289,7 +289,7 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// make sure connected has access to data
-	access, err := h.eos.AccessGranted(account, h.token.GetAccount(token))
+	access, err := h.eos.AccessGranted(account, h.token.GetID(token))
 	if err != nil {
 		writeErrorBody(w, 500, "Internal server error")
 		return
@@ -319,8 +319,6 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	key := params["key"]
 	response := make(map[string]string)
 	// Authorize the user
 	token := r.Header.Get("Authorization")
@@ -331,6 +329,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorJson(w, 400, "You already have an account")
 		return
 	}
+	key := h.token.GetID(token)
 	accountname, err := h.getAccName()
 	if err != nil {
 		writeErrorJson(w, 500, err.Error())
@@ -342,11 +341,11 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErrorJson(w, 400, err.Error())
 		return
-	} else {
-		response["account"] = accountname
-		h.token.AccCreated(token, accountname, key)
-		w.WriteHeader(201)
 	}
+	response["account"] = accountname
+	h.token.AccCreated(token, accountname, key)
+	w.WriteHeader(201)
+
 	json.NewEncoder(w).Encode(response)
 }
 
