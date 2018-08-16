@@ -17,16 +17,6 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		return err
 	}
 
-	sendTo, err := inReq.getDataString("to")
-	if err != nil {
-		return err
-	}
-	// Check if reciever exists
-	if !s.eos.CheckAccountExists(sendTo) {
-		s.log.Debugf("User %s does not exists, trashing the request", sendTo)
-		return nil
-	}
-
 	s.log.Debugf("WS_API:: Got request: %s", inReq.Name)
 	var r *request
 
@@ -63,6 +53,16 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		s.log.Debugf("WS_API:: Got access granted notification from %s", from)
 		r = newReq("NotifyGranted")
 		r.append("from", []byte(from))
+	}
+
+	sendTo, err := inReq.getDataString("to")
+	if err != nil {
+		return err
+	}
+	// Check if reciever exists
+	if !s.eos.CheckAccountExists(sendTo) {
+		s.log.Debugf("User %s does not exists, trashing the request", sendTo)
+		return nil
 	}
 
 	return s.sendRequest(r, sendTo)
