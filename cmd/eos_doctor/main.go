@@ -60,6 +60,7 @@ func main() {
 
 	http.HandleFunc("/ehr/", h.ehrHandler)
 	http.HandleFunc("/request", h.requestHandler)
+	http.HandleFunc("/ignore", h.ignoreHandler)
 	http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/", h.indexHandler)
 	http.HandleFunc("/close", h.closeHandler)

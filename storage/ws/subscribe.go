@@ -80,6 +80,24 @@ func (s *Storage) SubscribeDoctor() {
 				if err != nil {
 					s.log.Fatalf("Error creating RequestKey: %v", err)
 				}
+			case "NotifyGranted":
+				from, err := r.getDataString("from")
+				if err != nil {
+					s.log.Fatalf("Error getting `from`: %v", err)
+				}
+				s.log.Debugf("Got notification 'accessGranted' from %s", from)
+				// Check if we already have the user on the list
+				onlist := false
+				for _, v := range s.config.Connections {
+					if v == from {
+						onlist = true
+						break
+					}
+				}
+				// if its not on list add it
+				if !onlist {
+					s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys, from)
+				}
 			}
 		}
 	}()

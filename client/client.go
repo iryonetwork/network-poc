@@ -313,10 +313,7 @@ func (c *Client) GrantAccess(to string) error {
 	if !c.eos.CheckAccountExists(to) {
 		return fmt.Errorf("User does not exists")
 	}
-	// Do we have the key from reciever?
-	if _, ok := c.config.Requested[to]; !ok {
-		return fmt.Errorf("No key found for requested user")
-	}
+
 	// Check that users are not yet connected
 	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
 		if err != nil {
@@ -341,10 +338,19 @@ func (c *Client) GrantAccess(to string) error {
 		return fmt.Errorf("failed to call grantAccess; %v", err)
 	}
 
-	// send key for storage encryption
-	err = c.ws.SendKey(to)
-	if err != nil {
-		return fmt.Errorf("failed to send key; %v", err)
+	// if request for key was already made send the key
+	// else notify the doctor that request was granted
+	if _, ok := c.config.Requested[to]; ok {
+		// send key for storage encryption
+		err = c.ws.SendKey(to)
+		if err != nil {
+			return fmt.Errorf("failed to send key; %v", err)
+		}
+	} else {
+		err = c.ws.NotifyGranted(to)
+		if err != nil {
+			return fmt.Errorf("Failed to notify access granted; %v", err)
+		}
 	}
 
 	// add doctor to list of connected
@@ -373,6 +379,11 @@ func (c *Client) RevokeAccess(to string) error {
 		return fmt.Errorf("Error revoking key: %v", err)
 	}
 
+	// write revoke access to blockchain
+	err = c.eos.RevokeAccess(to)
+	if err != nil {
+		return err
+	}
 	// remove doctor from our connections
 	found := false
 	for i, v := range c.config.Connections {
@@ -385,9 +396,7 @@ func (c *Client) RevokeAccess(to string) error {
 	if !found {
 		return fmt.Errorf("%s is not in connections", to)
 	}
-
-	// write revoke access to blockchain
-	return c.eos.RevokeAccess(to)
+	return nil
 }
 
 func (c *Client) Subscribe() {

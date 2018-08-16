@@ -62,6 +62,16 @@
                             {{end}}
                         </tbody>
                     </table>
+
+                    <form action="/grant">
+                        <div class="input-group mb-3">
+                            <input name="to" type="text" class="form-control" placeholder="Doctor's account name" aria-label="Doctor's account name" aria-describedby="basic-addon2">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="submit">Request access</button>
+                            </div>
+                        </div>
+                    </form>
+    
                     {{ range $i, $c := .Requested}}
                     {{ $i }}
                     <form action="/grant">

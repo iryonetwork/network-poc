@@ -13,6 +13,8 @@ type Requests interface {
 	SendKey(to string)
 	RevokeKey(to string)
 	RequestKey(to string)
+	NotifyGranted(to string)
+	ReencryptRequest()
 }
 
 func (s *Storage) SendKey(to string) error {
@@ -68,7 +70,29 @@ func (s *Storage) RequestsKey(to string) error {
 	req, err := r.encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
+	// Check if user is on GrantedWithoutKeys list
+	for i, v := range s.config.GrantedWithoutKeys {
+		if v == to {
+			s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys[:i], s.config.GrantedWithoutKeys[i+1:]...)
+		}
+	}
+
 	return err
+}
+
+func (s *Storage) NotifyGranted(to string) error {
+	s.log.Debugf("WS:: Notifying %s that access was granted", to)
+
+	r := newReq("NotifyGranted")
+	r.append("to", []byte(to))
+	req, err := r.encode()
+	if err != nil {
+		return err
+	}
+	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
+	return err
+
+	return nil
 }
 
 func (s *Storage) ReencryptRequest() error {

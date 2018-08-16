@@ -46,6 +46,26 @@
                         </div>
                     </div>
                 </form>
+                {{ range $i, $c := .Granted}}
+                {{ $c }}
+                <form action="/request">
+                    <div class="input-group mb-3">
+                        <input name="to" type="hidden" class="form-control" value="{{ $c }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="submit">Request key</button>
+                        </div>
+                    </div>
+                </form>
+                <form action="/ignore">
+                    <p class="input-group mb-3">
+                        <input name="to" type="hidden" class="form-control" value="{{ $c }}">
+                        <p class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="submit">Ignore</button>
+                        </p>
+                    </p>
+                </form>
+
+                {{ end }}
 
                 <div class="footer">
                     Contract address: {{ .Contract }}

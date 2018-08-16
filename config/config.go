@@ -8,28 +8,30 @@ import (
 )
 
 type Config struct {
-	IryoAddr        string `env:"IRYO_ADDR" envDefault:"localhost:8000"`
-	EosAPI          string `env:"EOS_API" envDefault:"http://localhost:8888"`
-	EosPrivate      string `env:"EOS_PRIVATE,required"`
-	EosAccount      string `env:"EOS_ACCOUNT"`
-	EosContractName string `env:"EOS_CONTRACT_NAME"`
-	EosTokenAccount string `env:"EOS_TOKEN_ACCOUNT"`
-	EosTokenName    string `env:"EOS_TOKEN_NAME"`
-	ClientType      string `env:"CLIENT_TYPE" envDefault:"Patient"`
-	ClientAddr      string `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
-	Debug           bool   `env:"DEBUG" envDefault:"1"`
-	EncryptionKeys  map[string][]byte
-	RequestKeys     map[string]*rsa.PrivateKey
-	Requested       map[string]*rsa.PublicKey
-	Connections     []string
+	IryoAddr           string `env:"IRYO_ADDR" envDefault:"localhost:8000"`
+	EosAPI             string `env:"EOS_API" envDefault:"http://localhost:8888"`
+	EosPrivate         string `env:"EOS_PRIVATE,required"`
+	EosAccount         string `env:"EOS_ACCOUNT"`
+	EosContractName    string `env:"EOS_CONTRACT_NAME"`
+	EosTokenAccount    string `env:"EOS_TOKEN_ACCOUNT"`
+	EosTokenName       string `env:"EOS_TOKEN_NAME"`
+	ClientType         string `env:"CLIENT_TYPE" envDefault:"Patient"`
+	ClientAddr         string `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
+	Debug              bool   `env:"DEBUG" envDefault:"1"`
+	EncryptionKeys     map[string][]byte
+	RequestKeys        map[string]*rsa.PrivateKey
+	Requested          map[string]*rsa.PublicKey
+	Connections        []string
+	GrantedWithoutKeys []string
 }
 
 func New() (*Config, error) {
 	cfg := &Config{
-		Requested:      make(map[string]*rsa.PublicKey),
-		RequestKeys:    make(map[string]*rsa.PrivateKey),
-		EncryptionKeys: make(map[string][]byte),
-		Connections:    []string{},
+		Requested:          make(map[string]*rsa.PublicKey),
+		RequestKeys:        make(map[string]*rsa.PrivateKey),
+		EncryptionKeys:     make(map[string][]byte),
+		Connections:        []string{},
+		GrantedWithoutKeys: []string{},
 	}
 	return cfg, env.Parse(cfg)
 }

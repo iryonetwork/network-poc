@@ -33,12 +33,14 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Connections []string
 		Contract    string
 		Connected   bool
+		Granted     []string
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
 		h.config.Connections,
 		h.config.EosContractName,
 		h.connected,
+		h.config.GrantedWithoutKeys,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -118,13 +120,24 @@ func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	// rsa key generation takes a few seconds, lets do that in the background
-	go func() {
-		err := h.client.RequestAccess(to)
-		if err != nil {
-			h.log.Fatalf("Error requesting access: %v ", err)
+	// // rsa key generation takes a few seconds, lets do that in the background
+	// go func() {
+	err := h.client.RequestAccess(to)
+	if err != nil {
+		h.log.Fatalf("Error requesting access: %v ", err)
+	}
+	// }()
+	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) ignoreHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	to := r.Form["to"][0]
+	for i, v := range h.config.GrantedWithoutKeys {
+		if v == to {
+			h.config.GrantedWithoutKeys = append(h.config.GrantedWithoutKeys[:i], h.config.GrantedWithoutKeys[i+1:]...)
 		}
-	}()
+	}
 	http.Redirect(w, r, "/", 302)
 }
 

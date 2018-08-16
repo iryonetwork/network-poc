@@ -46,6 +46,10 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		s.log.Debugf("WS_API:: Got reencrypted notification")
 		err := s.reencrypt(&inReq, from)
 		return err
+	case "NotifyGranted":
+		s.log.Debugf("WS_API:: Got access granted notification from %s", from)
+		r = newReq("NotifyGranted")
+		r.append("from", []byte(from))
 	}
 
 	sendTo, err := inReq.getDataString("to")
