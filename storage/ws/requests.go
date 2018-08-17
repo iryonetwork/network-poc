@@ -3,6 +3,7 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 
@@ -67,7 +68,7 @@ func (s *Storage) RequestsKey(to string) error {
 		return err
 	}
 	s.config.RequestKeys[to] = rsakey
-	key := marshalPKCS1PublicKey(&rsakey.PublicKey)
+	key := x509.MarshalPKCS1PublicKey(&rsakey.PublicKey)
 	r.append("key", key)
 
 	// Sign the key

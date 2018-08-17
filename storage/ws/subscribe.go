@@ -3,6 +3,7 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 
 	"github.com/gorilla/websocket"
 )
@@ -159,7 +160,7 @@ func (s *Storage) SubscribePatient() {
 					break
 				}
 
-				s.config.Requested[from], err = parsePKCS1PublicKey(key)
+				s.config.Requested[from], err = x509.ParsePKCS1PublicKey(key)
 				// Check if access is already granted
 				// if it is, send the key without prompting the user for confirmation
 				granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
