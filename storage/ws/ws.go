@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
@@ -32,18 +33,15 @@ func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hu
 
 // Connect connects client to api
 func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.Storage, token string) (*Storage, error) {
-	addr := "ws://" + config.IryoAddr + "/ws/"
+	addr := "ws://" + config.IryoAddr + "/ws"
 	log.Debugf("WS:: Connecting to %s", addr)
 
 	// Call API's WS
-	c, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Cookie": []string{fmt.Sprintf("token=%s", token)}})
 	if err != nil {
 		return nil, err
 	}
-	err = c.WriteMessage(2, []byte(token))
-	if err != nil {
-		return nil, fmt.Errorf("Error authorizing: %s", err)
-	}
+
 	// Check if authorized
 	_, msg, err := c.ReadMessage()
 	if err != nil {

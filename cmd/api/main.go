@@ -40,11 +40,11 @@ func main() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/login", h.loginHandler).Methods("POST")
+	router.HandleFunc("/ws", h.wsHandler)
 	router.HandleFunc("/account/{key}", h.createaccHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.uploadHandler).Methods("POST")
-	router.HandleFunc("/ws/", h.wsHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.IryoAddr)
 

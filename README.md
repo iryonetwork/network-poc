@@ -76,11 +76,11 @@ open http://localhost:9004 #doctor2
 
 ## API
 ### WS
-/ws/
+/ws
 all requests are json websocket messages of type `websocket.BinaryMessage`  
 
-When connecting to websocket endpoint the first message sent should be token. If token is not sent in 5 seconds the connection is closed.
-When authorized a message will be sendt back saying `Authorized`
+When connecting to websocket endpoint send the token in `token` cookie field.
+After connection is authorized a message will be sent back saying `Authorized`
 ```
 Notify that access was granted
 IN:
