@@ -29,6 +29,10 @@ func main() {
 	// ehr
 	ehr := ehr.New()
 
+	if eos.NewKey() != nil {
+		log.Fatalf("Failed to create new key; %v", err)
+	}
+
 	// Client
 	client, err := client.New(config, eos, ehr, log)
 	if err != nil {

@@ -29,7 +29,9 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		Type        string
+		Name        string
 		Public      string
+		Private     string
 		Connections []string
 		Contract    string
 		Connected   bool
@@ -37,6 +39,8 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
+		h.config.GetEosPublicKey(),
+		h.config.EosPrivate,
 		h.config.Connections,
 		h.config.EosContractName,
 		h.connected,

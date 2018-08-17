@@ -14,7 +14,7 @@
     <body>
     <div class="container">
         <h1>Hello, {{.Type}}</h1>
-        <h2>{{.Public}}</h2>
+        <h2>{{.Name}}</h2>
 
         <div class="content">
             {{ if .Connected }}
@@ -68,7 +68,9 @@
                 {{ end }}
 
                 <div class="footer">
-                    Contract address: {{ .Contract }}
+                    <div>Private key: {{.Private}}</div> 
+                    <div>Publuc key: {{.Public}}</div>
+                    <div>Contract address: {{ .Contract }}</div> 
                 </div>            
                 <div>
                     <a href="/close">Close connection</a>

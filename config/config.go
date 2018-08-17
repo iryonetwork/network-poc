@@ -10,7 +10,7 @@ import (
 type Config struct {
 	IryoAddr           string `env:"IRYO_ADDR" envDefault:"localhost:8000"`
 	EosAPI             string `env:"EOS_API" envDefault:"http://localhost:8888"`
-	EosPrivate         string `env:"EOS_PRIVATE,required"`
+	EosPrivate         string `env:"EOS_PRIVATE"`
 	EosAccount         string `env:"EOS_ACCOUNT"`
 	EosContractName    string `env:"EOS_CONTRACT_NAME"`
 	EosTokenAccount    string `env:"EOS_TOKEN_ACCOUNT"`

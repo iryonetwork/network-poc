@@ -30,6 +30,8 @@ services:
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
     - EOS_PUBLIC=EOS8Bi2k2R4Zv3Go2FEBAM6X8nu7aDPBDWGZeNhewhQZQThe61nc7 # key used to create master account (public key of $EOS_PRIVATE)
     tty: true
+    depends_on:
+    - nodeos
 ## Cleos interface
   tools:
     image: eosio/eos-dev:v1.1.0
@@ -54,8 +56,7 @@ services:
     - EOS_CONTRACT_NAME=iryo
     - EOS_TOKEN_ACCOUNT=iryo.token
     - EOS_TOKEN_NAME=eosio.token
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key with which go-eos signs actions
-
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
   api:
     image: iryo
     command:
@@ -72,10 +73,12 @@ services:
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
     - EOS_TOKEN_ACCOUNT=iryo.token
+    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
     - DEBUG=1
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn
     ports:
     - 8000:8000
+    depends_on:
+    - nodeos
   ## patient server
   patient1:
     image: iryo
@@ -91,12 +94,12 @@ services:
     - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KEVFho54n5B2sHuNL7sDgbbgFNGcGhtpJqUB3XMmkHMz5fGrqz # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9001:9000
-
+    depends_on:
+    - api
   patient2:
     image: iryo
     command:
@@ -111,11 +114,12 @@ services:
     - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KF9vHG4jc7eZXD84m2RmZLgbcBYuT55nRcBaMrwFXAhBNWDHD5 # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9002:9000
+    depends_on:
+    - api
   ## Doctor
   doctor1:
     image: iryo
@@ -131,11 +135,12 @@ services:
     - EOS_API=http://server:8888
     - IRYO_ADDR=api:8000
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5JvuPL6XJ4cRKvB6wuXxDHveMkyfBRPLtB4oRFiijsyto1f7peV # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9003:9000
+    depends_on:
+    - api
   ## Doctor
   doctor2:
     image: iryo
@@ -151,11 +156,12 @@ services:
     - EOS_API=http://server:8888
     - IRYO_ADDR=api:8000
     - EOS_CONTRACT_NAME=iryo
-    - EOS_PRIVATE=5KTTcXKdJeG1FgJv5UUhWysWgaDsjbsVCoMizpjSxhfwNswKyQF # key with which go-eos signs actions
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
     - 9004:9000
+    depends_on:
+    - api
 
 volumes:
   devchain:

@@ -236,6 +236,16 @@ func (s *Storage) CreateAccount(account, key_str string) error {
 	return nil
 }
 
+// NewKey create new private key
+func (s *Storage) NewKey() error {
+	key, err := ecc.NewRandomPrivateKey()
+	if err != nil {
+		return err
+	}
+	s.config.EosPrivate = key.String()
+	return nil
+}
+
 // ImportKey imports private key
 // returns  privatekey struct or error
 func (s *Storage) ImportKey(prkey string) (*ecc.PrivateKey, error) {

@@ -48,7 +48,9 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		Type        string
+		Name        string
 		Public      string
+		Private     string
 		Connections []string
 		EHRData     map[string]string
 		Error       string
@@ -57,6 +59,8 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}{
 		h.config.ClientType,
 		user,
+		h.config.GetEosPublicKey(),
+		h.config.EosPrivate,
 		h.config.Connections,
 		ehr,
 		outErr,

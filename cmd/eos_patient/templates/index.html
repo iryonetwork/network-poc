@@ -15,7 +15,7 @@
     <body>
     <div class="container">
         <h1>Hello, {{.Type}}</h1>
-        <h2>{{.Public}}</h2>
+        <h2>{{.Name}}</h2>
 
         {{if .Error}}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -111,6 +111,8 @@
     
                 </div>
                 <div class="footer">
+                    <div>Private key: {{.Private}}</div> 
+                    <div>Publuc key: {{.Public}}</div>    
                     <p>Contract address: {{ .Contract }}</p>
                     <a href="/reencrypt">Reencrypt data</a>
                 </div>

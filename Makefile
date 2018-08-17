@@ -14,7 +14,7 @@ clear: ## clears generated artifacts
 	rm -f contract/iryo.abi contract/iryo.wasm contract/iryo.wast
 	rm -fr .data/
 
-init: buildImage up/nodeos up/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
+init: buildImage up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
 up: up/nodeos up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
 
