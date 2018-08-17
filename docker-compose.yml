@@ -89,7 +89,7 @@ services:
     - handlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
     - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
@@ -109,7 +109,7 @@ services:
     - handlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_patient
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
     - IRYO_ADDR=api:8000
     - EOS_API=http://server:8888
@@ -130,7 +130,7 @@ services:
     - handlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
     environment:
     - EOS_API=http://server:8888
     - IRYO_ADDR=api:8000
@@ -151,7 +151,7 @@ services:
     - handlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/eos_doctor
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
     environment:
     - EOS_API=http://server:8888
     - IRYO_ADDR=api:8000
