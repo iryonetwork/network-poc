@@ -418,6 +418,9 @@ func (c *Client) RequestAccess(to string) error {
 	return err
 }
 
+func (c *Client) NewRequestKeyQr() string {
+	return fmt.Sprintf("%s", c.config.EosAccount)
+}
 func retry(attempts int, sleep time.Duration, f func() error) (err error) {
 	for i := 0; i < attempts; i++ {
 		if err = f(); err == nil {

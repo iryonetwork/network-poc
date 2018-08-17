@@ -3,12 +3,14 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"html/template"
 	"log"
 	"net/http"
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
@@ -46,6 +48,15 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		outErr = ""
 	}
 
+	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
+	if err != nil {
+		log.Fatalf("Error creating qr: %v", err)
+	}
+	img, err := qr.PNG(150)
+	if err != nil {
+		log.Fatalf("Error creating qr png: %v", err)
+	}
+
 	data := struct {
 		Type        string
 		Name        string
@@ -56,6 +67,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Error       string
 		Contract    string
 		Requested   map[string]*rsa.PublicKey
+		Qr          string
 	}{
 		h.config.ClientType,
 		user,
@@ -66,6 +78,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		outErr,
 		h.config.EosContractName,
 		h.config.Requested,
+		base64.StdEncoding.EncodeToString(img),
 	}
 
 	if err := t.Execute(w, data); err != nil {

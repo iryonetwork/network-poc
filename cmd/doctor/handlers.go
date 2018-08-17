@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"html/template"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/storage/ehr"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 type handlers struct {
@@ -26,6 +28,14 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}
+	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
+	if err != nil {
+		log.Fatalf("Error creating qr: %v", err)
+	}
+	img, err := qr.PNG(150)
+	if err != nil {
+		log.Fatalf("Error creating qr png: %v", err)
+	}
 
 	data := struct {
 		Type        string
@@ -36,6 +46,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Contract    string
 		Connected   bool
 		Granted     []string
+		Qr          string
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
@@ -45,6 +56,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		h.config.EosContractName,
 		h.connected,
 		h.config.GrantedWithoutKeys,
+		base64.StdEncoding.EncodeToString(img),
 	}
 
 	if err := t.Execute(w, data); err != nil {

@@ -9,4 +9,4 @@ RUN	go get github.com/gorilla/mux && \
 	go get github.com/segmentio/ksuid && \
 	go get github.com/lucasjones/reggen && \
 	go get github.com/gofrs/uuid
-	
+RUN go get github.com/skip2/go-qrcode

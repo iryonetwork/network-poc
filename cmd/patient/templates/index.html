@@ -16,6 +16,7 @@
     <div class="container">
         <h1>Hello, {{.Type}}</h1>
         <h2>{{.Name}}</h2>
+        <img src="data:image/png;base64, {{ .Qr }}" alt="Cannot load image" style="width: 150px;height: 150px">
 
         {{if .Error}}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
