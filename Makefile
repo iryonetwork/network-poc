@@ -11,6 +11,8 @@ buildImage:
 clear: ## clears generated artifacts
 	docker-compose down -v --remove-orphans --rmi local
 	rm -fr vendor/*/
+	rm -f contract/iryo.abi contract/iryo.wasm contract/iryo.wast
+	rm -fr .data/
 
 init: buildImage up/nodeos up/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
