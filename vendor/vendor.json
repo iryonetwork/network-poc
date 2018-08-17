@@ -1,0 +1,91 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "DriMqHJDIx3WqJIEhMPrG23pE4Q=",
+			"path": "github.com/caarlos0/env",
+			"revision": "bc122c26dc2d72f6904a9e0cb940ca508660067c",
+			"revisionTime": "2018-07-02T19:56:40Z"
+		},
+		{
+			"checksumSHA1": "fHrDvF+M07y8ooJTEtX4xZgsUHE=",
+			"path": "github.com/eoscanada/eos-go",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "mbdurDenl8bhRVVu8ixJw70fi5E=",
+			"path": "github.com/eoscanada/eos-go/btcsuite/btcd/btcec",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "9CdGdJ/+qjIwCfyoxoB3JxNtdyg=",
+			"path": "github.com/eoscanada/eos-go/btcsuite/btcutil",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "VkjW+vswsv7J0PX2UFqqg+/RVgs=",
+			"path": "github.com/eoscanada/eos-go/btcsuite/btcutil/base58",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "zM0evxNx+urvLIkrJ3G9UdHNiUo=",
+			"path": "github.com/eoscanada/eos-go/ecc",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "MZDXSeuEcvVquszX31TFHYUUz3Q=",
+			"path": "github.com/eoscanada/eos-go/system",
+			"revision": "3eb310aa4b932ae22c047eb9924ce4141976ea7d",
+			"revisionTime": "2018-08-16T14:44:43Z"
+		},
+		{
+			"checksumSHA1": "mImgAzJ5onJb4M2PmgS+sCc4pZI=",
+			"path": "github.com/gofrs/uuid",
+			"revision": "c52a24014454cb81a53adfe807a68f6a20b49d74",
+			"revisionTime": "2018-08-02T15:15:51Z"
+		},
+		{
+			"checksumSHA1": "g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=",
+			"path": "github.com/gorilla/context",
+			"revision": "08b5f424b9271eedf6f9f0ce86cb9396ed337a42",
+			"revisionTime": "2016-08-17T18:46:32Z"
+		},
+		{
+			"checksumSHA1": "STQSdSj2FcpCf0NLfdsKhNutQT0=",
+			"path": "github.com/gorilla/mux",
+			"revision": "e48e440e4c92e3251d812f8ce7858944dfa3331c",
+			"revisionTime": "2018-08-07T07:52:56Z"
+		},
+		{
+			"checksumSHA1": "EqroMGIdQ3z+qyzaYmrOJ7fNi6o=",
+			"path": "github.com/gorilla/websocket",
+			"revision": "3ff3320c2a1756a3691521efc290b4701575147c",
+			"revisionTime": "2018-08-16T22:18:03Z"
+		},
+		{
+			"checksumSHA1": "+FXO3Ftc7rQ5s/Vvkk/Ysh6dlGM=",
+			"path": "github.com/lucasjones/reggen",
+			"revision": "cdb49ff09d77331d3fdd51e862b4023d2257954c",
+			"revisionTime": "2018-07-17T13:21:26Z"
+		},
+		{
+			"checksumSHA1": "36niRZZKawWXRl+v5RrH+eGUwI4=",
+			"path": "github.com/segmentio/ksuid",
+			"revision": "a8437582dced442605405b80b2c5a7c3929fdfb3",
+			"revisionTime": "2018-07-20T02:07:26Z"
+		},
+		{
+			"checksumSHA1": "TQoVgHqUD72/5ALzi9p5W3oyaug=",
+			"path": "golang.org/x/crypto/ripemd160",
+			"revision": "aabede6cba87e37f413b3e60ebfc214f8eeca1b0",
+			"revisionTime": "2018-08-16T21:30:07Z"
+		}
+	],
+	"rootPath": "github.com/iryonetwork/network-poc"
+}
