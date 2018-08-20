@@ -67,6 +67,7 @@ services:
     - wshandlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./.data:/data
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
     environment:
     - IRYO_ADDR=0.0.0.0:8000
