@@ -22,7 +22,24 @@ type TokenList struct {
 }
 
 func Init(log *logger.Log) *TokenList {
-	return &TokenList{make(map[string]*token), log}
+	t := &TokenList{make(map[string]*token), log}
+
+	go func() {
+		for {
+			time.Sleep(viableFor)
+			for id, token := range t.tokens {
+				if token.viableUntil.Before(time.Now()) {
+					log.Debugf("Removing token: %s", id)
+					err := t.RevokeToken(id)
+					if err != nil {
+						log.Fatalf("Error removing tokens: %v", err)
+					}
+				}
+			}
+		}
+	}()
+
+	return t
 }
 
 func (t *TokenList) NewToken(id string, exists bool) (string, time.Time, error) {
@@ -32,13 +49,10 @@ func (t *TokenList) NewToken(id string, exists bool) (string, time.Time, error) 
 		return "", time.Now(), err
 	}
 	viableUntil := time.Now().Add(viableFor)
+
+	// Add token to storage
 	t.tokens[tok.String()] = &token{exists, id, viableUntil}
-	// Revoke token after `viableFor`
-	go func() {
-		time.Sleep(viableFor)
-		t.RevokeToken(tok.String())
-		t.log.Debugf("Revoked token")
-	}()
+
 	return tok.String(), viableUntil, nil
 }
 
