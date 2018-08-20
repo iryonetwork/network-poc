@@ -137,9 +137,9 @@ func (r *request) encode() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-func decode(r []byte) (request, error) {
-	req := request{}
-	err := json.Unmarshal(r, &req)
+func decode(r []byte) (*request, error) {
+	req := &request{}
+	err := json.Unmarshal(r, req)
 	if err != nil {
 		return req, err
 	}

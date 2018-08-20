@@ -26,10 +26,13 @@ func (s *Storage) SubscribeDoctor() {
 			if err != nil {
 				s.log.Fatalf("Error decoding: %v", err)
 			}
-			// Import key
 			switch r.Name {
 			default:
 				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
+
+			// Import key
+			// Get data from request, decrypt the key with RSA key used when request was sent
+			// add the key to storage
 			case "ImportKey":
 				keyenc, err := r.getData("key")
 				if err != nil {
@@ -57,6 +60,8 @@ func (s *Storage) SubscribeDoctor() {
 				}
 				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
 
+			// Revoke key
+			// Remove all entries connected to user
 			case "RevokeKey":
 				from, err := r.getDataString("from")
 				if err != nil {
@@ -71,6 +76,9 @@ func (s *Storage) SubscribeDoctor() {
 						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
 					}
 				}
+
+			// Data was reencrypted
+			// make a new key request and delete old data
 			case "Reencrypt":
 				from, err := r.getDataString("from")
 				if err != nil {
@@ -81,6 +89,9 @@ func (s *Storage) SubscribeDoctor() {
 				if err != nil {
 					s.log.Fatalf("Error creating RequestKey: %v", err)
 				}
+
+			// User has granted access to doctor
+			// Make a notification that acess has been granted
 			case "NotifyGranted":
 				from, err := r.getDataString("from")
 				if err != nil {

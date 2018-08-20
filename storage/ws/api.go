@@ -41,12 +41,12 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	case "RequestKey":
 		s.log.Debugf("WS_API:: Requesting key")
-		err := s.requestKey(&inReq, from)
+		err := s.requestKey(inReq, from)
 		return err
 
 	case "Reencrypt":
 		s.log.Debugf("WS_API:: Got reencrypted notification")
-		err := s.reencrypt(&inReq, from)
+		err := s.reencrypt(inReq, from)
 		return err
 
 	case "NotifyGranted":

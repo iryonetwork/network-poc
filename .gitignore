@@ -1,2 +1,5 @@
-.bin/
-.data/
+/.bin/
+/.data/
+/contract/iryo.wasm
+/contract/iryo.abi
+/contract/iryo.wast
