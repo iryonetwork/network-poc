@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+
+metadata:
+  name: api
+  labels:
+    system: iryopoc
+    component: service
+spec:
+  type: ClusterIP
+  selector:
+    name: api
+  ports:
+    - name: http
+      port: {{ .Values.serverPort }}
+      targetPort: http
