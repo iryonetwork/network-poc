@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -100,13 +99,13 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.token.IsAccount(token) {
-		writeErrorJson(w, 400, "You don't have an account")
+		h.writeErrorJson(w, 400, "You don't have an account")
 		return
 	}
 	err := r.ParseMultipartForm(0)
 	h.log.Debugf("API:: got upload request")
 	if err != nil {
-		writeErrorJson(w, 500, err.Error())
+		h.writeErrorJson(w, 500, err.Error())
 		return
 	}
 	params := mux.Vars(r)
@@ -127,7 +126,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !access {
-			writeErrorJson(w, 403, "Account does not have access to owner")
+			h.writeErrorJson(w, 403, "Account does not have access to owner")
 			return
 		}
 	}
@@ -139,7 +138,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !auth {
-		writeErrorJson(w, 403, "Provided key is not associated with account")
+		h.writeErrorJson(w, 403, "Provided key is not associated with account")
 		return
 	}
 
@@ -171,7 +170,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// verify signature
 	if !sign.Verify(hash, key) {
-		writeErrorJson(w, 403, "Data could not be verified")
+		h.writeErrorJson(w, 403, "Data could not be verified")
 		return
 	}
 
@@ -236,7 +235,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.token.IsAccount(token) {
-		writeErrorJson(w, 400, "You don't have an account")
+		h.writeErrorJson(w, 400, "You don't have an account")
 		return
 	}
 	// make sure connected has access to data
@@ -246,7 +245,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !access {
-		writeErrorJson(w, 403, "403")
+		h.writeErrorJson(w, 403, "403")
 		return
 	}
 
@@ -326,20 +325,20 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if exists := h.token.IsAccount(token); exists {
-		writeErrorJson(w, 400, "You already have an account")
+		h.writeErrorJson(w, 400, "You already have an account")
 		return
 	}
 	key := h.token.GetID(token)
 	accountname, err := h.getAccName()
 	if err != nil {
-		writeErrorJson(w, 500, err.Error())
+		h.writeErrorJson(w, 500, err.Error())
 		return
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
 	err = h.eos.CreateAccount(accountname, key)
 	if err != nil {
-		writeErrorJson(w, 400, err.Error())
+		h.writeErrorJson(w, 400, err.Error())
 		return
 	}
 	response["account"] = accountname
@@ -349,7 +348,8 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func writeErrorJson(w http.ResponseWriter, statuscode int, err string) {
+func (h *handlers) writeErrorJson(w http.ResponseWriter, statuscode int, err string) {
+	h.log.Debugf("API handlers ERR = %s", err)
 	w.WriteHeader(statuscode)
 	r := make(map[string]string)
 	r["error"] = err
@@ -364,13 +364,14 @@ func writeErrorBody(w http.ResponseWriter, statuscode int, err string) {
 // Generate random name that satisfies EOS
 // regex: "iryo[a-z1-5]{8}"
 func (h *handlers) getAccName() (string, error) {
-	g, err := reggen.NewGenerator("[a-z1-5]{7}")
+	h.log.Debugf("Account format set to %s", h.config.EosAccountFormat)
+	g, err := reggen.NewGenerator(h.config.EosAccountFormat)
 	if err != nil {
 		return "", err
 	}
 	var accname string
 	for {
-		accname = fmt.Sprintf("%s.iryo", g.Generate(7))
+		accname = g.Generate(12)
 		if !h.eos.CheckAccountExists(accname) {
 			break
 		}

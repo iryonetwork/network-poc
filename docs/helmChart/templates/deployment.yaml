@@ -35,9 +35,18 @@ spec:
             value: 0.0.0.0:{{ .Values.serverPort }}
           - name: DEBUG
             value: "1"
+          - name: EOS_ACCOUNT_FORMAT
+            value: '[a-z1-5]{8}iryo'
+          - name: EOS_REQUIRES_RAM
+            value: "1"
           - name: DATA_PATH
             value: /data
           - name: EOS_CONTRACT_NAME
+            valueFrom:
+              secretKeyRef:
+                name: eos-config
+                key: contractName
+          - name: EOS_ACCOUNT
             valueFrom:
               secretKeyRef:
                 name: eos-config
@@ -55,8 +64,12 @@ spec:
         volumeMounts:
           - mountPath: /data
             name: data
+          - mountPath: /tmp
+            name: tmp
 
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: api-storage
+        - name: tmp
+          emptyDir: {}
