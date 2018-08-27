@@ -305,10 +305,10 @@ func (s *Storage) SignByte(data []byte) (string, error) {
 func (s *Storage) CheckAccountExists(account string) bool {
 	_, err := s.api.GetAccount(eos.AN(account))
 	if err != nil {
+		s.log.Debugf("Error checking account: %v", err)
 		return false
 	}
 	return true
-
 }
 
 // func (s *Storage) verifyTransaction(id string) (bool, error) {

@@ -261,7 +261,12 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		for _, f := range files {
-			response.Files = append(response.Files, lsFile{filepath.Base(f), "Will be added soon"})
+			fn := filepath.Base(f)
+			ts, err := getFileTime(fn)
+			if err != nil {
+				writeErrorBody(w, 500, err.Error())
+			}
+			response.Files = append(response.Files, lsFile{fn, ts})
 		}
 		if len(response.Files) == 0 {
 			writeErrorBody(w, 404, "404 files not found")
@@ -271,6 +276,21 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Debugf("API:: Sending ls")
 	json.NewEncoder(w).Encode(response)
+}
+
+func getFileTime(name string) (string, error) {
+	id, err := uuid.FromString(name)
+	if err != nil {
+		return "", err
+	}
+
+	ts, err := uuid.TimestampFromV1(id)
+	if err != nil {
+		return "", err
+	}
+
+	t, err := ts.Time()
+	return t.Format("2006-01-02T15:04:05.999Z"), err
 }
 
 func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -336,10 +356,16 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
-	err = h.eos.CreateAccount(accountname, key)
-	if err != nil {
-		h.writeErrorJson(w, 400, err.Error())
-		return
+	for {
+		err = h.eos.CreateAccount(accountname, key)
+		if err != nil {
+			h.writeErrorJson(w, 400, err.Error())
+			return
+		}
+		if h.eos.CheckAccountExists(accountname) {
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
 	}
 	response["account"] = accountname
 	h.token.AccCreated(token, accountname, key)
