@@ -97,7 +97,7 @@ func (s *Storage) sendRequest(r *request, to string) error {
 
 func (s *Storage) reencrypt(r *request, from string) error {
 	// Backup current data
-	os.Rename(fmt.Sprintf("../../.data/ehr/%s", from), fmt.Sprintf("../../.data/ehr/%s_backup", from))
+	os.Rename(fmt.Sprintf("%s/%s", s.config.StoragePath, from), fmt.Sprintf("%s/%s_backup", s.config.StoragePath, from))
 
 	// Create list of doctors to send message to
 	sendTo, err := s.eos.ListConnected(from)
