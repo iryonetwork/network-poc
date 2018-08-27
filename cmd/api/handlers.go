@@ -178,7 +178,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Handle file saving
 	// create dir
-	os.MkdirAll(fmt.Sprintf("%s/%s", h.config.StoragePath,owner), os.ModePerm)
+	os.MkdirAll(fmt.Sprintf("%s/%s", h.config.StoragePath, owner), os.ModePerm)
 	var fid string
 	if v, ok := r.Form["reencrypt"]; ok && v[0] == "true" {
 		fid = head.Filename
@@ -191,7 +191,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		fid = uuid.String()
 	}
 	// create file
-	f, err := os.Create(fmt.Sprintf("%s/%s/%s" h.config.StoragePath , owner, fid))
+	f, err := os.Create(fmt.Sprintf("%s/%s/%s", h.config.StoragePath, owner, fid))
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -257,7 +257,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files, err := filepath.Glob(fmt.Sprintf("%s/%s/*"), h.config.StoragePath ,account)
+	files, err := filepath.Glob(fmt.Sprintf("%s/%s/*", h.config.StoragePath, account))
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -325,10 +325,10 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// check if file exists
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", h.config.StoragePath, account); !os.IsNotExist(err) {
-		_, err := os.Stat(fmt.Sprintf("%s/%s/%s", h.config.StoragePath, account,fid)
+	if _, err := os.Stat(fmt.Sprintf("%s/%s", h.config.StoragePath, account)); !os.IsNotExist(err) {
+		_, err := os.Stat(fmt.Sprintf("%s/%s/%s", h.config.StoragePath, account, fid))
 		if err == nil {
-			f, _ := ioutil.ReadFile("%s/%s/%s",h.config.StoragePath , account , fid)
+			f, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s/%s", h.config.StoragePath, account, fid))
 			w.WriteHeader(200)
 			w.Write(f)
 		} else {
