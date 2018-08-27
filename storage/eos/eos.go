@@ -61,6 +61,7 @@ func (s *Storage) GrantAccess(to string) error {
 			ActionData: eos.NewActionData(AddToTableReq{eos.AN(s.config.EosAccount), eos.AN(to), 1, 1}),
 		}
 		_, err := s.api.SignPushActions(action)
+		s.log.Debugf("Added user to the table; %+v", err)
 		return err
 	}
 
@@ -74,6 +75,7 @@ func (s *Storage) GrantAccess(to string) error {
 		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
 	}
 	_, err = s.api.SignPushActions(action)
+	s.log.Debugf("Granted access to user; %+v", err)
 	return err
 }
 
@@ -227,12 +229,23 @@ func (s *Storage) pushContract(n, cn string) error {
 func (s *Storage) CreateAccount(account, key_str string) error {
 	s.log.Debugf("Eos::createAccount(%s) called", account)
 	key, err := ecc.NewPublicKey(key_str)
+
+	actions := []*eos.Action{}
+
 	// Create new account
-	action := system.NewNewAccount(eos.AN("master"), eos.AN(account), key)
-	_, err = s.api.SignPushActions(action)
+	actions = append(actions, system.NewNewAccount(eos.AN(s.config.EosAccount), eos.AN(account), key))
+
+	if s.config.EosRequiresRAM {
+		actions = append(actions, system.NewBuyRAMBytes(eos.AccountName(s.config.EosAccount), eos.AccountName(account), 4096))
+		actions = append(actions, system.NewDelegateBW(eos.AccountName(s.config.EosAccount), eos.AccountName(account), eos.NewEOSAsset(int64(10000)), eos.NewEOSAsset(int64(10000)), true))
+	}
+
+	_, err = s.api.SignPushActions(actions...)
 	if err != nil {
+		s.log.Debugf("Failed to create account; %+v", err)
 		return err
 	}
+
 	return nil
 }
 

@@ -1,0 +1,11 @@
+apiDockerImage: iryo/poc-api:latest
+apiDomain: api.poc.stg.iryo.io
+patientDomain: patient.poc.stg.iryo.io
+doctorDomain: doctor.poc.stg.iryo.io
+serverPort: 80
+storageSize: 1Gi
+
+eos:
+    contractName: name
+    privateKey: key
+    apiHost: eos.io

@@ -1,0 +1,75 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+
+metadata:
+  name: api
+  labels:
+    system: iryopoc
+    type: service
+    component: api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 3
+  selector:
+    matchLabels:
+      name: api
+  template:
+    metadata:
+      labels:
+        name: api
+    spec:
+      containers:
+      - name: discovery
+        image: "{{ .Values.apiDockerImage }}"
+        imagePullPolicy: Always
+        ports:
+          - name: http
+            containerPort: {{.Values.serverPort }}
+        command: [ "/api" ]
+        env:
+          - name: IRYO_ADDR
+            value: 0.0.0.0:{{ .Values.serverPort }}
+          - name: DEBUG
+            value: "1"
+          - name: EOS_ACCOUNT_FORMAT
+            value: '[a-z1-5]{8}iryo'
+          - name: EOS_REQUIRES_RAM
+            value: "1"
+          - name: DATA_PATH
+            value: /data
+          - name: EOS_CONTRACT_NAME
+            valueFrom:
+              secretKeyRef:
+                name: eos-config
+                key: contractName
+          - name: EOS_ACCOUNT
+            valueFrom:
+              secretKeyRef:
+                name: eos-config
+                key: contractName
+          - name: EOS_PRIVATE
+            valueFrom:
+              secretKeyRef:
+                name: eos-config
+                key: privateKey
+          - name: EOS_API
+            valueFrom:
+              secretKeyRef:
+                name: eos-config
+                key: apiHost
+        volumeMounts:
+          - mountPath: /data
+            name: data
+          - mountPath: /tmp
+            name: tmp
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: api-storage
+        - name: tmp
+          emptyDir: {}

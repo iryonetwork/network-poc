@@ -6,8 +6,6 @@ services:
     command: nodeosd.sh -e --http-alias=server:8888 --http-alias=127.0.0.1:8888 --http-alias=localhost:8888
     ports:
     - 8888:8888
-    logging:
-      driver: none
 
 ## Create master account
   cleos:
@@ -17,18 +15,18 @@ services:
     - -c
     - |
       cleos wallet create
-      cleos wallet import --private-key $$EOS_PRIVATE 
+      cleos wallet import --private-key $$EOS_PRIVATE
       cleos wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 #default eosio account private key
       cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
       eosiocpp -g iryo.abi iryo.cpp
       eosiocpp -o iryo.wast iryo.cpp
-    volumes: 
+    volumes:
     - ./contract:/contract
     working_dir: /contract
     environment:
-    - EOS_API=http://server:8888 # url on which nodeos is running
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
-    - EOS_PUBLIC=EOS8Bi2k2R4Zv3Go2FEBAM6X8nu7aDPBDWGZeNhewhQZQThe61nc7 # key used to create master account (public key of $EOS_PRIVATE)
+    - EOS_API=${EOS_NODE} # url on which nodeos is running
+    - EOS_PRIVATE=${EOS_PRIVATE_KEY} # key used to sign master account
+    - EOS_PUBLIC=${EOS_PUBLIC_KEY} # key used to create master account (public key of $EOS_PRIVATE)
     tty: true
     depends_on:
     - nodeos
@@ -38,11 +36,11 @@ services:
     command:
     - bash
     environment:
-    - EOS_API=http://server:8888 # url on which nodeos is running
+    - EOS_API=${EOS_NODE} # url on which nodeos is running
     tty: true
 ## Deploy contract
   deploy:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -51,14 +49,14 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/deploy_eos_contract
     environment:
-    - EOS_API=http://server:8888
-    - EOS_ACCOUNT=iryo
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_API=${EOS_NODE}
+    - EOS_ACCOUNT=${EOS_ACCOUNT}
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - EOS_TOKEN_ACCOUNT=iryo.token
     - EOS_TOKEN_NAME=eosio.token
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
   api:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -71,18 +69,19 @@ services:
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
     environment:
     - IRYO_ADDR=0.0.0.0:8000
-    - EOS_API=http://server:8888
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_API=${EOS_NODE}
+    - EOS_ACCOUNT=${EOS_ACCOUNT}
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - EOS_TOKEN_ACCOUNT=iryo.token
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
+    - EOS_PRIVATE=${EOS_PRIVATE_KEY} # key used to sign master account
+    - EOS_ACCOUNT_FORMAT=${EOS_ACCOUNT_FORMAT} # key used to sign master account
+    - EOS_REQUIRES_RAM=${EOS_REQUIRES_RAM}
     - DEBUG=1
     ports:
     - 8000:8000
-    depends_on:
-    - nodeos
   ## patient server
   patient1:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -93,8 +92,8 @@ services:
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
     - IRYO_ADDR=api:8000
-    - EOS_API=http://server:8888
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_API=${EOS_NODE}
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -102,7 +101,7 @@ services:
     depends_on:
     - api
   patient2:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -113,8 +112,8 @@ services:
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
     environment:
     - IRYO_ADDR=api:8000
-    - EOS_API=http://server:8888
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_API=${EOS_NODE}
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -123,7 +122,7 @@ services:
     - api
   ## Doctor
   doctor1:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -133,9 +132,9 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
     environment:
-    - EOS_API=http://server:8888
+    - EOS_API=${EOS_NODE}
     - IRYO_ADDR=api:8000
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:
@@ -144,7 +143,7 @@ services:
     - api
   ## Doctor
   doctor2:
-    image: iryo
+    image: golang:1.10-alpine
     command:
     - go
     - run
@@ -154,9 +153,9 @@ services:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
     environment:
-    - EOS_API=http://server:8888
+    - EOS_API=${EOS_NODE}
     - IRYO_ADDR=api:8000
-    - EOS_CONTRACT_NAME=iryo
+    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
     ports:

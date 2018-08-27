@@ -1,3 +1,4 @@
+DOCKER_TAG ?= latest
 .PHONY: up run stop build specs
 
 ALL: init
@@ -14,7 +15,7 @@ clear: ## clears generated artifacts
 	rm -f contract/iryo.abi contract/iryo.wasm contract/iryo.wast
 	rm -fr .data/
 
-init: buildImage up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
+init: vendorSync buildImage up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
 up: up/nodeos up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
 
@@ -64,3 +65,13 @@ help: ## displays this message
 
 watch/%: ## helper for running tasks on file change (requires watchdog)
 	watchmedo shell-command -i "./.git/*;./.data/*;./.bin/*" --recursive --ignore-directories --wait --command "$(MAKE) $*"
+
+package: package/api package/doctor package/patient
+
+package/%:
+	docker build --build-arg BIN=$* --file=Dockerfile.build --tag=iryo/poc-$*:$(DOCKER_TAG) .
+
+publish: publish/api publish/doctor publish/patient
+
+publish/%: package/%
+	docker push iryo/poc-$*:$(DOCKER_TAG)

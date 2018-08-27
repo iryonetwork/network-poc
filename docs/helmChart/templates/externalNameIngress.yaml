@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: api
+  labels:
+    system: iryopoc
+    component: api
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: {{ .Values.apiDomain }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: api-external-name
+          servicePort: {{ .Values.serverPort }}
