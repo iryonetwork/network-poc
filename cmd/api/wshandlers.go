@@ -8,9 +8,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: origin,
+}
 
+func origin(r *http.Request) bool { return true }
 func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
 	// Upgrade connection
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -18,14 +22,9 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Closing connection"))
+
 	// Authentication
-	tokencookie, err := r.Cookie("token")
-	if err != nil {
-		h.log.Debugf("No token sent in header")
-		c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "No token recieved"))
-		return
-	}
-	token := tokencookie.Value
+	token := r.Form["token"][0]
 	h.log.Debugf("Token: %s", token)
 	if token == "" {
 		h.log.Debugf("Token field empty")
@@ -39,6 +38,7 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Debugf("Token ok")
 	c.WriteMessage(websocket.BinaryMessage, []byte("Authorized"))
+
 	user := h.token.GetID(token)
 	// Add user to hub
 	h.hub.Register(c, user)

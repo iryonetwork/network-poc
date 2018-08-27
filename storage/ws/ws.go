@@ -29,8 +29,8 @@ func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hu
 
 // Connect connects client to api
 func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.Storage, token string) (*Storage, error) {
-	addr := "ws" + config.IryoAddr[4:] + "/ws"
-	log.Debugf("WS:: Connecting to %s", addr)
+	addr := fmt.Sprintf("ws%s/ws?token=%s", config.IryoAddr[4:], token)
+	log.Debugf("WS:: Connecting to ws")
 
 	// Call API's WS
 	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Cookie": []string{fmt.Sprintf("token=%s", token)}})
