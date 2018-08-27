@@ -18,3 +18,45 @@ spec:
         backend:
           serviceName: api-external-name
           servicePort: {{ .Values.serverPort }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: doctor
+  labels:
+    system: iryopoc
+    component: doctor
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: {{ .Values.doctorDomain }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: doctor-external-name
+          servicePort: {{ .Values.serverPort }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: patient
+  labels:
+    system: iryopoc
+    component: patient
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: {{ .Values.patientDomain }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: patient-external-name
+          servicePort: {{ .Values.serverPort }}

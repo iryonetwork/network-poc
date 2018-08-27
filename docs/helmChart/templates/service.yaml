@@ -14,3 +14,37 @@ spec:
     - name: http
       port: {{ .Values.serverPort }}
       targetPort: http
+---
+kind: Service
+apiVersion: v1
+
+metadata:
+  name: doctor
+  labels:
+    system: iryopoc
+    component: service
+spec:
+  type: ClusterIP
+  selector:
+    name: doctor
+  ports:
+    - name: http
+      port: {{ .Values.serverPort }}
+      targetPort: http
+---
+kind: Service
+apiVersion: v1
+
+metadata:
+  name: patient
+  labels:
+    system: iryopoc
+    component: service
+spec:
+  type: ClusterIP
+  selector:
+    name: patient
+  ports:
+    - name: http
+      port: {{ .Values.serverPort }}
+      targetPort: http

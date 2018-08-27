@@ -12,3 +12,33 @@ spec:
     - name: http
       port: {{ .Values.serverPort }}
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doctor-external-name
+  labels:
+    system: iryopoc
+    component: doctor
+spec:
+  type: ExternalName
+  externalName: doctor.{{ .Release.Namespace }}.svc.cluster.local
+  ports:
+    - name: http
+      port: {{ .Values.serverPort }}
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: patient-external-name
+  labels:
+    system: iryopoc
+    component: patient
+spec:
+  type: ExternalName
+  externalName: patient.{{ .Release.Namespace }}.svc.cluster.local
+  ports:
+    - name: http
+      port: {{ .Values.serverPort }}
+      targetPort: http
