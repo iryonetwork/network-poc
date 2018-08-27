@@ -3,7 +3,9 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -176,7 +178,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Handle file saving
 	// create dir
-	os.MkdirAll(h.config.StoragePath+owner, os.ModePerm)
+	os.MkdirAll(fmt.Sprintf("%s/%s", h.config.StoragePath,owner), os.ModePerm)
 	var fid string
 	if v, ok := r.Form["reencrypt"]; ok && v[0] == "true" {
 		fid = head.Filename
@@ -189,7 +191,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		fid = uuid.String()
 	}
 	// create file
-	f, err := os.Create(h.config.StoragePath + owner + "/" + fid)
+	f, err := os.Create(fmt.Sprintf("%s/%s/%s" h.config.StoragePath , owner, fid))
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -255,7 +257,7 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files, err := filepath.Glob(h.config.StoragePath + account + "/*")
+	files, err := filepath.Glob(fmt.Sprintf("%s/%s/*"), h.config.StoragePath ,account)
 	if err != nil {
 		writeErrorBody(w, 500, err.Error())
 		return
@@ -323,17 +325,17 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// check if file exists
-	if _, err := os.Stat(h.config.StoragePath + account); !os.IsNotExist(err) {
-		_, err := os.Stat(h.config.StoragePath + account + "/" + fid)
+	if _, err := os.Stat(fmt.Sprintf("%s/%s", h.config.StoragePath, account); !os.IsNotExist(err) {
+		_, err := os.Stat(fmt.Sprintf("%s/%s/%s", h.config.StoragePath, account,fid)
 		if err == nil {
-			f, _ := ioutil.ReadFile(h.config.StoragePath + account + "/" + fid)
+			f, _ := ioutil.ReadFile("%s/%s/%s",h.config.StoragePath , account , fid)
 			w.WriteHeader(200)
 			w.Write(f)
 		} else {
 			writeErrorBody(w, 404, "404 file not found")
 		}
 	} else {
-		writeErrorBody(w, 404, "404 account not found")
+		writeErrorBody(w, 404, "404 account folder not found on server")
 	}
 }
 
@@ -411,4 +413,18 @@ func (h *handlers) validateToken(w http.ResponseWriter, token string) bool {
 	}
 	writeErrorBody(w, 401, "unknown token")
 	return false
+}
+
+func retry(f func() error, wait time.Duration, attempts int) (err error) {
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			return nil
+		}
+
+		time.Sleep(wait)
+
+		log.Println("retrying after error:", err)
+	}
+
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
