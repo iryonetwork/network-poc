@@ -12,6 +12,7 @@ import (
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -46,9 +47,16 @@ func main() {
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.uploadHandler).Methods("POST")
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "DELETE"},
+		AllowedHeaders:   []string{"Authorization"},
+		AllowCredentials: true,
+	})
+
 	log.Printf("starting HTTP server on http://%s", config.IryoAddr)
 
-	if err := http.ListenAndServe(config.IryoAddr, router); err != nil {
+	if err := http.ListenAndServe(config.IryoAddr, c.Handler(router)); err != nil {
 		log.Fatalf("error serving HTTP: %v", err)
 	}
 }

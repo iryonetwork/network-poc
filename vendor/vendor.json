@@ -75,6 +75,12 @@
 			"revisionTime": "2018-07-17T13:21:26Z"
 		},
 		{
+			"checksumSHA1": "n+08dw+FoA63zptlPPfRf12TAdg=",
+			"path": "github.com/rs/cors",
+			"revision": "15587285ef6b6e7a3f657e2e00f9f271883bcf22",
+			"revisionTime": "2018-07-31T07:12:13Z"
+		},
+		{
 			"checksumSHA1": "36niRZZKawWXRl+v5RrH+eGUwI4=",
 			"path": "github.com/segmentio/ksuid",
 			"revision": "a8437582dced442605405b80b2c5a7c3929fdfb3",
