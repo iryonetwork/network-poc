@@ -53,7 +53,7 @@ func (s *Storage) GrantAccess(to string) error {
 	if !onTable {
 		s.log.Debugf("EOS::grantAccess(%s) User is not on table. Adding")
 		action := &eos.Action{
-			Account: eos.AN(s.config.EosContractName),
+			Account: eos.AN(s.config.EosContractAccount),
 			Name:    eos.ActN("add"),
 			Authorization: []eos.PermissionLevel{
 				{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
@@ -67,7 +67,7 @@ func (s *Storage) GrantAccess(to string) error {
 
 	// Give access action
 	action := &eos.Action{
-		Account: eos.AN(s.config.EosContractName),
+		Account: eos.AN(s.config.EosContractAccount),
 		Name:    eos.ActN("grantaccess"),
 		Authorization: []eos.PermissionLevel{
 			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
@@ -99,7 +99,7 @@ func (s *Storage) RevokeAccess(to string) error {
 	s.log.Debugf("Eos::revokeAccess(%s) called", to)
 	// Remove access action
 	action := &eos.Action{
-		Account: eos.AN(s.config.EosContractName),
+		Account: eos.AN(s.config.EosContractAccount),
 		Name:    eos.ActN("revokeaccess"),
 		Authorization: []eos.PermissionLevel{
 			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
@@ -147,7 +147,7 @@ func (s *Storage) listAccountFromTable(patient string, onlyConnected bool) ([]st
 	s.log.Debugf("Eos::listAccountFromTable(%s, %v) called", patient, onlyConnected)
 
 	// Get the table
-	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractName, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
+	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractAccount, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
 	if err != nil {
 		return nil, err
 	}
@@ -172,14 +172,14 @@ func (s *Storage) listAccountFromTable(patient string, onlyConnected bool) ([]st
 func (s *Storage) DeployContract() error {
 	s.log.Debugf("Eos::deployContract() called")
 
-	if s.config.EosContractName == "" {
-		return fmt.Errorf("No config.EosContractName specified, unable to deploy contract")
+	if s.config.EosContractAccount == "" {
+		return fmt.Errorf("No config.EosContractAccount specified, unable to deploy contract")
 	}
 	if s.config.EosTokenAccount == "" {
 		return fmt.Errorf("No config.EosTokenAccount specified, unable to createa account to deploy contract to")
 	}
 
-	err := s.pushContract(s.config.EosAccount, s.config.EosContractName)
+	err := s.pushContract(s.config.EosContractAccount, s.config.EosContractName)
 	if err != nil {
 		return fmt.Errorf("Failed to deploy connections contract: %v", err)
 	}
@@ -310,3 +310,10 @@ func (s *Storage) CheckAccountExists(account string) bool {
 	return true
 
 }
+
+// func (s *Storage) verifyTransaction(id string) (bool, error) {
+// 	transaction, err := s.api.GetTransaction(id)
+// 	if err != nil {
+// 		return false, err
+// 	}
+// }

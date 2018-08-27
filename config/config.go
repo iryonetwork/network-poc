@@ -12,6 +12,7 @@ type Config struct {
 	EosAPI             string `env:"EOS_API" envDefault:"http://localhost:8888"`
 	EosPrivate         string `env:"EOS_PRIVATE"`
 	EosAccount         string `env:"EOS_ACCOUNT"`
+	EosContractAccount string `env:"EOS_CONTRACT_ACCOUNT"`
 	EosContractName    string `env:"EOS_CONTRACT_NAME"`
 	EosTokenAccount    string `env:"EOS_TOKEN_ACCOUNT"`
 	EosTokenName       string `env:"EOS_TOKEN_NAME"`

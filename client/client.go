@@ -73,7 +73,7 @@ func (c *Client) Login() error {
 		req["account"] = []string{account}
 	}
 	// send login request
-	response, err := http.PostForm(fmt.Sprintf("http://%s/login", c.config.IryoAddr), req)
+	response, err := http.PostForm(fmt.Sprintf("%s/login", c.config.IryoAddr), req)
 	if err != nil {
 		return fmt.Errorf("failed to call login; %v", err)
 	}
@@ -103,7 +103,7 @@ func (c *Client) loginWaiter(str string) {
 
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
-	r, err := http.NewRequest("GET", fmt.Sprintf("http://%s/account/%s", c.config.IryoAddr, key), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("%s/account/%s", c.config.IryoAddr, key), nil)
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +132,7 @@ func (c *Client) CreateAccount(key string) (string, error) {
 
 func (c *Client) Ls(owner string) ([]map[string]string, error) {
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", c.config.IryoAddr, owner), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (c *Client) Download(owner, fileID string) error {
 	c.log.Debugf("Client::Download(%s, %s) called", owner, fileID)
 
 	// download file from server
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s/%s", c.config.IryoAddr, owner, fileID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s/%s", c.config.IryoAddr, owner, fileID), nil)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (c *Client) Upload(owner, id string, reencrypt bool) error {
 	}
 
 	// upload data to server
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/%s", c.config.IryoAddr, owner), body)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", c.config.IryoAddr, owner), body)
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
