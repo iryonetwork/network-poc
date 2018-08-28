@@ -358,17 +358,11 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Debugf("API:: Attempting to create account %s", accountname)
 
-	for {
-		err = h.eos.CreateAccount(accountname, key)
-		if err != nil {
-			h.writeErrorJson(w, 400, err.Error())
-			return
-		}
-		if h.eos.CheckAccountExists(accountname) {
-			break
-		}
-		time.Sleep(250 * time.Millisecond)
+	if err = h.eos.CreateAccount(accountname, key); err != nil {
+		h.writeErrorJson(w, 400, err.Error())
+		return
 	}
+
 	response["account"] = accountname
 	h.token.AccCreated(token, accountname, key)
 	w.WriteHeader(201)

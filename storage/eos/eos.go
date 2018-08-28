@@ -3,7 +3,9 @@ package eos
 import (
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"math"
+	"time"
 
 	"github.com/eoscanada/eos-go"
 	"github.com/eoscanada/eos-go/ecc"
@@ -215,20 +217,28 @@ func (s *Storage) pushContract(n, cn string) error {
 	if err != nil {
 		return err
 	}
-	for _, a := range contract {
-		_, err := s.api.SignPushActions(a)
-		if err != nil {
-			return err
-		}
+
+	_, err = s.api.SignPushActions(contract...)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// CreateAccount creates account named `account` using key `key_str`
-func (s *Storage) CreateAccount(account, key_str string) error {
+// CreateAccount creates account named `account` using key `keyStr`
+func (s *Storage) CreateAccount(account, keyStr string) error {
 	s.log.Debugf("Eos::createAccount(%s) called", account)
-	key, err := ecc.NewPublicKey(key_str)
+
+	// Check if we have enough resources to create new account
+	if err := s.checkBuyResources(s.config.EosAccount); err != nil {
+		s.log.Debugf("Bought resources error: %+v", err)
+	}
+
+	key, err := ecc.NewPublicKey(keyStr)
+	if err != nil {
+		return err
+	}
 
 	actions := []*eos.Action{}
 
@@ -237,12 +247,26 @@ func (s *Storage) CreateAccount(account, key_str string) error {
 
 	if s.config.EosRequiresRAM {
 		actions = append(actions, system.NewBuyRAMBytes(eos.AccountName(s.config.EosAccount), eos.AccountName(account), 4096))
-		actions = append(actions, system.NewDelegateBW(eos.AccountName(s.config.EosAccount), eos.AccountName(account), eos.NewEOSAsset(int64(10000)), eos.NewEOSAsset(int64(10000)), true))
+		actions = append(actions, s.buyCpuNetRequest(account, 10000, 10000))
 	}
 
-	_, err = s.api.SignPushActions(actions...)
+	err = retry(1*time.Second, 5, func() error {
+		r, err := s.api.SignPushActions(actions...)
+		if err != nil {
+			return err
+		}
+		s.log.Debugf("Actions pushed. Transaction: %s", r.TransactionID)
+		time.Sleep(2500 * time.Millisecond)
+
+		if !s.CheckAccountExists(account) {
+			return fmt.Errorf("Account does not exists")
+		}
+
+		return err
+	})
+
 	if err != nil {
-		s.log.Debugf("Failed to create account; %+v", err)
+		s.log.Debugf("Failed to create account after 5 attempts; %+v", err)
 		return err
 	}
 
@@ -302,18 +326,27 @@ func (s *Storage) SignByte(data []byte) (string, error) {
 	sign, err := sk.Sign(data)
 	return sign.String(), err
 }
+
 func (s *Storage) CheckAccountExists(account string) bool {
 	_, err := s.api.GetAccount(eos.AN(account))
 	if err != nil {
-		s.log.Debugf("Error checking account: %v", err)
+		s.log.Debugf("Error checking account: %v\nReturning false", err)
 		return false
 	}
 	return true
 }
 
-// func (s *Storage) verifyTransaction(id string) (bool, error) {
-// 	transaction, err := s.api.GetTransaction(id)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// }
+func retry(wait time.Duration, attempts int, f func() error) (err error) {
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			log.Printf("Function called successfuly")
+			return nil
+		}
+
+		time.Sleep(wait)
+
+		log.Println("retrying after error:", err)
+	}
+
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
+}
