@@ -8,8 +8,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: checkOrigin,
+}
 
+func checkOrigin(r *http.Request) bool {
+	// TODO: check origin??
+	return true
+}
 func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	// Upgrade connection

@@ -198,7 +198,7 @@ OUT:
 if account is not sent in the only endpoint accessable with token is create new account
 
 ### Create new account
-GET /account/<Eos_Key>
+GET /account
 ```json
 {"account":"account.iryo"}
 ```
@@ -210,7 +210,6 @@ In: "Content-type": multipart/form-data
     "key": EOS_Public_Key_used_to_sign_data,
     "sign": Signature_of_data's_sha256_hash,
     "data": file,
-    "account": Name_of_account_signing,
     "reupload": string, if "true" filename of uploaded file will be used as fileID
 
 Out:
