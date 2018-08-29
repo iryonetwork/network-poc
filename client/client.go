@@ -103,7 +103,7 @@ func (c *Client) loginWaiter(str string) {
 
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
-	r, err := http.NewRequest("GET", fmt.Sprintf("%s/account/%s", c.config.IryoAddr, key), nil)
+	r, err := http.NewRequest("GET", fmt.Sprintf("%s/account", c.config.IryoAddr), nil)
 	if err != nil {
 		return "", err
 	}
@@ -237,7 +237,7 @@ func (c *Client) Upload(owner, id string, reencrypt bool) error {
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
 	if reencrypt {
-		writer.WriteField("reencrypt", "true")
+		writer.WriteField("reupload", "true")
 	}
 	part, err := writer.CreateFormFile("data", id)
 	part.Write(data)
@@ -311,11 +311,13 @@ func (c *Client) GrantAccess(to string) error {
 
 	// Make sure that reciever exists
 	if !c.eos.CheckAccountExists(to) {
+		c.log.Debugf("User %s does not exits", to)
 		return fmt.Errorf("User does not exists")
 	}
 
 	// Check that users are not yet connected
 	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
+		c.log.Debugf("Access already granted to %s", to)
 		if err != nil {
 			return err
 		}
@@ -333,6 +335,7 @@ func (c *Client) GrantAccess(to string) error {
 	}
 
 	// write access granted to blockchain
+	c.log.Debugf("Granting access to %s", to)
 	err := c.eos.GrantAccess(to)
 	if err != nil {
 		return fmt.Errorf("failed to call grantAccess; %v", err)

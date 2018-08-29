@@ -82,8 +82,10 @@ func (s *Storage) GrantAccess(to string) error {
 }
 
 func (s *Storage) isOnTable(user string) (bool, error) {
+	s.log.Debugf("EOS::isOnTable(%s) called", user)
 	ls, err := s.listAccountFromTable(s.config.EosAccount, false)
 	if err != nil {
+		s.log.Debugf("Got error: %+v", err)
 		return false, err
 	}
 
@@ -93,6 +95,7 @@ func (s *Storage) isOnTable(user string) (bool, error) {
 			return true, nil
 		}
 	}
+	s.log.Debugf("User is not on table")
 	return false, nil
 }
 
@@ -123,6 +126,7 @@ func (s *Storage) AccessGranted(patient, to string) (bool, error) {
 	// Check if `patient` has its field in the table
 	b := false
 	list, err := s.ListConnected(patient)
+	s.log.Debugf("Got connected users: %s", list)
 	if err != nil {
 		return b, nil
 	}

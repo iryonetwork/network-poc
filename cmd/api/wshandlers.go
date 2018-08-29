@@ -8,11 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: origin,
-}
+var upgrader = websocket.Upgrader{}
 
-func origin(r *http.Request) bool { return true }
 func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	// Upgrade connection
@@ -31,7 +28,8 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 		c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "No token recieved"))
 		return
 	}
-	if !h.token.IsValid(token) {
+	user, exists := h.f.token.ValidateGetInfo(token)
+	if !exists {
 		h.log.Debugf("Invalid token")
 		c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Unatuhorized"))
 		return
@@ -39,11 +37,10 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 	h.log.Debugf("Token ok")
 	c.WriteMessage(websocket.BinaryMessage, []byte("Authorized"))
 
-	user := h.token.GetID(token)
 	// Add user to hub
-	h.hub.Register(c, user)
-	ws := ws.NewStorage(c, h.config, h.log, h.hub, h.eos)
-	defer h.hub.Unregister(c, user)
+	h.f.hub.Register(c, user)
+	ws := ws.NewStorage(c, h.config, h.log, h.f.hub, h.f.eos)
+	defer h.f.hub.Unregister(c, user)
 
 	for {
 		_, message, err := c.ReadMessage()

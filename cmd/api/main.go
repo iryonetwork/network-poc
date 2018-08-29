@@ -33,16 +33,20 @@ func main() {
 	eos.ImportKey(config.EosPrivate)
 	h := &handlers{
 		config: config,
-		eos:    eos,
 		log:    log,
-		hub:    hub,
-		token:  token.Init(log),
+		f: &storage{
+			hub:    hub,
+			token:  token.Init(log),
+			eos:    eos,
+			config: config,
+			log:    log,
+		},
 	}
 	router := mux.NewRouter()
 
 	router.HandleFunc("/login", h.loginHandler).Methods("POST")
 	router.HandleFunc("/ws", h.wsHandler)
-	router.HandleFunc("/account/{key}", h.createaccHandler).Methods("GET")
+	router.HandleFunc("/account", h.createaccHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.uploadHandler).Methods("POST")

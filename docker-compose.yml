@@ -64,6 +64,10 @@ services:
     - main.go
     - handlers.go
     - wshandlers.go
+    - accountCreate.go
+    - checks.go
+    - ehr.go
+    - token.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     - ./.data:/data

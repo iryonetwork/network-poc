@@ -43,10 +43,6 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		outErr = err.Error()
 	}
-	// If there are no ehr entries yet 404 error is retuned
-	if outErr == "Code: 404" {
-		outErr = ""
-	}
 
 	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
 	if err != nil {

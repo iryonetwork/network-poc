@@ -56,13 +56,6 @@ func (t *TokenList) NewToken(id string, exists bool) (string, time.Time, error) 
 	return tok.String(), viableUntil, nil
 }
 
-func (t *TokenList) IsValid(tok string) bool {
-	if _, ok := t.tokens[tok]; ok {
-		return true
-	}
-	return false
-}
-
 func (t *TokenList) IsAccount(tok string) bool {
 	return t.tokens[tok].hasAcc
 }
@@ -75,8 +68,12 @@ func (t *TokenList) AccCreated(tok, account, key string) error {
 	t.tokens[tok].hasAcc = true
 	return nil
 }
-func (t *TokenList) GetID(tok string) string {
-	return t.tokens[tok].id
+
+func (t *TokenList) ValidateGetInfo(tok string) (string, bool) {
+	if t.isValid(tok) {
+		return t.getID(tok), true
+	}
+	return "", false
 }
 
 func (t *TokenList) RevokeToken(tok string) error {
@@ -85,4 +82,15 @@ func (t *TokenList) RevokeToken(tok string) error {
 	}
 	delete(t.tokens, tok)
 	return nil
+}
+
+func (t *TokenList) isValid(tok string) bool {
+	if _, ok := t.tokens[tok]; ok {
+		return true
+	}
+	return false
+}
+
+func (t *TokenList) getID(tok string) string {
+	return t.tokens[tok].id
 }
