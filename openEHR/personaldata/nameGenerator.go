@@ -18,7 +18,7 @@ func newSurname() string {
 	if err != nil {
 		panic(err)
 	}
-	return names[n.Int64()]
+	return surnames[n.Int64()]
 }
 
 var names = []string{

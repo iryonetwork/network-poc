@@ -9,21 +9,21 @@ import (
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/openEHR"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
-func New(config *config.Config) *Data {
+func New(config *config.Config) {
 	fname := newName()
 	sname := newSurname()
 	name := fmt.Sprintf("%s %s", fname, sname)
-	config.Name = name
-	return &Data{
-		config:     config,
-		Category:   "openehr::431|persistent|",
-		ID:         config.EosAccount,
-		Name:       name,
-		Timstamp:   time.Now().Format("2006-01-02T15:04:05.999Z"),
-		Language:   "en",
+	config.PersonalData = &openEHR.PersonalData{
+		Shared: openEHR.Shared{
+			Category: "openehr::431|persistent|",
+			ID:       config.EosAccount,
+			Name:     name,
+			Timstamp: time.Now().Format("2006-01-02T15:04:05.999Z"),
+			Language: "en"},
 		BirthDate:  randomDate(),
 		Gender:     getGender(),
 		FirstName:  fname,
@@ -41,7 +41,6 @@ func randomDate() string {
 		panic(err)
 	}
 	return time.Unix(sec.Int64()+min, 0).Format("2006-01-02")
-
 }
 
 func getGender() string {
@@ -51,14 +50,14 @@ func getGender() string {
 	return "local::at0311|Female|"
 }
 
-func (d *Data) Upload(ehr *ehr.Storage, client *client.Client) error {
-	data, err := json.Marshal(d)
+func Upload(config *config.Config, ehr *ehr.Storage, client *client.Client) error {
+	data, err := json.Marshal(config.PersonalData)
 	if err != nil {
 		return err
 	}
-	id, err := ehr.Encrypt(d.config.EosAccount, data, d.config.EncryptionKeys[d.config.EosAccount])
+	id, err := ehr.Encrypt(config.EosAccount, data, config.EncryptionKeys[config.EosAccount])
 	if err != nil {
 		return err
 	}
-	return client.Upload(d.config.EosAccount, id, false)
+	return client.Upload(config.EosAccount, id, false)
 }
