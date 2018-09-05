@@ -96,7 +96,8 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the form
-	if r.ParseMultipartForm(0) != nil {
+	if err = r.ParseMultipartForm(0); err != nil {
+		h.log.Debugf("Error parsing multipart form; %v", err)
 		h.writeErrorJson(w, 500, err.Error())
 		return
 	}
