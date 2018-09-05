@@ -210,7 +210,26 @@ In: "Content-type": multipart/form-data
     "key": EOS_Public_Key_used_to_sign_data,
     "sign": Signature_of_data's_sha256_hash,
     "data": file,
-    "reupload": string, if "true" filename of uploaded file will be used as fileID
+
+Out:
+{
+    "fileID": "UUID",
+    "createdAt": "YYYY-MM-DDTHH:MM:SS.MsMsMsZ"
+}
+OR
+{
+    "error": "error"
+}
+```
+
+### Reupload
+PUT /<data_owner>/<file_id>
+```json
+In: "Content-type": multipart/form-data
+
+    "key": EOS_Public_Key_used_to_sign_data,
+    "sign": Signature_of_data's_sha256_hash,
+    "data": file,
 
 Out:
 {

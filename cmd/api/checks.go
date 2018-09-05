@@ -94,13 +94,3 @@ func (s *storage) checkAccountExists(id string) (int, error) {
 func isMultipart(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data")
 }
-
-func isReupload(r *http.Request) bool {
-	reupload := false
-	if v, ok := r.Form["reupload"]; ok {
-		if v[0] == "true" {
-			reupload = true
-		}
-	}
-	return reupload
-}

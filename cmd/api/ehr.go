@@ -10,21 +10,27 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func (s *storage) saveFileWithChecks(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reupload bool) (fid string, ts string, code int, err error) {
+func (s *storage) saveFileWithChecks(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reuploadFid string) (fid string, ts string, code int, err error) {
 	if code, err = s.checkEOSAccountConnections(account, owner, key); err != nil {
 		return "", "", code, err
 	}
 
-	return s.saveFile(owner, account, key, signature, file, header, reupload)
+	return s.saveFile(owner, account, key, signature, file, header, fid)
 }
-func (s *storage) saveFile(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reupload bool) (fid string, ts string, code int, err error) {
-
-	data, code, err := s.getUploadedFile(key, signature, file, header)
-	if err != nil {
-		return "", "", code, err
+func (s *storage) saveFile(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reuploadFid string) (fid string, ts string, code int, err error) {
+	if reuploadFid != "" {
+		if _, err = os.Stat(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, owner, fid)); os.IsNotExist(err) {
+			return "", "", 404, fmt.Errorf("File %s not found, cannot overwrite", fid)
+		}
+		fid = reuploadFid
+	} else {
+		fid, code, err = s.getFilename(header)
+		if err != nil {
+			return "", "", code, err
+		}
 	}
 
-	fid, code, err = s.getFilename(header, reupload)
+	data, code, err := s.getUploadedFile(key, signature, file, header)
 	if err != nil {
 		return "", "", code, err
 	}
@@ -49,17 +55,14 @@ func (s *storage) saveFile(owner, account, key, signature string, file multipart
 	ts, code, err = s.getFileTimestamp(fid)
 	return
 }
-func (s *storage) getFilename(header *multipart.FileHeader, reupload bool) (fid string, code int, err error) {
-	if reupload {
-		fid = header.Filename
-	} else {
-		uuid, err := uuid.NewV1()
-		if err != nil {
-			s.log.Printf("Failed to create filename")
-			return "", 500, fmt.Errorf("Error creating filename")
-		}
-		fid = uuid.String()
+
+func (s *storage) getFilename(header *multipart.FileHeader) (fid string, code int, err error) {
+	uuid, err := uuid.NewV1()
+	if err != nil {
+		s.log.Printf("Failed to create filename")
+		return "", 500, fmt.Errorf("Error creating filename")
 	}
+	fid = uuid.String()
 	return fid, 200, nil
 }
 
@@ -99,6 +102,7 @@ func (s *storage) getFileTimestamp(name string) (string, int, error) {
 type lsResponse struct {
 	Files []lsFile `json:"files,omitempty"`
 }
+
 type lsFile struct {
 	FileID    string `json:"fileID,omitempty"`
 	CreatedAt string `json:"createdAt,omitempty"`

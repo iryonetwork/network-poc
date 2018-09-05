@@ -49,7 +49,12 @@ func main() {
 	router.HandleFunc("/account", h.createaccHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
-	router.HandleFunc("/{account}", h.uploadHandler).Methods("POST")
+	router.HandleFunc("/{account}/{fid}", func(w http.ResponseWriter, r *http.Request) {
+		h.uploadHandler(w, r, mux.Vars(r)["fid"])
+	}).Methods("PUT")
+	router.HandleFunc("/{account}", func(w http.ResponseWriter, r *http.Request) {
+		h.uploadHandler(w, r, "")
+	}).Methods("POST")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

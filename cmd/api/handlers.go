@@ -78,7 +78,7 @@ type uploadResponse struct {
 	CreatedAt string `json:"createdAt,omitempty"`
 }
 
-func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
+func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid string) {
 	response := uploadResponse{}
 	if !isMultipart(r) {
 		h.writeErrorJson(w, 400, "Request is not multipart/form-data")
@@ -112,9 +112,8 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reupload := isReupload(r)
 	// Save the file
-	fid, ts, code, err := h.f.saveFileWithChecks(owner, account, key, r.FormValue("sign"), file, header, reupload)
+	fid, ts, code, err := h.f.saveFileWithChecks(owner, account, key, r.FormValue("sign"), file, header, fid)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
