@@ -217,7 +217,7 @@ func (c *Client) Update(owner string) error {
 	return nil
 }
 
-func (c *Client) Upload(owner, id string, reencrypt bool) error {
+func (c *Client) Upload(owner, id string, reupload bool) error {
 	c.log.Debugf("Client::upload(%s) called", owner)
 	// get data from local storage
 	data := c.ehr.Getid(owner, id)
@@ -236,7 +236,7 @@ func (c *Client) Upload(owner, id string, reencrypt bool) error {
 	writer.WriteField("account", c.config.EosAccount)
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
-	if reencrypt {
+	if reupload {
 		writer.WriteField("reupload", "true")
 	}
 	part, err := writer.CreateFormFile("data", id)

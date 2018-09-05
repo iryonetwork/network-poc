@@ -8,6 +8,7 @@ import (
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/personaldata"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
@@ -68,6 +69,11 @@ func main() {
 		log.Fatalf("ws problem: %v", err.Error())
 	}
 	defer client.CloseWs()
+
+	pd := personaldata.New(config)
+	if pd.Upload(ehr, client) != nil {
+		log.Fatalf("error uploading patient data; %v", err)
+	}
 
 	h := &handlers{
 		config: config,
