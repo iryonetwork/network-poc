@@ -19,11 +19,16 @@ func New(config *config.Config) {
 	name := fmt.Sprintf("%s %s", fname, sname)
 	config.PersonalData = &openEHR.PersonalData{
 		Shared: openEHR.Shared{
-			Category: "openehr::431|persistent|",
-			ID:       config.EosAccount,
-			Name:     name,
-			Timstamp: time.Now().Format("2006-01-02T15:04:05.999Z"),
-			Language: "en"},
+			Repeating: openEHR.Repeating{
+				Composer: openEHR.Composer{
+					ID:   config.EosAccount,
+					Name: name,
+				},
+				Language: "en",
+			},
+			Category:  "openehr::431|persistent|",
+			Timestamp: time.Now().Format("2006-01-02T15:04:05.999Z"),
+		},
 		BirthDate:  randomDate(),
 		Gender:     getGender(),
 		FirstName:  fname,

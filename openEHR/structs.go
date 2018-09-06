@@ -1,11 +1,19 @@
 package openEHR
 
-type Shared struct {
-	Category string `json:"/category"`
-	ID       string `json:"/composer|identifier"`
-	Name     string `json:"/composer|name"`
-	Timstamp string `json:"/context/start_time"`
+type Composer struct {
+	ID   string `json:"/composer|identifier"`
+	Name string `json:"/composer|name"`
+}
+
+type Repeating struct {
+	Composer
 	Language string `json:"/language"`
+}
+
+type Shared struct {
+	Repeating
+	Timestamp string `json:"/context/start_time"`
+	Category  string `json:"/category"`
 }
 
 type PersonalData struct {

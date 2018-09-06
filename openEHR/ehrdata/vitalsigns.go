@@ -7,7 +7,11 @@ import (
 
 func NewVitalSigns(config *config.Config) *openEHR.VitalSigns {
 	return &openEHR.VitalSigns{
-		Shared: config.PersonalData.Shared,
+		Shared: openEHR.Shared{
+			Repeating: config.PersonalData.Repeating,
+			Category:  "433|event",
+			Timestamp: timestamp(),
+		},
 	}
 }
 
