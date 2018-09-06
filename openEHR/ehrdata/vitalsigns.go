@@ -1,6 +1,8 @@
 package ehrdata
 
 import (
+	"fmt"
+
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/openEHR"
 )
@@ -15,7 +17,11 @@ func NewVitalSigns(config *config.Config) *openEHR.VitalSigns {
 	}
 }
 
-func AddVitalSigns(d *openEHR.VitalSigns, weight, glucose, bpSystolic, bpDiastolic string) {
+func AddVitalSigns(d *openEHR.VitalSigns, weight, glucose, bpSystolic, bpDiastolic string) error {
+	if weight == "" && glucose == "" && bpDiastolic == "" && bpSystolic == "" {
+		return fmt.Errorf("Please insert data")
+	}
+
 	if weight != "" {
 		d.Weight = openEHR.Weight{Ts: timestamp(), Measure: weight}
 	}
@@ -27,4 +33,6 @@ func AddVitalSigns(d *openEHR.VitalSigns, weight, glucose, bpSystolic, bpDiastol
 	if bpSystolic != "" || bpDiastolic != "" {
 		d.BloodPressure = openEHR.BloodPressure{Ts: timestamp(), Systolic: bpSystolic, Diastolyc: bpDiastolic}
 	}
+
+	return nil
 }

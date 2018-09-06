@@ -6,6 +6,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/openEHR"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
@@ -27,8 +28,8 @@ func timestamp() string {
 	return time.Now().Format("2006-01-02T15:04:05.999Z")
 }
 
-func ReadFromJSON(data []byte) map[string]string {
-	out := make(map[string]string)
+func ReadFromJSON(data []byte) *openEHR.All {
+	out := &openEHR.All{}
 	json.Unmarshal(data, &out)
 	return out
 }

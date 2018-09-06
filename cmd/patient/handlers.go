@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/iryonetwork/network-poc/openEHR"
+
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
@@ -31,17 +33,13 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := h.config.EosAccount
 	err = h.client.Update(user)
-	ehr := make(map[string]string)
+	ehr := make(map[string]*openEHR.All)
 	for k := range h.ehr.Get(user) {
 		v, err := h.ehr.Decrypt(user, k, h.config.EncryptionKeys[user])
 		if err != nil {
 			break
 		}
-		s := ""
-		for path, value := range ehrdata.ReadFromJSON(v) {
-			s += path + " : \n" + value + "\n"
-		}
-		ehr[k+"_dec"] = s
+		ehr[k+"_dec"] = ehrdata.ReadFromJSON(v)
 	}
 
 	if err != nil {
@@ -63,7 +61,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Public      string
 		Private     string
 		Connections map[string]string
-		EHRData     map[string]string
+		EHRData     map[string]*openEHR.All
 		Error       string
 		Contract    string
 		Requested   map[string]string
@@ -128,9 +126,11 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	systolic := r.Form["systolic"][0]
 	diastolic := r.Form["diastolic"][0]
 
+	var err error
 	data := ehrdata.NewVitalSigns(h.config)
-	ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic)
-	err := ehrdata.SaveAndUpload(h.config.EosAccount, h.config, h.ehr, h.client, data)
+	if err := ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
+		err = ehrdata.SaveAndUpload(h.config.EosAccount, h.config, h.ehr, h.client, data)
+	}
 
 	url := "/"
 	if err != nil {

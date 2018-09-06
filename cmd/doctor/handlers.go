@@ -168,9 +168,11 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	systolic := r.Form["systolic"][0]
 	diastolic := r.Form["diastolic"][0]
 
+	var err error
 	data := ehrdata.NewVitalSigns(h.config)
-	ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic)
-	err := ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
+	if err = ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
+		err = ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
+	}
 
 	url := "/ehr/" + owner
 	if err != nil {
