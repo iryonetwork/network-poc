@@ -236,9 +236,6 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	writer.WriteField("account", c.config.EosAccount)
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
-	if reupload {
-		writer.WriteField("reupload", "true")
-	}
 	part, err := writer.CreateFormFile("data", id)
 	part.Write(data)
 
@@ -248,7 +245,13 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	}
 
 	// upload data to server
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", c.config.IryoAddr, owner), body)
+	req := &http.Request{}
+	if !reupload {
+		req, err = http.NewRequest("POST", fmt.Sprintf("%s/%s", c.config.IryoAddr, owner), body)
+	} else {
+		req, err = http.NewRequest("PUT", fmt.Sprintf("%s/%s/%s", c.config.IryoAddr, owner, id), body)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
@@ -271,8 +274,12 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	if err != nil {
 		return err
 	}
-	newid := a["fileID"]
-	c.ehr.Rename(owner, id, newid)
+
+	if !reupload {
+		newid := a["fileID"]
+		c.ehr.Rename(owner, id, newid)
+	}
+
 	return nil
 }
 

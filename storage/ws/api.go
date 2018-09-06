@@ -3,7 +3,6 @@ package ws
 import (
 	"crypto/sha256"
 	"fmt"
-	"os"
 
 	"github.com/eoscanada/eos-go/ecc"
 
@@ -96,9 +95,6 @@ func (s *Storage) sendRequest(r *request, to string) error {
 }
 
 func (s *Storage) reencrypt(r *request, from string) error {
-	// Backup current data
-	os.Rename(fmt.Sprintf("%s/%s", s.config.StoragePath, from), fmt.Sprintf("%s/%s_backup", s.config.StoragePath, from))
-
 	// Create list of doctors to send message to
 	sendTo, err := s.eos.ListConnected(from)
 	if err != nil {

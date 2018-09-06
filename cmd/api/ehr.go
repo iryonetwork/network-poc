@@ -15,7 +15,7 @@ func (s *storage) saveFileWithChecks(owner, account, key, signature string, file
 		return "", "", code, err
 	}
 
-	return s.saveFile(owner, account, key, signature, file, header, fid)
+	return s.saveFile(owner, account, key, signature, file, header, reuploadFid)
 }
 func (s *storage) saveFile(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reuploadFid string) (fid string, ts string, code int, err error) {
 	if reuploadFid != "" {
@@ -53,6 +53,7 @@ func (s *storage) saveFile(owner, account, key, signature string, file multipart
 	}
 	// Get the timestamp
 	ts, code, err = s.getFileTimestamp(fid)
+	s.log.Debugf("File %s uploaded", fid)
 	return
 }
 
