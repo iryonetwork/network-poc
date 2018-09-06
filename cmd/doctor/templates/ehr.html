@@ -32,13 +32,19 @@
 
                 <h3>EHR for {{.Owner}}</h3>
                 <form action="/save">
-                    <textarea class="form-control" name="data" rows="10"></textarea>
-                    <canvas id="chart"></canvas>
                     <input name="owner" type="hidden" value="{{ .Owner }}"/>
-                    <button class="btn btn-primary" type="button" id="add">Add data point</button>
-                    <button class="btn btn-primary" type="submit">Save</button>
-                </form>
-                {{ if .EHRData }}
+                    Weight:<br>
+                    <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
+                    Glucose:<br>
+                    <input type="number" step="0.1" name="glucose" placeholder="6.5"> mmol/l <br>
+                    Blood Pressure:<br>
+                    Systolic: <input type="number" step="0.1" name="systolic" placeholder="120"> mm[Hg] <br>
+                    Diastolic <input type="number" step="0.1" name="diastolic" placeholder="70"> mm[Hg] <br><br>
+
+                <button class="btn btn-primary" type="submit">Save</button>
+            </form>
+            <br>
+    {{ if .EHRData }}
                 <div>
                     {{range $i, $c := .EHRData}}
                         <h1>{{ $i }}</h1>

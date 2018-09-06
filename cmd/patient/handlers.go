@@ -10,6 +10,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
@@ -32,12 +33,15 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	err = h.client.Update(user)
 	ehr := make(map[string]string)
 	for k := range h.ehr.Get(user) {
-		ehr[k] = string(h.ehr.Getid(user, k))
 		v, err := h.ehr.Decrypt(user, k, h.config.EncryptionKeys[user])
 		if err != nil {
 			break
 		}
-		ehr[k+"_dec"] = string(v)
+		s := ""
+		for path, value := range ehrdata.ReadFromJSON(v) {
+			s += path + " : \n" + value + "\n"
+		}
+		ehr[k+"_dec"] = s
 	}
 
 	if err != nil {
@@ -110,15 +114,15 @@ func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	data := []byte(r.Form["data"][0])
-	user := h.config.EosAccount
 
-	id, err := h.ehr.Encrypt(user, data, h.config.EncryptionKeys[user])
-	if err != nil {
-		http.Redirect(w, r, "/?error="+err.Error(), 302)
-		return
-	}
-	err = h.client.Upload(user, id, false)
+	weight := r.Form["weight"][0]
+	glucose := r.Form["glucose"][0]
+	systolic := r.Form["systolic"][0]
+	diastolic := r.Form["diastolic"][0]
+
+	data := ehrdata.NewVitalSigns(h.config)
+	ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic)
+	err := ehrdata.SaveAndUpload(h.config.EosAccount, h.config, h.ehr, h.client, data)
 
 	url := "/"
 	if err != nil {

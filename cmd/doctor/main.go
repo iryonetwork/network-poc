@@ -7,6 +7,7 @@ import (
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/openEHR/personaldata"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
@@ -53,6 +54,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
 	}
+
+	personaldata.New(config)
+
 	defer client.CloseWs()
 	h := &handlers{
 		config:    config,

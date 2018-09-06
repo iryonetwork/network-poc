@@ -9,6 +9,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/storage/ehr"
@@ -161,15 +162,14 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	owner := r.Form["owner"][0]
-	data := []byte(r.Form["data"][0])
+	weight := r.Form["weight"][0]
+	glucose := r.Form["glucose"][0]
+	systolic := r.Form["systolic"][0]
+	diastolic := r.Form["diastolic"][0]
 
-	id, err := h.ehr.Encrypt(owner, data, h.config.EncryptionKeys[owner])
-	if err != nil {
-		http.Redirect(w, r, "/ehr/"+owner+"?error="+err.Error(), 302)
-		return
-	}
-
-	err = h.client.Upload(owner, id, false)
+	data := ehrdata.NewVitalSigns(h.config)
+	ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic)
+	err := ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
 
 	url := "/ehr/" + owner
 	if err != nil {
