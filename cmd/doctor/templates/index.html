@@ -31,7 +31,7 @@
                         {{range $i, $c := .Connections}}
                             <tr>
                                 <!--<th scope="row">{{ $i }}</th>-->
-                                <td><a href="/ehr/{{ $c }}">{{ $c }}</a></td>
+                                <td><a href="/ehr/{{ $i }}">{{ $c }}</a></td>
                             </tr>
                         {{end}}
                     </tbody>
@@ -51,7 +51,7 @@
                 {{ $c }}
                 <form action="/request">
                     <div class="input-group mb-3">
-                        <input name="to" type="hidden" class="form-control" value="{{ $c }}">
+                        <input name="to" type="hidden" class="form-control" value="{{ $i }}">
                         <div class="input-group-append">
                             <button class="btn btn-outline-secondary" type="submit">Request key</button>
                         </div>
@@ -59,7 +59,7 @@
                 </form>
                 <form action="/ignore">
                     <p class="input-group mb-3">
-                        <input name="to" type="hidden" class="form-control" value="{{ $c }}">
+                        <input name="to" type="hidden" class="form-control" value="{{ $i }}">
                         <p class="input-group-append">
                             <button class="btn btn-outline-secondary" type="submit">Ignore</button>
                         </p>

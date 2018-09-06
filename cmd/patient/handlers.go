@@ -62,28 +62,36 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Name        string
 		Public      string
 		Private     string
-		Connections []string
+		Connections map[string]string
 		EHRData     map[string]string
 		Error       string
 		Contract    string
-		Requested   map[string]*rsa.PublicKey
+		Requested   map[string]string
 		Qr          string
 	}{
 		h.config.ClientType,
 		user,
 		h.config.GetEosPublicKey(),
 		h.config.EosPrivate,
-		h.config.Connections,
+		h.config.GetNames(h.config.Connections),
 		ehr,
 		outErr,
 		h.config.EosContractName,
-		h.config.Requested,
+		h.config.GetNames(mapKeysToArray(h.config.Requested)),
 		base64.StdEncoding.EncodeToString(img),
 	}
 
 	if err := t.Execute(w, data); err != nil {
 		log.Printf("error executing template: %v", err)
 	}
+}
+
+func mapKeysToArray(m map[string]*rsa.PublicKey) []string {
+	out := []string{}
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
 
 func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {

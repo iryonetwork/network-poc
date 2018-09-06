@@ -55,7 +55,7 @@
                                     <td>{{ $c }}</td>
                                     <td>
                                         <form action="/revoke">
-                                            <input type="hidden" name="to" value="{{ $c }}"> </input>
+                                            <input type="hidden" name="to" value="{{ $i }}">
                                             <button class="btn btn-secondary float-right" type="submit">Revoke access</button>
                                         </form>
                                     </td>
@@ -68,13 +68,13 @@
                         <div class="input-group mb-3">
                             <input name="to" type="text" class="form-control" placeholder="Doctor's account name" aria-label="Doctor's account name" aria-describedby="basic-addon2">
                             <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="submit">Request access</button>
+                                <button class="btn btn-outline-secondary" type="submit">Grant access</button>
                             </div>
                         </div>
                     </form>
     
                     {{ range $i, $c := .Requested}}
-                    {{ $i }}
+                    {{ $c }}
                     <form action="/grant">
                         <div class="input-group mb-3">
                             <input name="to" type="hidden" class="form-control" value="{{ $i }}">

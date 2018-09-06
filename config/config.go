@@ -26,23 +26,23 @@ type Config struct {
 	Debug              bool   `env:"DEBUG" envDefault:"1"`
 	StoragePath        string `env:"DATA_PATH" envDefault:"/data/ehr"` // Where to store uploaded ehr data
 	PersonalData       *openEHR.PersonalData
-	Name               string
 	EncryptionKeys     map[string][]byte
 	RequestKeys        map[string]*rsa.PrivateKey
 	Requested          map[string]*rsa.PublicKey
 	Connections        []string
 	GrantedWithoutKeys []string
+	Directory          map[string]string
 }
 
 func New() (*Config, error) {
 	cfg := &Config{
-		Name:               "",
 		PersonalData:       &openEHR.PersonalData{},
 		Requested:          make(map[string]*rsa.PublicKey),
 		RequestKeys:        make(map[string]*rsa.PrivateKey),
 		EncryptionKeys:     make(map[string][]byte),
 		Connections:        []string{},
 		GrantedWithoutKeys: []string{},
+		Directory:          make(map[string]string),
 	}
 	return cfg, env.Parse(cfg)
 }
@@ -53,4 +53,16 @@ func (c *Config) GetEosPublicKey() string {
 		panic(err)
 	}
 	return key.PublicKey().String()
+}
+
+func (c *Config) GetNames(list []string) map[string]string {
+	out := make(map[string]string)
+	for _, username := range list {
+		if _, ok := c.Directory[username]; !ok {
+			out[username] = username
+			continue
+		}
+		out[username] = c.Directory[username]
+	}
+	return out
 }

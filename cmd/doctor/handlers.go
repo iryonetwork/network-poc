@@ -43,20 +43,20 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Name        string
 		Public      string
 		Private     string
-		Connections []string
+		Connections map[string]string
 		Contract    string
 		Connected   bool
-		Granted     []string
+		Granted     map[string]string
 		Qr          string
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
 		h.config.GetEosPublicKey(),
 		h.config.EosPrivate,
-		h.config.Connections,
+		h.config.GetNames(h.config.Connections),
 		h.config.EosContractName,
 		h.connected,
-		h.config.GrantedWithoutKeys,
+		h.config.GetNames(h.config.GrantedWithoutKeys),
 		base64.StdEncoding.EncodeToString(img),
 	}
 
@@ -98,16 +98,18 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Type     string
-		Public   string
-		Contract string
-		Owner    string
-		EHRData  map[string]string
-		Error    string
+		Type          string
+		Public        string
+		Contract      string
+		Owner         string
+		OwnerUsername string
+		EHRData       map[string]string
+		Error         string
 	}{
 		h.config.ClientType,
 		h.config.EosAccount,
 		h.config.EosContractName,
+		h.config.Directory[owner],
 		owner,
 		ehr,
 		outErr,
@@ -137,13 +139,12 @@ func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	// // rsa key generation takes a few seconds, lets do that in the background
-	// go func() {
+
 	err := h.client.RequestAccess(to)
 	if err != nil {
 		h.log.Fatalf("Error requesting access: %v ", err)
 	}
-	// }()
+
 	http.Redirect(w, r, "/", 302)
 }
 

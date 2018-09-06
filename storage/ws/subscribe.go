@@ -93,11 +93,17 @@ func (s *Storage) SubscribeDoctor() {
 			// User has granted access to doctor
 			// Make a notification that acess has been granted
 			case "NotifyGranted":
+				name, err := r.getDataString("name")
+				if err != nil {
+					s.log.Fatalf("Error getting `name`: %v", err)
+				}
 				from, err := r.getDataString("from")
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
+
 				s.log.Debugf("Got notification 'accessGranted' from %s", from)
+				s.config.Directory[from] = name
 				// Check if we already have the user on the list
 				onlist := false
 				for _, v := range s.config.Connections {
@@ -142,6 +148,10 @@ func (s *Storage) SubscribePatient() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
+				name, err := r.getDataString("name")
+				if err != nil {
+					s.log.Fatalf("Error getting `from`: %v", err)
+				}
 				key, err := r.getData("key")
 				if err != nil {
 					s.log.Fatalf("Error getting `key`: %v", err)
@@ -172,6 +182,7 @@ func (s *Storage) SubscribePatient() {
 				}
 
 				s.config.Requested[from], err = x509.ParsePKCS1PublicKey(key)
+				s.config.Directory[from] = name
 				// Check if access is already granted
 				// if it is, send the key without prompting the user for confirmation
 				granted, err := s.eos.AccessGranted(s.config.EosAccount, from)

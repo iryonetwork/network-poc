@@ -32,7 +32,7 @@
 
                 <h3>EHR for {{.Owner}}</h3>
                 <form action="/save">
-                    <input name="owner" type="hidden" value="{{ .Owner }}"/>
+                    <input name="owner" type="hidden" value="{{ .OwnerUsername }}"/>
                     Weight:<br>
                     <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
                     Glucose:<br>

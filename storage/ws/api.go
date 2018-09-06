@@ -50,8 +50,13 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	case "NotifyGranted":
 		s.log.Debugf("WS_API:: Got access granted notification from %s", from)
+		name, err := inReq.getData("name")
+		if err != nil {
+			return err
+		}
 		r = newReq("NotifyGranted")
 		r.append("from", []byte(from))
+		r.append("name", name)
 	}
 
 	sendTo, err := inReq.getDataString("to")
