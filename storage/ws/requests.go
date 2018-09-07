@@ -32,6 +32,8 @@ func (s *Storage) SendKey(to string) error {
 		return err
 	}
 	r.append("key", encKey)
+	r.append("name", []byte(s.config.PersonalData.Name))
+
 	req, err := r.encode()
 	if err != nil {
 		return err

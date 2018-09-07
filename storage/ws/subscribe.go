@@ -42,13 +42,21 @@ func (s *Storage) SubscribeDoctor() {
 				if err != nil {
 					s.log.Fatalf("Error getting `from`: %v", err)
 				}
+				name, err := r.getDataString("name")
+				if err != nil {
+					s.log.Fatalf("Error getting `name`: %v", err)
+				}
+
 				key, err := rsa.DecryptPKCS1v15(rand.Reader, s.config.RequestKeys[from], keyenc)
 				if err != nil {
 					s.log.Fatalf("Error decrypting key: %v", err)
 				}
 
 				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
+
+				s.config.Directory[from] = name
 				s.config.EncryptionKeys[from] = key
+
 				exists := false
 				for _, name := range s.config.Connections {
 					if name == from {

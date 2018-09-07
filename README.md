@@ -88,6 +88,7 @@ IN:
     "Name":"NotifyGranted"
     "Fields":{
         "to":"user recieving access"
+        "name":"user's name here"
     }
 }
 
@@ -96,6 +97,7 @@ OUT:
     "Name":"NotifyGranted"
     "Fields":{
         "from":"Sender"
+        "name":"user's name here"
     }
 }
 ```

@@ -30,6 +30,12 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		if err != nil {
 			return err
 		}
+		name, err := inReq.getData("name")
+		if err != nil {
+			return err
+		}
+
+		r.append("name", name)
 		r.append("key", key)
 		r.append("from", []byte(from))
 

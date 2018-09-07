@@ -16,12 +16,16 @@ type Shared struct {
 	Category  string `json:"/category,omitempty"`
 }
 
-type PersonalData struct {
-	Shared
+type PersonalDataFields struct {
 	BirthDate  string `json:"/content[openEHR-DEMOGRAPHIC-PERSON.person.v1]/details[openEHR-DEMOGRAPHIC-ITEM_TREE.person_details.v1.0.0]/items[at0010],omitempty"`
 	Gender     string `json:"/content[openEHR-DEMOGRAPHIC-PERSON.person.v1]/details[openEHR-DEMOGRAPHIC-ITEM_TREE.person_details.v1.0.0]/items[at0017],omitempty"`
 	FirstName  string `json:"/content[openEHR-DEMOGRAPHIC-PERSON.person.v1]/identities[openEHR-DEMOGRAPHIC-PARTY_IDENTITY.person_name.v1]/details[at0001]/items[at0002],omitempty"`
 	FamilyName string `json:"/content[openEHR-DEMOGRAPHIC-PERSON.person.v1]/identities[openEHR-DEMOGRAPHIC-PARTY_IDENTITY.person_name.v1]/details[at0001]/items[at0003],omitempty"`
+}
+
+type PersonalData struct {
+	Shared
+	PersonalDataFields
 }
 
 type Weight struct {
@@ -40,14 +44,19 @@ type BloodPressure struct {
 	Ts        string `json:"/content[openEHR-EHR-COMPOSITION.encounter.v1]/context/other_context/items[openEHR-EHR-OBSERVATION.blood_pressure.v1]/data[at0001]/events[at0006]:0/time,omitempty"`
 }
 
-type VitalSigns struct {
-	Shared
+type VitalSignsFields struct {
 	Weight
 	Glucose
 	BloodPressure
 }
 
+type VitalSigns struct {
+	Shared
+	VitalSignsFields
+}
+
 type All struct {
-	VitalSigns
-	PersonalData
+	Shared
+	PersonalDataFields
+	VitalSignsFields
 }

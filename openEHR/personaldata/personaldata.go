@@ -29,10 +29,12 @@ func New(config *config.Config) {
 			Category:  "openehr::431|persistent|",
 			Timestamp: time.Now().Format("2006-01-02T15:04:05.999Z"),
 		},
-		BirthDate:  randomDate(),
-		Gender:     getGender(),
-		FirstName:  fname,
-		FamilyName: sname,
+		PersonalDataFields: openEHR.PersonalDataFields{
+			BirthDate:  randomDate(),
+			Gender:     getGender(),
+			FirstName:  fname,
+			FamilyName: sname,
+		},
 	}
 }
 
