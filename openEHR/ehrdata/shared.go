@@ -2,6 +2,7 @@ package ehrdata
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/iryonetwork/network-poc/client"
@@ -32,4 +33,8 @@ func ReadFromJSON(data []byte) *openEHR.All {
 	out := &openEHR.All{}
 	json.Unmarshal(data, &out)
 	return out
+}
+
+func addUnit(value, unit string) string {
+	return fmt.Sprintf("%s,%s", value, unit)
 }

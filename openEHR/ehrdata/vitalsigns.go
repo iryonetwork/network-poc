@@ -23,15 +23,15 @@ func AddVitalSigns(d *openEHR.VitalSigns, weight, glucose, bpSystolic, bpDiastol
 	}
 
 	if weight != "" {
-		d.Weight = openEHR.Weight{Ts: timestamp(), Measure: weight}
+		d.Weight = openEHR.Weight{Ts: timestamp(), Measure: addUnit(weight, "kg")}
 	}
 
 	if glucose != "" {
-		d.Glucose = openEHR.Glucose{Ts: timestamp(), Measure: glucose}
+		d.Glucose = openEHR.Glucose{Ts: timestamp(), Measure: addUnit(glucose, "mmol/l")}
 	}
 
 	if bpSystolic != "" || bpDiastolic != "" {
-		d.BloodPressure = openEHR.BloodPressure{Ts: timestamp(), Systolic: bpSystolic, Diastolyc: bpDiastolic}
+		d.BloodPressure = openEHR.BloodPressure{Ts: timestamp(), Systolic: addUnit(bpSystolic, "mm[Hg]"), Diastolyc: addUnit(bpDiastolic, "mm[Hg]")}
 	}
 
 	return nil
