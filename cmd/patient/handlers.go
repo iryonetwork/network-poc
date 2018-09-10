@@ -8,8 +8,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/iryonetwork/network-poc/openEHR"
-
 	"github.com/iryonetwork/network-poc/client"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
@@ -33,15 +31,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := h.config.EosAccount
 	err = h.client.Update(user)
-	ehr := make(map[string]*openEHR.All)
-	for k := range h.ehr.Get(user) {
-		v, err := h.ehr.Decrypt(user, k, h.config.EncryptionKeys[user])
-		if err != nil {
-			break
-		}
-		ehr[k+"_dec"] = ehrdata.ReadFromJSON(v)
-	}
-
+	ehr, err := ehrdata.ExtractEhrData(h.config.EosAccount, h.ehr, h.config)
 	if err != nil {
 		outErr = err.Error()
 	}
@@ -61,7 +51,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Public      string
 		Private     string
 		Connections map[string]string
-		EHRData     map[string]*openEHR.All
+		EHRData     *map[string]ehrdata.Entry
 		Error       string
 		Contract    string
 		Requested   map[string]string

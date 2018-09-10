@@ -8,7 +8,7 @@
             .table th { border-top: 0; }
             .content { margin-top: 20px; }
             textarea { display: none !important; }
-            .footer { border-top: solid 1px #dee2e6; padding-top: 10px; font-size: x-small; color: #ccc; }
+            .footer { border-top: solid 1px #dee2e6; padding-top: 10px; font-size: x-small; color: #ccc; margin-bottom: 50px}
         </style>
         <title>IRYO PoC</title>
     </head>
@@ -109,12 +109,13 @@
                             <button class="btn btn-primary" type="submit">Save</button>
                         </form>
                         <br>
+
                     {{range $i, $c := .EHRData}}
                     <h1>{{ $i }}</h1>
-                    <pre>{{ $c }}</pre><br>
-                    {{end}}
-
-    
+                    {{ with $c }}
+                            <canvas class="chart" data-name="{{ $i }}" data-values="{{ .Value }}" data-timestamps="{{ .Timestamp }}" style="width: 50%"></canvas>
+                        {{ end }}
+                    {{ end }}
                 </div>
                 <div class="footer">
                     <div>Private key: {{.Private}}</div> 
@@ -134,52 +135,36 @@
 
 
     <script>
-        $(document).ready(function() {
-            var data = $("textarea").val().split("\n").filter(function(point) {
-                return point.split(",").length == 2
-            }).map(function(point) {
-                var parts = point.split(",")
-                return {
-                    x: new Date(parseInt(parts[0])),
-                    y: parseInt(parts[1])
-                }
-            })
-
-            var ctx = document.getElementById('chart').getContext('2d')
-            var chart = new Chart(ctx, {
+        $( ".chart" ).each(function(i, canvas){
+            var ctx = canvas.getContext("2d")
+            var myChart = new Chart(ctx, {
                 type: 'line',
-
                 data: {
+                    labels: canvas.dataset.timestamps.slice(1,-1).split(" "),
                     datasets: [{
-                        label: "Heart rate",
-                        backgroundColor: 'rgb(255, 99, 132)',
-                        borderColor: 'rgb(255, 99, 132)',
-                        data: data,
+                        label: canvas.dataset.name,
+                        data: canvas.dataset.values.slice(1,-1).split(" "),
+                        backgroundColor: [
+                            'rgba(255,0,0,0)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1,
+                        lineTension: 0
                     }]
                 },
                 options: {
                     scales: {
                         xAxes: [{
-                            type: 'time',
-                            distribution: 'series'
-                        }]
+                            type: 'time'
+                            }]
                     }
                 }
             })
+        });
 
-            $("#add").click(function() {
-                var point = {
-                    x: Date.now(),
-                    y: Math.floor(Math.random() * 60) + 100
-                }
 
-                $("textarea").val($("textarea").val() + "\n" + point.x + "," + point.y)
-                chart.data.datasets[0].data.push(point)
-                chart.update()
-            })
-
-        })
-    </script>
-
+        </script>
     </body>
 </html>
