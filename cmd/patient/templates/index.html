@@ -6,9 +6,9 @@
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
         <style>
             .table th { border-top: 0; }
-            .content { margin-top: 20px; }
+            .content { margin-top: 20px; margin-bottom: 50px }
             textarea { display: none !important; }
-            .footer { border-top: solid 1px #dee2e6; padding-top: 10px; font-size: x-small; color: #ccc; margin-bottom: 50px}
+            .footer { border-top: solid 1px #dee2e6; padding-top: 10px; font-size: x-small; color: #ccc;}
         </style>
         <title>IRYO PoC</title>
     </head>
@@ -97,26 +97,42 @@
                
 
                 <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-                        <form action="/save">
-                                Weight:<br>
-                                <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
-                                Glucose:<br>
-                                <input type="number" step="0.1" name="glucose" placeholder="6.5"> mmol/l <br>
-                                Blood Pressure:<br>
-                                Systolic: <input type="number" step="0.1" name="systolic" placeholder="120"> mm[Hg] <br>
-                                Diastolic <input type="number" step="0.1" name="diastolic" placeholder="70"> mm[Hg] <br><br>
+                    <div class="tab-content" id="myTabContent">
 
-                            <button class="btn btn-primary" type="submit">Save</button>
-                        </form>
-                        <br>
+                        <ul class="nav nav-tabs" id="myTab" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link show active" id="viewEhr-tab" data-toggle="tab" href="#viewEhr" role="tab" aria-controls="viewEhr" aria-selected="true">Graphs</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="addEhr-tab" data-toggle="tab" href="#addEhr" role="tab" aria-controls="addEhr" aria-selected="false">Add Data</a>
+                            </li>
+                        </ul>
 
-                    {{range $i, $c := .EHRData}}
-                    <h1>{{ $i }}</h1>
-                    {{ with $c }}
-                            <canvas class="chart" data-name="{{ $i }}" data-values="{{ .Value }}" data-timestamps="{{ .Timestamp }}" style="width: 50%"></canvas>
-                        {{ end }}
-                    {{ end }}
+                        <div class="tab-pane fade show active" id="viewEhr" role="tabpanel" aria-labelledby="viewEhr-tab">
+                            {{range $i, $c := .EHRData}}
+                            <h1>{{ $i }}</h1>
+                            {{ with $c }}
+                                    <canvas class="chart" data-name="{{ $i }}" data-values="{{ .Value }}" data-timestamps="{{ .Timestamp }}" style="width: 50%"></canvas>
+                                {{ end }}
+                            {{ end }}
+                        </div>
+
+                        <div class="tab-pane fade" id="addEhr" role="tabpanel" aria-labelledby="addEhr-tab">
+                            <form action="/save">
+                                    Weight:<br>
+                                    <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
+                                    Glucose:<br>
+                                    <input type="number" step="0.1" name="glucose" placeholder="6.5"> mmol/l <br>
+                                    Blood Pressure:<br>
+                                    Systolic: <input type="number" step="0.1" name="systolic" placeholder="120"> mm[Hg] <br>
+                                    Diastolic <input type="number" step="0.1" name="diastolic" placeholder="70"> mm[Hg] <br><br>
+
+                                <button class="btn btn-primary" type="submit">Save</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="footer">
                     <div>Private key: {{.Private}}</div> 
                     <div>Publuc key: {{.Public}}</div>    
