@@ -206,8 +206,10 @@ OUT:
 if account is not sent in the only endpoint accessable with token is create new account
 
 ### Create new account
-GET /account
+POST /account
 ```json
+In: "name": "User's name"
+Out:
 {"account":"account.iryo"}
 ```
 ### Upload
@@ -278,4 +280,16 @@ File's contents
 OR
 
 "ERROR: error"
+```
+
+### Get name
+GET /<account_name>/id
+```
+{
+    "name":"Janez Primer"
+}
+OR
+{
+    "error":"error goes here"
+}
 ```

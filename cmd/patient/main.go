@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)
 	}
+	personaldata.New(config)
 	config.ClientType = "Patient"
 	// log
 	log := logger.New(config)
@@ -70,7 +71,6 @@ func main() {
 	}
 	defer client.CloseWs()
 
-	personaldata.New(config)
 	if personaldata.Upload(config, ehr, client) != nil {
 		log.Fatalf("error uploading patient data; %v", err)
 	}

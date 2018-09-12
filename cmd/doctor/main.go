@@ -17,6 +17,7 @@ func main() {
 	if err != nil {
 		stdlog.Fatalf("failed to get config: %v", err)
 	}
+	personaldata.New(config)
 	config.ClientType = "Doctor"
 
 	log := logger.New(config)
@@ -54,8 +55,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
 	}
-
-	personaldata.New(config)
 
 	defer client.CloseWs()
 	h := &handlers{

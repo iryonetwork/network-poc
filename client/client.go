@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/iryonetwork/network-poc/config"
@@ -68,10 +69,12 @@ func (c *Client) Login() error {
 	if err != nil {
 		return fmt.Errorf("Failed to sign the login request; %v", err)
 	}
+
 	req := url.Values{"sign": {sig}, "key": {c.config.GetEosPublicKey()}, "hash": {string(hash)}}
 	if account := c.config.EosAccount; account != "" {
 		req["account"] = []string{account}
 	}
+
 	// send login request
 	response, err := http.PostForm(fmt.Sprintf("%s/login", c.config.IryoAddr), req)
 	if err != nil {
@@ -88,6 +91,7 @@ func (c *Client) Login() error {
 	c.token = data["token"]
 	return nil
 }
+
 func (c *Client) loginWaiter(str string) {
 	i, err := strconv.ParseInt(str, 10, 64)
 	// make request 5 seconds before token expires
@@ -103,19 +107,27 @@ func (c *Client) loginWaiter(str string) {
 
 func (c *Client) CreateAccount(key string) (string, error) {
 	c.log.Debugf("Client::createaccount(%s) called", key)
-	r, err := http.NewRequest("GET", fmt.Sprintf("%s/account", c.config.IryoAddr), nil)
+
+	client := &http.Client{}
+
+	data := url.Values{"name": {c.config.PersonalData.Name}}
+	data.Add("name", c.config.PersonalData.Name)
+	r, err := http.NewRequest("POST", fmt.Sprintf("%s/account", c.config.IryoAddr), strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", err
 	}
+
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Add("Authorization", c.token)
-	client := &http.Client{}
 	res, err := client.Do(r)
 	if err != nil {
 		return "", err
 	}
+
 	if res.StatusCode != 201 {
 		return "", fmt.Errorf("Code: %d", res.StatusCode)
 	}
+
 	var a map[string]string
 	err = json.NewDecoder(res.Body).Decode(&a)
 	c.log.Debugf("Client:: createaccount returned: %v", a)
@@ -123,11 +135,12 @@ func (c *Client) CreateAccount(key string) (string, error) {
 		return "", err
 	}
 
+	// Check for errors
 	if _, ok := a["error"]; ok {
 		return "", fmt.Errorf(a["error"])
 	}
-	return a["account"], nil
 
+	return a["account"], nil
 }
 
 func (c *Client) Ls(owner string) ([]map[string]string, error) {

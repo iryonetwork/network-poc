@@ -68,6 +68,7 @@ services:
     - checks.go
     - ehr.go
     - token.go
+    - db.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     - ./.data:/data

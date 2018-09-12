@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
@@ -28,6 +29,7 @@ type storage struct {
 	token  *token.TokenList
 	config *config.Config
 	log    *logger.Log
+	db     *bolt.DB
 }
 
 func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -177,6 +179,7 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 	response := make(map[string]string)
+	r.ParseForm()
 	// Authorize the user
 	token := r.Header.Get("Authorization")
 	h.log.Debugf("Checking token")
@@ -192,9 +195,36 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.f.dbAddName(accountname, r.Form["name"][0])
 	response["account"] = accountname
 	h.f.token.AccCreated(token, accountname, key)
 	w.WriteHeader(201)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *handlers) accountToIDHandler(w http.ResponseWriter, r *http.Request) {
+	owner := mux.Vars(r)["account"]
+	token := r.Header.Get("Authorization")
+
+	account, code, err := h.f.tokenValidateGetName(token)
+	if err != nil {
+		h.writeErrorJson(w, code, err.Error())
+		return
+	}
+
+	if code, err = h.f.checkAccessGranted(owner, account); err != nil {
+		h.writeErrorJson(w, code, err.Error())
+		return
+	}
+
+	response := make(map[string]string)
+
+	if response["name"], code, err = h.f.dbGetName(owner); err != nil {
+		h.writeErrorJson(w, code, err.Error())
+		return
+	}
+
+	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -211,9 +241,6 @@ func (h *handlers) writeErrorBody(w http.ResponseWriter, statuscode int, err str
 	w.WriteHeader(statuscode)
 	w.Write([]byte(err))
 }
-
-// Generate random name that satisfies EOS
-// regex: "iryo[a-z1-5]{8}"
 
 func retry(f func() error, wait time.Duration, attempts int) (err error) {
 	for i := 0; i < attempts; i++ {

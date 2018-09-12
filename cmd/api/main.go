@@ -24,13 +24,22 @@ func main() {
 	config.ClientType = "Iryo"
 
 	log := logger.New(config)
+
 	eos, err := eos.New(config, log)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Erorr creating eos storage; %v", err)
 	}
+	eos.ImportKey(config.EosPrivate)
+
 	hub := ws.NewHub(log)
 	go hub.Run()
-	eos.ImportKey(config.EosPrivate)
+
+	db, err := dbInit(config)
+	if err != nil {
+		log.Fatalf("Error initalizing boltDB; %v", err)
+	}
+	defer db.Close()
+
 	h := &handlers{
 		config: config,
 		log:    log,
@@ -40,13 +49,15 @@ func main() {
 			eos:    eos,
 			config: config,
 			log:    log,
+			db:     db,
 		},
 	}
 	router := mux.NewRouter()
 
 	router.HandleFunc("/login", h.loginHandler).Methods("POST")
 	router.HandleFunc("/ws", h.wsHandler)
-	router.HandleFunc("/account", h.createaccHandler).Methods("GET")
+	router.HandleFunc("/account", h.createaccHandler).Methods("POST")
+	router.HandleFunc("/{account}/id", h.accountToIDHandler).Methods("GET")
 	router.HandleFunc("/{account}", h.lsHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", h.downloadHandler).Methods("GET")
 	router.HandleFunc("/{account}/{fid}", func(w http.ResponseWriter, r *http.Request) {
