@@ -158,7 +158,7 @@ func (s *Storage) SubscribePatient() {
 				}
 				name, err := r.getDataString("name")
 				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
+					s.log.Fatalf("Error getting `name`: %v", err)
 				}
 				key, err := r.getData("key")
 				if err != nil {

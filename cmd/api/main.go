@@ -4,6 +4,8 @@ import (
 	stdlog "log"
 	"net/http"
 
+	"github.com/iryonetwork/network-poc/db"
+
 	"github.com/gorilla/mux"
 
 	"github.com/iryonetwork/network-poc/storage/token"
@@ -34,7 +36,7 @@ func main() {
 	hub := ws.NewHub(log)
 	go hub.Run()
 
-	db, err := dbInit(config)
+	db, err := db.Init(config, log)
 	if err != nil {
 		log.Fatalf("Error initalizing boltDB; %v", err)
 	}

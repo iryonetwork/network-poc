@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/eoscanada/eos-go/ecc"
+	"github.com/iryonetwork/network-poc/db"
 
 	"github.com/gorilla/websocket"
 )
 
-func (s *Storage) HandleRequest(reqdata []byte, from string) error {
+func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 
 	inReq, err := decode(reqdata)
 	if err != nil {
@@ -30,12 +31,12 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 		if err != nil {
 			return err
 		}
-		name, err := inReq.getData("name")
+		name, err := db.GetName(from)
 		if err != nil {
 			return err
 		}
 
-		r.append("name", name)
+		r.append("name", []byte(name))
 		r.append("key", key)
 		r.append("from", []byte(from))
 
@@ -46,7 +47,7 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	case "RequestKey":
 		s.log.Debugf("WS_API:: Requesting key")
-		err := s.requestKey(inReq, from)
+		err := s.requestKey(inReq, from, db)
 		return err
 
 	case "Reencrypt":
@@ -56,13 +57,13 @@ func (s *Storage) HandleRequest(reqdata []byte, from string) error {
 
 	case "NotifyGranted":
 		s.log.Debugf("WS_API:: Got access granted notification from %s", from)
-		name, err := inReq.getData("name")
+		name, err := db.GetName(from)
 		if err != nil {
 			return err
 		}
 		r = newReq("NotifyGranted")
 		r.append("from", []byte(from))
-		r.append("name", name)
+		r.append("name", []byte(name))
 	}
 
 	sendTo, err := inReq.getDataString("to")
@@ -135,7 +136,7 @@ func (s *Storage) reencrypt(r *request, from string) error {
 	return err
 }
 
-func (s *Storage) requestKey(r *request, from string) error {
+func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 	// Get the data in request
 	eoskey, err := r.getDataString("eoskey")
 	if err != nil {
@@ -174,8 +175,14 @@ func (s *Storage) requestKey(r *request, from string) error {
 		if err != nil {
 			return err
 		}
+		name, err := db.GetName(from)
+		if err != nil {
+			return err
+		}
+
 		r.remove("to")
 		r.append("from", []byte(from))
+		r.append("name", []byte(name))
 		s.sendRequest(r, sendto)
 	}
 	return nil

@@ -32,7 +32,6 @@ func (s *Storage) SendKey(to string) error {
 		return err
 	}
 	r.append("key", encKey)
-	r.append("name", []byte(s.config.PersonalData.Name))
 
 	req, err := r.encode()
 	if err != nil {
@@ -83,7 +82,6 @@ func (s *Storage) RequestsKey(to string) error {
 	// And add your EOS key
 	r.append("eoskey", []byte(s.config.GetEosPublicKey()))
 
-	r.append("name", []byte(s.config.PersonalData.Name))
 	req, err := r.encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
@@ -102,7 +100,6 @@ func (s *Storage) NotifyGranted(to string) error {
 
 	r := newReq("NotifyGranted")
 	r.append("to", []byte(to))
-	r.append("name", []byte(s.config.PersonalData.Name))
 	req, err := r.encode()
 	if err != nil {
 		return err

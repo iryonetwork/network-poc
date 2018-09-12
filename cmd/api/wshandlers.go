@@ -58,7 +58,7 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			break
 		}
-		err = ws.HandleRequest(message, user)
+		err = ws.HandleRequest(message, user, h.f.db)
 		if err != nil {
 			h.log.Debugf("Error HandlingRequest: %v", err)
 			break

@@ -88,7 +88,6 @@ IN:
     "Name":"NotifyGranted"
     "Fields":{
         "to":"user recieving access"
-        "name":"user's name here"
     }
 }
 
@@ -97,7 +96,6 @@ OUT:
     "Name":"NotifyGranted"
     "Fields":{
         "from":"Sender"
-        "name":"user's name here"
     }
 }
 ```
@@ -112,7 +110,6 @@ IN:
         "signature":"EOS's signature of sha256 hash of RSA public key"
         "eoskey":"eoskey used to sign the hash",
         "to":"Account name"
-        "name":"user's name here"
     }
 }
 
@@ -124,7 +121,6 @@ OUT:
         "signature":"EOS's signature of sha256 hash of RSA public key"
         "eoskey":"eoskey used to sign the hash",
         "from":"sender of request"
-        "name":"user's name here"
     }
 }
 ```
@@ -136,7 +132,6 @@ IN:
     "Fields":{
         "key":"encrypted ehr signing key",
         "to":"account which made RequestKey request"
-        "name":"user's name here"
     }
 }
 
@@ -146,7 +141,6 @@ OUT:
     "Fields":{
         "key":"encrypted ehr signing key"
         "from":"sender of request"
-        "name":"user's name here"
     }
 }
 

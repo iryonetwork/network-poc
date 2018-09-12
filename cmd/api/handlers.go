@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/db"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
 	"github.com/iryonetwork/network-poc/storage/token"
@@ -29,7 +29,7 @@ type storage struct {
 	token  *token.TokenList
 	config *config.Config
 	log    *logger.Log
-	db     *bolt.DB
+	db     *db.Db
 }
 
 func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -195,7 +195,7 @@ func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.f.dbAddName(accountname, r.Form["name"][0])
+	h.f.db.AddName(accountname, r.Form["name"][0])
 	response["account"] = accountname
 	h.f.token.AccCreated(token, accountname, key)
 	w.WriteHeader(201)
@@ -219,8 +219,8 @@ func (h *handlers) accountToIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := make(map[string]string)
 
-	if response["name"], code, err = h.f.dbGetName(owner); err != nil {
-		h.writeErrorJson(w, code, err.Error())
+	if response["name"], err = h.f.db.GetName(owner); err != nil {
+		h.writeErrorJson(w, 500, err.Error())
 		return
 	}
 
