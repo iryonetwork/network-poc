@@ -24,7 +24,7 @@ type Config struct {
 	ClientType         string `env:"CLIENT_TYPE" envDefault:"Patient"`
 	ClientAddr         string `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
 	Debug              bool   `env:"DEBUG" envDefault:"1"`
-	StoragePath        string `env:"DATA_PATH" envDefault:"/data/ehr"` // Where to store uploaded ehr data
+	StoragePath        string `env:"DATA_PATH" envDefault:"/data"`
 	PersonalData       *openEHR.PersonalData
 	EncryptionKeys     map[string][]byte
 	RequestKeys        map[string]*rsa.PrivateKey

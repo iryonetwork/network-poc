@@ -19,7 +19,7 @@ func (s *storage) saveFileWithChecks(owner, account, key, signature string, file
 }
 func (s *storage) saveFile(owner, account, key, signature string, file multipart.File, header *multipart.FileHeader, reuploadFid string) (fid string, ts string, code int, err error) {
 	if reuploadFid != "" {
-		if _, err = os.Stat(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, owner, fid)); os.IsNotExist(err) {
+		if _, err = os.Stat(fmt.Sprintf("%s/%s/%s/%s", s.config.StoragePath, "ehr", owner, fid)); os.IsNotExist(err) {
 			return "", "", 404, fmt.Errorf("File %s not found, cannot overwrite", fid)
 		}
 		fid = reuploadFid
@@ -35,10 +35,10 @@ func (s *storage) saveFile(owner, account, key, signature string, file multipart
 		return "", "", code, err
 	}
 
-	os.MkdirAll(fmt.Sprintf("%s/%s", s.config.StoragePath, owner), os.ModePerm)
+	os.MkdirAll(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, "ehr", owner), os.ModePerm)
 
 	// create file
-	f, err := os.Create(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, owner, fid))
+	f, err := os.Create(fmt.Sprintf("%s/%s/%s/%s", s.config.StoragePath, "ehr", owner, fid))
 	if err != nil {
 		s.log.Printf("Failed to create new file. Error: %+v", err)
 		return "", "", 500, fmt.Errorf("Failed to create new file")
@@ -112,7 +112,7 @@ type lsFile struct {
 func (s *storage) listFiles(account string) (*lsResponse, int, error) {
 	out := &lsResponse{}
 
-	files, err := filepath.Glob(fmt.Sprintf("%s/%s/*", s.config.StoragePath, account))
+	files, err := filepath.Glob(fmt.Sprintf("%s/%s/%s/*", s.config.StoragePath, "ehr", account))
 	if err != nil {
 		s.log.Debugf("Error getting list of files; %+v", err)
 		return out, 500, fmt.Errorf("Internal server error. Failed getting list of files")
@@ -134,11 +134,11 @@ func (s *storage) listFiles(account string) (*lsResponse, int, error) {
 
 func (s *storage) readFileData(account, fid string) ([]byte, int, error) {
 	// Check that dir exits
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", s.config.StoragePath, account)); !os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, "ehr", account)); !os.IsNotExist(err) {
 		// Check that file exists
-		_, err := os.Stat(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, account, fid))
+		_, err := os.Stat(fmt.Sprintf("%s/%s/%s/%s", s.config.StoragePath, "ehr", account, fid))
 		if err == nil {
-			f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/%s", s.config.StoragePath, account, fid))
+			f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/%s/%s", s.config.StoragePath, "ehr", account, fid))
 			if err != nil {
 				s.log.Debugf("Error reading file %s/%s. Err: %+v", account, fid, err)
 				return nil, 500, fmt.Errorf("Internal server error")
