@@ -37,35 +37,9 @@ type AccessReq struct {
 	Account eos.AccountName `json:"account"`
 }
 
-type AddToTableReq struct {
-	Patient        eos.AccountName `json:"patient"`
-	Account        eos.AccountName `json:"account"`
-	IsDoctorValue  uint64          `json:"isDoctorValue"`
-	IsEnabledValue uint64          `json:"isenabledValue"`
-}
-
 // GrantAccess adds `to` field in contract table
 func (s *Storage) GrantAccess(to string) error {
 	s.log.Debugf("Eos::grantAccess(%s) called", to)
-	// Check if user is alreday on the table
-	onTable, err := s.isOnTable(to)
-	if err != nil {
-		return err
-	}
-	if !onTable {
-		s.log.Debugf("EOS::grantAccess(%s) User is not on table. Adding")
-		action := &eos.Action{
-			Account: eos.AN(s.config.EosContractAccount),
-			Name:    eos.ActN("add"),
-			Authorization: []eos.PermissionLevel{
-				{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
-			},
-			ActionData: eos.NewActionData(AddToTableReq{eos.AN(s.config.EosAccount), eos.AN(to), 1, 1}),
-		}
-		_, err := s.api.SignPushActions(action)
-		s.log.Debugf("Added user to the table; %+v", err)
-		return err
-	}
 
 	// Give access action
 	action := &eos.Action{
@@ -76,27 +50,9 @@ func (s *Storage) GrantAccess(to string) error {
 		},
 		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
 	}
-	_, err = s.api.SignPushActions(action)
+	_, err := s.api.SignPushActions(action)
 	s.log.Debugf("Granted access to user; %+v", err)
 	return err
-}
-
-func (s *Storage) isOnTable(user string) (bool, error) {
-	s.log.Debugf("EOS::isOnTable(%s) called", user)
-	ls, err := s.listAccountFromTable(s.config.EosAccount, false)
-	if err != nil {
-		s.log.Debugf("Got error: %+v", err)
-		return false, err
-	}
-
-	for _, v := range ls {
-		if v == user {
-			s.log.Debugf("User is on table")
-			return true, nil
-		}
-	}
-	s.log.Debugf("User is not on table")
-	return false, nil
 }
 
 // RevokeAccess changes isEnabled field in table to 0
@@ -139,18 +95,12 @@ func (s *Storage) AccessGranted(patient, to string) (bool, error) {
 	return b, nil
 }
 
-func (s *Storage) ListConnected(to string) ([]string, error) {
-	return s.listAccountFromTable(to, true)
-}
-
 type TableEntry struct {
 	AccountName string `json:"account_name"`
-	IsDoctor    int    `json:"isDoctor"`
-	IsEnabled   int    `json:"isEnabled"`
 }
 
-func (s *Storage) listAccountFromTable(patient string, onlyConnected bool) ([]string, error) {
-	s.log.Debugf("Eos::listAccountFromTable(%s, %v) called", patient, onlyConnected)
+func (s *Storage) ListConnected(patient string) ([]string, error) {
+	s.log.Debugf("Eos::listAccountFromTable(%s, %v) called", patient)
 
 	// Get the table
 	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractAccount, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
@@ -165,10 +115,8 @@ func (s *Storage) listAccountFromTable(patient string, onlyConnected bool) ([]st
 	// fill the list
 	ret := []string{}
 	for _, entry := range a {
-		if entry.IsEnabled == 1 || !onlyConnected {
-			s.log.Debugf("Adding %s to list", entry.AccountName)
-			ret = append(ret, entry.AccountName)
-		}
+		s.log.Debugf("Adding %s to list", entry.AccountName)
+		ret = append(ret, entry.AccountName)
 	}
 
 	return ret, nil
