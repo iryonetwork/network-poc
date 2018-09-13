@@ -17,9 +17,10 @@ import (
 )
 
 type handlers struct {
-	config *config.Config
-	client *client.Client
-	ehr    *ehr.Storage
+	connected bool
+	config    *config.Config
+	client    *client.Client
+	ehr       *ehr.Storage
 }
 
 func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Contract    string
 		Requested   map[string]string
 		Qr          string
+		Connected   bool
 	}{
 		h.config.ClientType,
 		user,
@@ -67,6 +69,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		h.config.EosContractName,
 		h.config.GetNames(mapKeysToArray(h.config.Requested)),
 		base64.StdEncoding.EncodeToString(img),
+		h.connected,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -145,5 +148,21 @@ func (h *handlers) reencryptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
+	if h.connected {
+		h.client.CloseWs()
+		h.connected = false
+	}
+	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.connected {
+		h.client.ConnectWs()
+		h.connected = true
+	}
 	http.Redirect(w, r, "/", 302)
 }

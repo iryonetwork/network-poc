@@ -76,9 +76,10 @@ func main() {
 	}
 
 	h := &handlers{
-		config: config,
-		client: client,
-		ehr:    ehr,
+		connected: true,
+		config:    config,
+		client:    client,
+		ehr:       ehr,
 	}
 
 	http.HandleFunc("/", h.indexHandler)
@@ -87,6 +88,8 @@ func main() {
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
 	http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/reencrypt", h.reencryptHandler)
+	http.HandleFunc("/close", h.closeHandler)
+	http.HandleFunc("/connect", h.connectHandler)
 
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 
