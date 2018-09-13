@@ -6,6 +6,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/hub"
 
 	"github.com/iryonetwork/network-poc/logger"
 
@@ -18,12 +19,12 @@ type Storage struct {
 	config *config.Config
 	ehr    *ehr.Storage
 	eos    *eos.Storage
-	hub    *Hub
+	hub    *hub.Hub
 	log    *logger.Log
 }
 
 // NewStorage is APIside storage
-func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hub *Hub, eos *eos.Storage) *Storage {
+func NewStorage(conn *websocket.Conn, config *config.Config, log *logger.Log, hub *hub.Hub, eos *eos.Storage) *Storage {
 	return &Storage{conn: conn, config: config, log: log, hub: hub, eos: eos}
 }
 
@@ -46,6 +47,7 @@ func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.
 	if string(msg) == "Authorized" {
 		return &Storage{conn: c, config: config, log: log, ehr: ehr, eos: eos}, nil
 	}
+
 	return nil, fmt.Errorf("Error authorizing: %s", string(msg))
 }
 

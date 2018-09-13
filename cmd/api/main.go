@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/iryonetwork/network-poc/storage/hub"
 	"github.com/iryonetwork/network-poc/storage/token"
-	"github.com/iryonetwork/network-poc/storage/ws"
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
@@ -33,7 +33,7 @@ func main() {
 	}
 	eos.ImportKey(config.EosPrivate)
 
-	hub := ws.NewHub(log)
+	hub := hub.NewHub(log)
 	go hub.Run()
 
 	db, err := db.Init(config, log)

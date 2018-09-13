@@ -70,7 +70,7 @@ func (t *TokenList) AccCreated(tok, account, key string) error {
 }
 
 func (t *TokenList) ValidateGetInfo(tok string) (string, bool) {
-	if t.isValid(tok) {
+	if t.exists(tok) {
 		return t.getID(tok), true
 	}
 	return "", false
@@ -84,7 +84,7 @@ func (t *TokenList) RevokeToken(tok string) error {
 	return nil
 }
 
-func (t *TokenList) isValid(tok string) bool {
+func (t *TokenList) exists(tok string) bool {
 	if _, ok := t.tokens[tok]; ok {
 		return true
 	}

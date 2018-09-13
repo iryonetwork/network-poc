@@ -13,8 +13,8 @@ import (
 	"github.com/iryonetwork/network-poc/db"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
+	"github.com/iryonetwork/network-poc/storage/hub"
 	"github.com/iryonetwork/network-poc/storage/token"
-	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 type handlers struct {
@@ -25,7 +25,7 @@ type handlers struct {
 
 type storage struct {
 	eos    *eos.Storage
-	hub    *ws.Hub
+	hub    *hub.Hub
 	token  *token.TokenList
 	config *config.Config
 	log    *logger.Log

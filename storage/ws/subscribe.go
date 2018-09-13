@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 
 	"github.com/gorilla/websocket"
+	"github.com/iryonetwork/network-poc/logger"
 )
 
 func (s *Storage) SubscribeDoctor() {
@@ -13,19 +14,24 @@ func (s *Storage) SubscribeDoctor() {
 
 	go func() {
 		for {
+			// Read the message
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
 				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					s.log.Debugf("SUBSCRIBTION:: Closing due to closed connection")
-					break
+					s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
 				} else {
-					s.log.Fatalf("Error while subscribing: %v", err)
+					s.log.Printf("Error while subscribing: %v", err)
 				}
+				break
 			}
+
+			// Decode the message
 			r, err := decode(message)
 			if err != nil {
-				s.log.Fatalf("Error decoding: %v", err)
+				s.log.Printf("Error decoding: %v", err)
 			}
+
+			// Handle the request
 			switch r.Name {
 			default:
 				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
@@ -34,22 +40,13 @@ func (s *Storage) SubscribeDoctor() {
 			// Get data from request, decrypt the key with RSA key used when request was sent
 			// add the key to storage
 			case "ImportKey":
-				keyenc, err := r.getData("key")
-				if err != nil {
-					s.log.Fatalf("Error getting `key`: %v", err)
-				}
-				from, err := r.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
-				name, err := r.getDataString("name")
-				if err != nil {
-					s.log.Fatalf("Error getting `name`: %v", err)
-				}
+				keyenc := subscribeGetDataFromRequest(r, "key", s.log)
+				from := subscribeGetStringDataFromRequest(r, "from", s.log)
+				name := subscribeGetStringDataFromRequest(r, "name", s.log)
 
 				key, err := rsa.DecryptPKCS1v15(rand.Reader, s.config.RequestKeys[from], keyenc)
 				if err != nil {
-					s.log.Fatalf("Error decrypting key: %v", err)
+					s.log.Printf("Error decrypting key: %v", err)
 				}
 
 				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
@@ -71,10 +68,7 @@ func (s *Storage) SubscribeDoctor() {
 			// Revoke key
 			// Remove all entries connected to user
 			case "RevokeKey":
-				from, err := r.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
+				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
 				s.ehr.RemoveUser(from)
 				delete(s.config.EncryptionKeys, from)
@@ -88,27 +82,18 @@ func (s *Storage) SubscribeDoctor() {
 			// Data was reencrypted
 			// make a new key request and delete old data
 			case "Reencrypt":
-				from, err := r.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
+				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 				s.ehr.RemoveUser(from)
 				err = s.RequestsKey(from)
 				if err != nil {
-					s.log.Fatalf("Error creating RequestKey: %v", err)
+					s.log.Printf("Error creating RequestKey: %v", err)
 				}
 
 			// User has granted access to doctor
 			// Make a notification that acess has been granted
 			case "NotifyGranted":
-				name, err := r.getDataString("name")
-				if err != nil {
-					s.log.Fatalf("Error getting `name`: %v", err)
-				}
-				from, err := r.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
+				name := subscribeGetStringDataFromRequest(r, "name", s.log)
+				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
 				s.log.Debugf("Got notification 'accessGranted' from %s", from)
 				s.config.Directory[from] = name
@@ -134,71 +119,67 @@ func (s *Storage) SubscribePatient() {
 
 	go func() {
 		for {
+			// Read the message
 			_, message, err := s.conn.ReadMessage()
 			if err != nil {
 				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					s.log.Debugf("SUBSCRIBTION:: Closing due to closed connection")
-					break
+					s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
 				} else {
-					s.log.Fatalf("Error while subscribing: %v", err)
+					s.log.Printf("Error while subscribing: %v", err)
 				}
+				break
 			}
+
+			// Decode message into request
 			r, err := decode(message)
 			if err != nil {
-				s.log.Fatalf("Error decoding: %v", err)
+				s.log.Printf("Error decoding: %v", err)
 			}
-			// Import key
+
+			// Handle the message
 			switch r.Name {
 			default:
 				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
 			case "RequestKey":
-				from, err := r.getDataString("from")
-				if err != nil {
-					s.log.Fatalf("Error getting `from`: %v", err)
-				}
-				name, err := r.getDataString("name")
-				if err != nil {
-					s.log.Fatalf("Error getting `name`: %v", err)
-				}
-				key, err := r.getData("key")
-				if err != nil {
-					s.log.Fatalf("Error getting `key`: %v", err)
-				}
-				eoskey, err := r.getDataString("eoskey")
-				if err != nil {
-					s.log.Fatalf("Error getting `eoskey`: %v", err)
-				}
-				sign, err := r.getDataString("signature")
-				if err != nil {
-					s.log.Fatalf("Error getting `signature`: %v", err)
-				}
+				from := subscribeGetStringDataFromRequest(r, "from", s.log)
+				name := subscribeGetStringDataFromRequest(r, "name", s.log)
+				key := subscribeGetDataFromRequest(r, "key", s.log)
+				eoskey := subscribeGetStringDataFromRequest(r, "eoskey", s.log)
+				sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
+
+				// Check if account and key are connected
 				valid, err := s.eos.CheckAccountKey(from, eoskey)
 				if err != nil {
-					s.log.Fatalf("Error checking valid account: %v", err)
+					s.log.Printf("Error checking valid account: %v", err)
 				}
 				if !valid {
 					s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account ")
 					break
 				}
+
+				// check if signature is correct
 				valid, err = checkRequestKeySignature(eoskey, sign, key)
 				if err != nil {
-					s.log.Fatalf("Error checking valid signature: %v", err)
+					s.log.Printf("Error checking valid signature: %v", err)
 				}
 				if !valid {
 					s.log.Debugf("SUBSCRIBE:: signature not valid")
 					break
 				}
 
+				// Save the request to storage for later usage
 				s.config.Requested[from], err = x509.ParsePKCS1PublicKey(key)
 				s.config.Directory[from] = name
+
 				// Check if access is already granted
 				// if it is, send the key without prompting the user for confirmation
 				granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
 				if err != nil {
-					s.log.Fatalf("Error getting key: %v", err)
+					s.log.Printf("Error getting key: %v", err)
 				}
 				if granted {
 					s.SendKey(from)
+
 					// make sure they are on the list
 					add := false
 					for _, name := range s.config.Connections {
@@ -209,9 +190,26 @@ func (s *Storage) SubscribePatient() {
 					if add {
 						s.config.Connections = append(s.config.Connections, from)
 					}
+					// Delete the user from requests
 					delete(s.config.Requested, from)
 				}
 			}
 		}
 	}()
+}
+
+func subscribeGetStringDataFromRequest(r *request, key string, log *logger.Log) string {
+	out, err := r.getDataString(key)
+	if err != nil {
+		log.Printf("Error getting `%s`: %v", key, err)
+	}
+	return out
+}
+
+func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte {
+	out, err := r.getData(key)
+	if err != nil {
+		log.Printf("Error getting `%s`: %v", key, err)
+	}
+	return out
 }
