@@ -35,6 +35,8 @@ services:
     image: eosio/eos-dev:v1.1.0
     command:
     - bash
+    volumes:
+    - ./contract:/contract
     environment:
     - EOS_API=${EOS_NODE} # url on which nodeos is running
     tty: true
