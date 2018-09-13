@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/boltdb/bolt"
 	"github.com/iryonetwork/network-poc/config"
@@ -17,7 +18,15 @@ type Db struct {
 }
 
 func Init(config *config.Config, log *logger.Log) (*Db, error) {
-	db, err := bolt.Open(getPath(config), 0600, nil)
+	// detect if file exists, if not create it
+	if _, err := os.Stat(getPath(config)); os.IsNotExist(err) {
+		err := os.MkdirAll(getPath(config), 0700)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	db, err := bolt.Open(getPathWithFileName(config), 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +39,12 @@ func Init(config *config.Config, log *logger.Log) (*Db, error) {
 	return &Db{db: db, config: config, log: log}, err
 }
 
+func getPathWithFileName(config *config.Config) string {
+	return fmt.Sprintf("%s/names.db", getPath(config))
+}
+
 func getPath(config *config.Config) string {
-	return fmt.Sprintf("%s/db/names.db", config.StoragePath)
+	return fmt.Sprintf("%s/db", config.StoragePath)
 }
 
 func (d *Db) GetName(account string) (name string, err error) {
