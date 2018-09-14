@@ -225,12 +225,13 @@ func (s *Storage) CreateAccount(account, keyStr string) error {
 	return nil
 }
 
-// NewKey create new private key
+// NewKey creates new private key and saves it to config
 func (s *Storage) NewKey() error {
 	key, err := ecc.NewRandomPrivateKey()
 	if err != nil {
 		return err
 	}
+	s.ImportKey(key.String())
 	s.config.EosPrivate = key.String()
 	return nil
 }

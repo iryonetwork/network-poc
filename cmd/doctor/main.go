@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		stdlog.Fatalf("failed to get config: %v", err)
 	}
+
 	personaldata.New(config)
 	config.ClientType = "Doctor"
 
@@ -46,24 +47,18 @@ func main() {
 	if err = client.Login(); err != nil {
 		log.Fatalf("Failed to login; %v", err)
 	}
-	_, err = eos.ImportKey(config.EosPrivate)
-	log.Debugf("Imported key: %v", config.GetEosPublicKey())
-	if err != nil {
-		log.Fatalf("Failed to import key: %v", err)
-	}
 
-	acc, err := client.CreateAccount(config.GetEosPublicKey())
+	config.EosAccount, err = client.CreateAccount(config.GetEosPublicKey())
 	if err != nil {
 		log.Fatalf("Failed to create account: %v", err)
 	}
-	config.EosAccount = acc
 
 	err = client.ConnectWs()
 	if err != nil {
 		log.Fatalf("ws problem: %v", err.Error())
 	}
-
 	defer client.CloseWs()
+
 	h := &handlers{
 		config: config,
 		ehr:    ehr,

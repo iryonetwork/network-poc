@@ -19,15 +19,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to get config: %v", err)
 	}
+
 	personaldata.New(config)
 	config.ClientType = "Patient"
+
 	// log
 	log := logger.New(config)
+
 	// eos
 	eos, err := eos.New(config, log)
 	if err != nil {
 		log.Fatalf("failed to setup eth storage; %v", err)
 	}
+
 	// ehr
 	ehr := ehr.New()
 
@@ -45,17 +49,10 @@ func main() {
 	}
 
 	// Create account
-	_, err = eos.ImportKey(config.EosPrivate)
-	log.Debugf("Imported key: %v", config.GetEosPublicKey())
-	if err != nil {
-		log.Fatalf("Failed to import key: %v", err)
-	}
-
-	acc, err := client.CreateAccount(config.GetEosPublicKey())
+	config.EosAccount, err = client.CreateAccount(config.GetEosPublicKey())
 	if err != nil {
 		log.Fatalf("Failed to create account: %v", err)
 	}
-	config.EosAccount = acc
 
 	// Create key
 	key := make([]byte, 32)
