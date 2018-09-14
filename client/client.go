@@ -29,7 +29,6 @@ type Client struct {
 	ehr    *ehr.Storage
 	log    *logger.Log
 	ws     *ws.Storage
-	token  string
 }
 
 func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) (*Client, error) {
@@ -42,17 +41,18 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 }
 
 func (c *Client) ConnectWs() error {
-	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos, c.token)
+	c.Login()
+	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos)
 	if err != nil {
 		return err
 	}
 	c.ws = wsstorage
-	c.Subscribe()
 	return nil
 }
 
 func (c *Client) CloseWs() {
 	c.ws.Close()
+	c.config.Connceted = false
 	c.ws = nil
 }
 
@@ -88,7 +88,7 @@ func (c *Client) Login() error {
 	// Login again after token expires
 	go c.loginWaiter(data["validUntil"])
 	// save token to client
-	c.token = data["token"]
+	c.config.Token = data["token"]
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (c *Client) CreateAccount(key string) (string, error) {
 	}
 
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	r.Header.Add("Authorization", c.token)
+	r.Header.Add("Authorization", c.config.Token)
 	res, err := client.Do(r)
 	if err != nil {
 		return "", err
@@ -149,7 +149,7 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", c.token)
+	req.Header.Add("Authorization", c.config.Token)
 	client := &http.Client{}
 	res, err := client.Do(req)
 
@@ -178,7 +178,7 @@ func (c *Client) Download(owner, fileID string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", c.token)
+	req.Header.Add("Authorization", c.config.Token)
 	client := &http.Client{}
 	res, err := client.Do(req)
 
@@ -268,7 +268,7 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
-	req.Header.Add("Authorization", c.token)
+	req.Header.Add("Authorization", c.config.Token)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -420,20 +420,6 @@ func (c *Client) RevokeAccess(to string) error {
 		return fmt.Errorf("%s is not in connections", to)
 	}
 	return nil
-}
-
-func (c *Client) Subscribe() {
-	c.log.Debugf("Client::subscribe() called")
-
-	//subscribe to key sent event
-	switch c.config.ClientType {
-	default:
-		c.log.Fatalf("Unknown client type")
-	case "Patient":
-		c.ws.SubscribePatient()
-	case "Doctor":
-		c.ws.SubscribeDoctor()
-	}
 }
 
 func (c *Client) RequestAccess(to string) error {

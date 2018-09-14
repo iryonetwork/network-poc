@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/logger"
@@ -14,19 +16,21 @@ import (
 func (s *Storage) SubscribeDoctor() {
 	s.log.Debugf("WS::SubscribeDoctor called")
 
+	s.config.Subscribed = true
+	defer func() {
+		s.config.Subscribed = false
+	}()
 	go func() {
 		for {
-			// Read the message
-			_, message, err := s.conn.ReadMessage()
-			if err != nil {
-				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
-				} else {
-					s.log.Printf("Error while subscribing: %v", err)
-				}
+			message, err := s.readMessage()
+			if websocket.IsCloseError(err, 1000) {
+				s.log.Printf("SUBSCRIBE:: Connection closed")
 				break
 			}
-
+			if err != nil {
+				s.log.Printf("SUBSCRIBE:: readMessageError: %v", err)
+				break
+			}
 			// Decode the message
 			r, err := decode(message)
 			if err != nil {
@@ -123,16 +127,19 @@ func (s *Storage) SubscribeDoctor() {
 func (s *Storage) SubscribePatient() {
 	s.log.Debugf("WS::SubscribePatient called")
 
+	s.config.Subscribed = true
+	defer func() {
+		s.config.Subscribed = false
+	}()
 	go func() {
 		for {
-			// Read the message
-			_, message, err := s.conn.ReadMessage()
+			message, err := s.readMessage()
+			if websocket.IsCloseError(err, 1000) {
+				s.log.Printf("SUBSCRIBE:: Connection closed")
+				break
+			}
 			if err != nil {
-				if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
-				} else {
-					s.log.Printf("Error while subscribing: %v", err)
-				}
+				s.log.Printf("SUBSCRIBE:: readMessageError: %v", err)
 				break
 			}
 
@@ -177,7 +184,7 @@ func (s *Storage) SubscribePatient() {
 				}
 
 				// Save the request to storage for later usage
-				s.config.Requested[from], err = pemRsaKeyToBye(rsakey)
+				s.config.Requested[from], err = rsaPEMKeyT(rsakey)
 				if err != nil {
 					s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
 				}
@@ -211,6 +218,23 @@ func (s *Storage) SubscribePatient() {
 	}()
 }
 
+func (s *Storage) readMessage() ([]byte, error) {
+	// Read the message
+	_, message, err := s.conn.ReadMessage()
+	if err != nil {
+		if !websocket.IsUnexpectedCloseError(err, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015) {
+			s.config.Connceted = false
+			s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
+			s.log.Printf("SUBSCRIBTION:: Trying to reastablish connection")
+			if err2 := retry(2*time.Second, 5, s.Reconnect); err2 != nil {
+				return nil, err2
+			}
+		}
+		return nil, err
+	}
+	return message, nil
+}
+
 func subscribeGetStringDataFromRequest(r *request, key string, log *logger.Log) string {
 	out, err := r.getDataString(key)
 	if err != nil {
@@ -227,7 +251,7 @@ func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte
 	return out
 }
 
-func pemRsaKeyToBye(pubPEMData []byte) (*rsa.PublicKey, error) {
+func rsaPEMKeyT(pubPEMData []byte) (*rsa.PublicKey, error) {
 
 	block, _ := pem.Decode(pubPEMData)
 	if block == nil || block.Type != "RSA PUBLIC KEY" {
@@ -235,4 +259,19 @@ func pemRsaKeyToBye(pubPEMData []byte) (*rsa.PublicKey, error) {
 	}
 
 	return x509.ParsePKCS1PublicKey(block.Bytes)
+}
+
+func retry(wait time.Duration, attempts int, f func() error) (err error) {
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			log.Printf("Function called successfuly")
+			return nil
+		}
+
+		time.Sleep(wait)
+
+		log.Println("retrying after error:", err)
+	}
+
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

@@ -17,10 +17,9 @@ import (
 )
 
 type handlers struct {
-	connected bool
-	config    *config.Config
-	client    *client.Client
-	ehr       *ehr.Storage
+	config *config.Config
+	client *client.Client
+	ehr    *ehr.Storage
 }
 
 func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +68,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		h.config.EosContractName,
 		h.config.GetNames(mapKeysToArray(h.config.Requested)),
 		base64.StdEncoding.EncodeToString(img),
-		h.connected,
+		h.config.Connceted,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -152,17 +151,18 @@ func (h *handlers) reencryptHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
-	if h.connected {
+	if h.config.Connceted {
 		h.client.CloseWs()
-		h.connected = false
 	}
 	http.Redirect(w, r, "/", 302)
 }
 
 func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.connected {
-		h.client.ConnectWs()
-		h.connected = true
+	if !h.config.Connceted {
+		err := h.client.ConnectWs()
+		if err != nil {
+			log.Printf("Failed to connect to ws:%v", err)
+		}
 	}
 	http.Redirect(w, r, "/", 302)
 }

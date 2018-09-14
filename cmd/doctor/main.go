@@ -65,11 +65,10 @@ func main() {
 
 	defer client.CloseWs()
 	h := &handlers{
-		config:    config,
-		ehr:       ehr,
-		client:    client,
-		connected: true,
-		log:       log,
+		config: config,
+		ehr:    ehr,
+		client: client,
+		log:    log,
 	}
 
 	http.HandleFunc("/ehr/", h.ehrHandler)

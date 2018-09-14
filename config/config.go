@@ -25,6 +25,9 @@ type Config struct {
 	ClientAddr         string `env:"CLIENT_ADDR" envDefault:"localhost:9000"`
 	Debug              bool   `env:"DEBUG" envDefault:"1"`
 	StoragePath        string `env:"DATA_PATH" envDefault:"/data"`
+	Token              string
+	Connceted          bool
+	Subscribed         bool
 	PersonalData       *openEHR.PersonalData
 	EncryptionKeys     map[string][]byte
 	RSAKey             *rsa.PrivateKey
@@ -36,6 +39,8 @@ type Config struct {
 
 func New() (*Config, error) {
 	cfg := &Config{
+		Connceted:          false,
+		Subscribed:         false,
 		PersonalData:       &openEHR.PersonalData{},
 		Requested:          make(map[string]*rsa.PublicKey),
 		EncryptionKeys:     make(map[string][]byte),

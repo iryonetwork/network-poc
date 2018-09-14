@@ -76,10 +76,9 @@ func main() {
 	}
 
 	h := &handlers{
-		connected: true,
-		config:    config,
-		client:    client,
-		ehr:       ehr,
+		config: config,
+		client: client,
+		ehr:    ehr,
 	}
 
 	http.HandleFunc("/", h.indexHandler)
