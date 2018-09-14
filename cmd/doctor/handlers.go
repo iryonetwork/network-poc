@@ -80,9 +80,9 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 
 	} else {
-		for k, v := range h.ehr.Get(owner) {
+		for k := range h.ehr.Get(owner) {
 			ehr[k] = string(h.ehr.Getid(owner, k))
-			v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
+			v, err := h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
 			if err != nil {
 				break
 			}

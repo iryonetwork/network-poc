@@ -2,11 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/iryonetwork/network-poc/config"
@@ -240,18 +237,4 @@ func (h *handlers) writeErrorBody(w http.ResponseWriter, statuscode int, err str
 	h.log.Debugf("API handlers ERR = %s", err)
 	w.WriteHeader(statuscode)
 	w.Write([]byte(err))
-}
-
-func retry(f func() error, wait time.Duration, attempts int) (err error) {
-	for i := 0; i < attempts; i++ {
-		if err = f(); err == nil {
-			return nil
-		}
-
-		time.Sleep(wait)
-
-		log.Println("retrying after error:", err)
-	}
-
-	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

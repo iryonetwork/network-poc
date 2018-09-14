@@ -21,8 +21,6 @@ import (
 	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
-const tokenKey = "token"
-
 type Client struct {
 	config *config.Config
 	eos    *eos.Storage
@@ -85,6 +83,9 @@ func (c *Client) Login() error {
 	}
 	data := make(map[string]string)
 	err = json.NewDecoder(response.Body).Decode(&data)
+	if err != nil {
+		return err
+	}
 	// Login again after token expires
 	go c.loginWaiter(data["validUntil"])
 	// save token to client
@@ -250,6 +251,9 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	writer.WriteField("key", c.config.GetEosPublicKey())
 	writer.WriteField("sign", sign)
 	part, err := writer.CreateFormFile("data", id)
+	if err != nil {
+		return err
+	}
 	part.Write(data)
 
 	err = writer.Close()
@@ -283,7 +287,7 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 		return fmt.Errorf("Got code: %d", res.StatusCode)
 	}
 	a := make(map[string]string)
-	json.Unmarshal(b, &a)
+	err = json.Unmarshal(b, &a)
 	if err != nil {
 		return err
 	}
@@ -429,17 +433,4 @@ func (c *Client) RequestAccess(to string) error {
 
 func (c *Client) NewRequestKeyQr() string {
 	return fmt.Sprintf("%s", c.config.EosAccount)
-}
-func retry(attempts int, sleep time.Duration, f func() error) (err error) {
-	for i := 0; i < attempts; i++ {
-		if err = f(); err == nil {
-			return nil
-		}
-
-		time.Sleep(sleep)
-
-		log.Println("retrying after error:", err)
-	}
-
-	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

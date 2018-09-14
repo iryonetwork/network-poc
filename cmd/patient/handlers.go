@@ -31,6 +31,9 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := h.config.EosAccount
 	err = h.client.Update(user)
+	if err != nil {
+		outErr = err.Error()
+	}
 	ehr, err := ehrdata.ExtractEhrData(h.config.EosAccount, h.ehr, h.config)
 	if err != nil {
 		outErr = err.Error()
