@@ -21,13 +21,10 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 	var r *request
 
 	switch inReq.Name {
-	default:
-		return fmt.Errorf("Request not valid")
-
 	case "SendKey":
 		s.log.Debugf("WS_API:: Sending key")
 		r = newReq("ImportKey")
-		key, err := inReq.getData("key")
+		key, err := inReq.getDataString("key")
 		if err != nil {
 			return err
 		}
@@ -35,15 +32,14 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		if err != nil {
 			return err
 		}
-
-		r.append("name", []byte(name))
+		r.append("name", (name))
 		r.append("key", key)
-		r.append("from", []byte(from))
+		r.append("from", (from))
 
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
 		r = newReq("RevokeKey")
-		r.append("from", []byte(from))
+		r.append("from", (from))
 
 	case "RequestKey":
 		s.log.Debugf("WS_API:: Requesting key")
@@ -62,8 +58,12 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 			return err
 		}
 		r = newReq("NotifyGranted")
-		r.append("from", []byte(from))
-		r.append("name", []byte(name))
+		r.append("from", (from))
+		r.append("name", (name))
+	default:
+		s.log.Debugf("Recieved an invalid request")
+		return nil
+
 	}
 
 	sendTo, err := inReq.getDataString("to")
@@ -114,7 +114,7 @@ func (s *Storage) reencrypt(r *request, from string) error {
 	}
 	// Construct request
 	r = newReq("Reencrypt")
-	r.append("from", []byte(from))
+	r.append("from", (from))
 	req, err := r.encode()
 	if err != nil {
 		return err
@@ -150,20 +150,27 @@ func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 	if err != nil {
 		return err
 	}
+
 	// Are key and account connected?
 	if ok, err := s.eos.CheckAccountKey(from, eoskey); !ok || err != nil {
-		if err != nil {
-			return err
+		conn, err2 := s.hub.GetConn(from)
+		if err2 != nil {
+			return err2
 		}
-		conn, err := s.hub.GetConn(from)
-		if err != nil {
-			return err
-		}
+
 		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
+		return err
 	}
+
 	// verify it
 	valid, err := checkRequestKeySignature(eoskey, sign, rsakey)
 	if err != nil {
+		conn, err2 := s.hub.GetConn(from)
+		if err2 != nil {
+			return err2
+		}
+		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
+
 		return err
 	}
 
@@ -181,8 +188,8 @@ func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 		}
 
 		r.remove("to")
-		r.append("from", []byte(from))
-		r.append("name", []byte(name))
+		r.append("from", from)
+		r.append("name", name)
 		s.sendRequest(r, sendto)
 	}
 	return nil
@@ -194,12 +201,14 @@ func checkRequestKeySignature(eoskey, strsign string, rsakey []byte) (bool, erro
 	if err != nil {
 		return false, err
 	}
+
 	key, err := ecc.NewPublicKey(eoskey)
 	if err != nil {
 		return false, err
 	}
+
 	if !sign.Verify(getHash(rsakey), key) {
-		return false, nil
+		return false, fmt.Errorf("Signature could not be verified")
 	}
 	return true, nil
 }

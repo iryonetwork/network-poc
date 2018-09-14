@@ -1,9 +1,11 @@
 package ws
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"fmt"
 
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/logger"
@@ -40,13 +42,17 @@ func (s *Storage) SubscribeDoctor() {
 			// Get data from request, decrypt the key with RSA key used when request was sent
 			// add the key to storage
 			case "ImportKey":
-				keyenc := subscribeGetDataFromRequest(r, "key", s.log)
+				keyenc, err := base64.StdEncoding.DecodeString(subscribeGetStringDataFromRequest(r, "key", s.log))
+				if err != nil {
+					s.log.Debugf("Error decoding key from base64; %v", err)
+				}
 				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 				name := subscribeGetStringDataFromRequest(r, "name", s.log)
 
-				key, err := rsa.DecryptPKCS1v15(rand.Reader, s.config.RequestKeys[from], keyenc)
+				key, err := rsa.DecryptPKCS1v15(nil, s.config.RequestKeys[from], keyenc)
 				if err != nil {
 					s.log.Printf("Error decrypting key: %v", err)
+					break
 				}
 
 				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
@@ -141,9 +147,10 @@ func (s *Storage) SubscribePatient() {
 			default:
 				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
 			case "RequestKey":
+				s.log.Debugf("SUBSCRIBTION:: Got RequestKey request")
 				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 				name := subscribeGetStringDataFromRequest(r, "name", s.log)
-				key := subscribeGetDataFromRequest(r, "key", s.log)
+				rsakey := subscribeGetDataFromRequest(r, "key", s.log)
 				eoskey := subscribeGetStringDataFromRequest(r, "eoskey", s.log)
 				sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
 
@@ -151,6 +158,7 @@ func (s *Storage) SubscribePatient() {
 				valid, err := s.eos.CheckAccountKey(from, eoskey)
 				if err != nil {
 					s.log.Printf("Error checking valid account: %v", err)
+					break
 				}
 				if !valid {
 					s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account ")
@@ -158,9 +166,10 @@ func (s *Storage) SubscribePatient() {
 				}
 
 				// check if signature is correct
-				valid, err = checkRequestKeySignature(eoskey, sign, key)
+				valid, err = checkRequestKeySignature(eoskey, sign, rsakey)
 				if err != nil {
 					s.log.Printf("Error checking valid signature: %v", err)
+					break
 				}
 				if !valid {
 					s.log.Debugf("SUBSCRIBE:: signature not valid")
@@ -168,7 +177,11 @@ func (s *Storage) SubscribePatient() {
 				}
 
 				// Save the request to storage for later usage
-				s.config.Requested[from], err = x509.ParsePKCS1PublicKey(key)
+				s.config.Requested[from], err = pemRsaKeyToBye(rsakey)
+				if err != nil {
+					s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
+				}
+				s.log.Debugf("%s", s.config.Requested[from])
 				s.config.Directory[from] = name
 
 				// Check if access is already granted
@@ -212,4 +225,14 @@ func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte
 		log.Printf("Error getting `%s`: %v", key, err)
 	}
 	return out
+}
+
+func pemRsaKeyToBye(pubPEMData []byte) (*rsa.PublicKey, error) {
+
+	block, _ := pem.Decode(pubPEMData)
+	if block == nil || block.Type != "RSA PUBLIC KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block containing public key")
+	}
+
+	return x509.ParsePKCS1PublicKey(block.Bytes)
 }

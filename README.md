@@ -130,7 +130,7 @@ IN:
 {
     "Name":"SendKey",
     "Fields":{
-        "key":"encrypted ehr signing key",
+        "key":"base64 encdoed encrypted ehr signing key",
         "to":"account which made RequestKey request"
     }
 }
@@ -139,7 +139,7 @@ OUT:
 {
     "Name":"ImportKey",
     "Fields":{
-        "key":"encrypted ehr signing key"
+        "key":"base64 encdoed encrypted ehr signing key"
         "from":"sender of request"
     }
 }

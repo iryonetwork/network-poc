@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 
 	"github.com/gorilla/websocket"
@@ -22,7 +24,7 @@ func (s *Storage) SendKey(to string) error {
 	s.log.Debugf("WS:: Sending encryption key to %s", to)
 
 	r := newReq("SendKey")
-	r.append("to", []byte(to))
+	r.append("to", to)
 	// Encrypt key
 	if _, ok := s.config.Requested[to]; !ok {
 		return fmt.Errorf("No key from user %s found", to)
@@ -31,8 +33,7 @@ func (s *Storage) SendKey(to string) error {
 	if err != nil {
 		return err
 	}
-	r.append("key", encKey)
-
+	r.append("key", base64.StdEncoding.EncodeToString(encKey))
 	req, err := r.encode()
 	if err != nil {
 		return err
@@ -46,7 +47,7 @@ func (s *Storage) RevokeKey(to string) error {
 	s.log.Debugf("WS:: Revoking encryption key at %s", to)
 
 	r := newReq("RevokeKey")
-	r.append("to", []byte(to))
+	r.append("to", to)
 	req, err := r.encode()
 	if err != nil {
 		return err
@@ -59,7 +60,7 @@ func (s *Storage) RequestsKey(to string) error {
 	s.log.Debugf("WS:: Requesting encryption key from %s", to)
 
 	r := newReq("RequestKey")
-	r.append("to", []byte(to))
+	r.append("to", to)
 
 	// We need a key
 	reader := rand.Reader
@@ -69,18 +70,22 @@ func (s *Storage) RequestsKey(to string) error {
 		return err
 	}
 	s.config.RequestKeys[to] = rsakey
-	key := x509.MarshalPKCS1PublicKey(&rsakey.PublicKey)
-	r.append("key", key)
+	s.log.Debugf("%s", s.config.RequestKeys[to].PublicKey)
+
+	// Generate public key
+	key := rsaPublicToByte(&rsakey.PublicKey)
+
+	r.append("key", string(key))
 
 	// Sign the key
 	sign, err := s.eos.SignHash(key)
 	if err != nil {
 		return err
 	}
-	r.append("signature", []byte(sign))
+	r.append("signature", sign)
 
 	// And add your EOS key
-	r.append("eoskey", []byte(s.config.GetEosPublicKey()))
+	r.append("eoskey", s.config.GetEosPublicKey())
 
 	req, err := r.encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
@@ -95,11 +100,21 @@ func (s *Storage) RequestsKey(to string) error {
 	return err
 }
 
+func rsaPublicToByte(public *rsa.PublicKey) []byte {
+	keyBytes := x509.MarshalPKCS1PublicKey(public)
+	keyBlock := pem.Block{
+		Type:    "RSA PUBLIC KEY",
+		Headers: nil,
+		Bytes:   keyBytes,
+	}
+	return pem.EncodeToMemory(&keyBlock)
+}
+
 func (s *Storage) NotifyGranted(to string) error {
 	s.log.Debugf("WS:: Notifying %s that access was granted", to)
 
 	r := newReq("NotifyGranted")
-	r.append("to", []byte(to))
+	r.append("to", to)
 	req, err := r.encode()
 	if err != nil {
 		return err
@@ -123,14 +138,14 @@ func (s *Storage) ReencryptRequest() error {
 
 type request struct {
 	Name   string
-	Fields map[string][]byte
+	Fields map[string]string
 }
 
 func newReq(name string) *request {
-	return &request{name, make(map[string][]byte)}
+	return &request{name, make(map[string]string)}
 }
 
-func (r *request) append(name string, data []byte) {
+func (r *request) append(name string, data string) {
 	r.Fields[name] = data
 }
 
@@ -149,14 +164,14 @@ func decode(r []byte) (*request, error) {
 
 func (r *request) getData(key string) ([]byte, error) {
 	if d, ok := r.Fields[key]; ok {
-		return d, nil
+		return []byte(d), nil
 	}
 	return []byte{}, fmt.Errorf("No data found for key %s", key)
 }
 
 func (r *request) getDataString(key string) (string, error) {
 	if d, ok := r.Fields[key]; ok {
-		return string(d), nil
+		return d, nil
 	}
 	return "", fmt.Errorf("No data found for key %s", key)
 }
