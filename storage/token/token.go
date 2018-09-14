@@ -71,7 +71,9 @@ func (t *TokenList) AccCreated(tok, account, key string) error {
 
 func (t *TokenList) ValidateGetInfo(tok string) (string, bool) {
 	if t.exists(tok) {
-		return t.getID(tok), true
+		if t.tokens[tok].viableUntil.After(time.Now()) {
+			return t.getID(tok), true
+		}
 	}
 	return "", false
 }
