@@ -27,7 +27,7 @@ type Config struct {
 	StoragePath        string `env:"DATA_PATH" envDefault:"/data"`
 	PersonalData       *openEHR.PersonalData
 	EncryptionKeys     map[string][]byte
-	RequestKeys        map[string]*rsa.PrivateKey
+	RSAKey             *rsa.PrivateKey
 	Requested          map[string]*rsa.PublicKey
 	Connections        []string
 	GrantedWithoutKeys []string
@@ -38,7 +38,6 @@ func New() (*Config, error) {
 	cfg := &Config{
 		PersonalData:       &openEHR.PersonalData{},
 		Requested:          make(map[string]*rsa.PublicKey),
-		RequestKeys:        make(map[string]*rsa.PrivateKey),
 		EncryptionKeys:     make(map[string][]byte),
 		Connections:        []string{},
 		GrantedWithoutKeys: []string{},

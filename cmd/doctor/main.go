@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	stdlog "log"
 	"net/http"
 
@@ -30,6 +32,11 @@ func main() {
 
 	if eos.NewKey() != nil {
 		log.Fatalf("Failed to create new key; %v", err)
+	}
+
+	config.RSAKey, err = rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		log.Fatalf("Failed generating rsa key")
 	}
 
 	client, err := client.New(config, eos, ehr, log)

@@ -49,7 +49,7 @@ func (s *Storage) SubscribeDoctor() {
 				from := subscribeGetStringDataFromRequest(r, "from", s.log)
 				name := subscribeGetStringDataFromRequest(r, "name", s.log)
 
-				key, err := rsa.DecryptPKCS1v15(nil, s.config.RequestKeys[from], keyenc)
+				key, err := rsa.DecryptPKCS1v15(nil, s.config.RSAKey, keyenc)
 				if err != nil {
 					s.log.Printf("Error decrypting key: %v", err)
 					break

@@ -62,18 +62,8 @@ func (s *Storage) RequestsKey(to string) error {
 	r := newReq("RequestKey")
 	r.append("to", to)
 
-	// We need a key
-	reader := rand.Reader
-	bitSize := 4096
-	rsakey, err := rsa.GenerateKey(reader, bitSize)
-	if err != nil {
-		return err
-	}
-	s.config.RequestKeys[to] = rsakey
-	s.log.Debugf("%s", s.config.RequestKeys[to].PublicKey)
-
 	// Generate public key
-	key := rsaPublicToByte(&rsakey.PublicKey)
+	key := rsaPublicToByte(&s.config.RSAKey.PublicKey)
 
 	r.append("key", string(key))
 
