@@ -28,27 +28,43 @@ type Config struct {
 	Token              string
 	Connceted          bool
 	Subscribed         bool
+	IsDoctor           bool
 	PersonalData       *openEHR.PersonalData
 	EncryptionKeys     map[string][]byte
 	RSAKey             *rsa.PrivateKey
-	Requested          map[string]*rsa.PublicKey
-	Connections        []string
-	GrantedWithoutKeys []string
+	Connections        Connections
 	Directory          map[string]string
+}
+
+type Connections struct {
+	WithKey    []string                  // Access is written on the blockchain and we have the key
+	WithoutKey []string                  // Access has been written on the blockchain, but we do not have the key
+	GrantedTo  []string                  // We have granted the access to our data to these users. Its on them to make key request
+	Requested  map[string]*rsa.PublicKey // They are not connected to us, but request for key has been made
 }
 
 func New() (*Config, error) {
 	cfg := &Config{
-		Connceted:          false,
-		Subscribed:         false,
-		PersonalData:       &openEHR.PersonalData{},
-		Requested:          make(map[string]*rsa.PublicKey),
-		EncryptionKeys:     make(map[string][]byte),
-		Connections:        []string{},
-		GrantedWithoutKeys: []string{},
-		Directory:          make(map[string]string),
+		Connceted:      false,
+		Subscribed:     false,
+		PersonalData:   &openEHR.PersonalData{},
+		EncryptionKeys: make(map[string][]byte),
+		Connections: Connections{
+			WithKey:    []string{},
+			WithoutKey: []string{},
+			GrantedTo:  []string{},
+			Requested:  make(map[string]*rsa.PublicKey),
+		},
+		Directory: make(map[string]string),
+		IsDoctor:  false,
 	}
-	return cfg, env.Parse(cfg)
+	err := env.Parse(cfg)
+
+	if cfg.ClientType == "Doctor" {
+		cfg.IsDoctor = true
+	}
+
+	return cfg, err
 }
 
 func (c *Config) GetEosPublicKey() string {

@@ -11,8 +11,8 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-func (h *handlers) patientIndexHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("templates/patient/index.html")
+func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}
@@ -40,27 +40,33 @@ func (h *handlers) patientIndexHandler(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Type        string
 		Name        string
+		Username    string
 		Public      string
 		Private     string
-		Connections map[string]string
+		GrantedTo   map[string]string
 		EHRData     *map[string]ehrdata.Entry
 		Error       string
-		Contract    string
 		Requested   map[string]string
 		Qr          string
 		Connected   bool
+		Granted     map[string]string
+		GrantedFrom map[string]string
+		IsDoctor    bool
 	}{
 		h.config.ClientType,
+		h.config.PersonalData.Name,
 		user,
 		h.config.GetEosPublicKey(),
 		h.config.EosPrivate,
-		h.config.GetNames(h.config.Connections),
+		h.config.GetNames(h.config.Connections.GrantedTo),
 		ehr,
 		outErr,
-		h.config.EosContractName,
-		h.config.GetNames(mapKeysToArray(h.config.Requested)),
+		h.config.GetNames(mapKeysToArray(h.config.Connections.Requested)),
 		base64.StdEncoding.EncodeToString(img),
 		h.config.Connceted,
+		h.config.GetNames(h.config.Connections.WithoutKey),
+		h.config.GetNames(h.config.Connections.WithKey),
+		h.config.IsDoctor,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -93,6 +99,7 @@ func (h *handlers) doctorIndexHandler(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Type        string
 		Name        string
+		Username    string
 		Public      string
 		Private     string
 		Connections map[string]string
@@ -102,13 +109,14 @@ func (h *handlers) doctorIndexHandler(w http.ResponseWriter, r *http.Request) {
 		Qr          string
 	}{
 		h.config.ClientType,
+		h.config.PersonalData.Name,
 		h.config.EosAccount,
 		h.config.GetEosPublicKey(),
 		h.config.EosPrivate,
-		h.config.GetNames(h.config.Connections),
+		h.config.GetNames(h.config.Connections.WithKey),
 		h.config.EosContractName,
 		h.config.Connceted,
-		h.config.GetNames(h.config.GrantedWithoutKeys),
+		h.config.GetNames(h.config.Connections.WithoutKey),
 		base64.StdEncoding.EncodeToString(img),
 	}
 

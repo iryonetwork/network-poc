@@ -107,13 +107,13 @@ func (s *subscribe) ImportKey(r *request) {
 	s.config.EncryptionKeys[from] = key
 
 	exists := false
-	for _, name := range s.config.Connections {
+	for _, name := range s.config.Connections.WithKey {
 		if name == from {
 			exists = true
 		}
 	}
 	if !exists {
-		s.config.Connections = append(s.config.Connections, from)
+		s.config.Connections.WithKey = append(s.config.Connections.WithKey, from)
 	}
 
 	s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
@@ -127,9 +127,9 @@ func (s *subscribe) revokeKey(r *request) {
 	s.ehr.RemoveUser(from)
 	delete(s.config.EncryptionKeys, from)
 
-	for i, v := range s.config.Connections {
+	for i, v := range s.config.Connections.WithKey {
 		if v == from {
-			s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
+			s.config.Connections.WithKey = append(s.config.Connections.WithKey[:i], s.config.Connections.WithKey[i+1:]...)
 			s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
 		}
 	}
@@ -153,7 +153,7 @@ func (s *subscribe) accessWasGranted(r *request) {
 
 	// Check if we already have the user on the list
 	onlist := false
-	for _, v := range s.config.Connections {
+	for _, v := range s.config.Connections.WithKey {
 		if v == from {
 			onlist = true
 			return
@@ -161,7 +161,7 @@ func (s *subscribe) accessWasGranted(r *request) {
 	}
 	// if its not on list add it
 	if !onlist {
-		s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys, from)
+		s.config.Connections.WithoutKey = append(s.config.Connections.WithoutKey, from)
 	}
 }
 
@@ -196,11 +196,11 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 	}
 
 	// Save the request to storage for later usage
-	s.config.Requested[from], err = rsaPEMKeyToRSAPublicKey(rsakey)
+	s.config.Connections.Requested[from], err = rsaPEMKeyToRSAPublicKey(rsakey)
 	if err != nil {
 		s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
 	}
-	s.log.Debugf("%s", s.config.Requested[from])
+	s.log.Debugf("%s", s.config.Connections.Requested[from])
 	s.config.Directory[from] = name
 
 	// Check if access is already granted
@@ -214,16 +214,16 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 
 		// make sure they are on the list
 		add := false
-		for _, name := range s.config.Connections {
+		for _, name := range s.config.Connections.GrantedTo {
 			if name == from {
 				add = false
 			}
 		}
 		if add {
-			s.config.Connections = append(s.config.Connections, from)
+			s.config.Connections.GrantedTo = append(s.config.Connections.GrantedTo, from)
 		}
 		// Delete the user from requests
-		delete(s.config.Requested, from)
+		delete(s.config.Connections.Requested, from)
 	}
 }
 

@@ -138,9 +138,9 @@ func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) ignoreHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	for i, v := range h.config.GrantedWithoutKeys {
+	for i, v := range h.config.Connections.WithoutKey {
 		if v == to {
-			h.config.GrantedWithoutKeys = append(h.config.GrantedWithoutKeys[:i], h.config.GrantedWithoutKeys[i+1:]...)
+			h.config.Connections.WithoutKey = append(h.config.Connections.WithoutKey[:i], h.config.Connections.WithoutKey[i+1:]...)
 		}
 	}
 	http.Redirect(w, r, "/", 302)
@@ -176,7 +176,7 @@ func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) denyAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	delete(h.config.Requested, to)
+	delete(h.config.Connections.Requested, to)
 	http.Redirect(w, r, "/", 302)
 }
 
@@ -188,4 +188,9 @@ func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 		url += "?error=" + err.Error()
 	}
 	http.Redirect(w, r, url, 302)
+}
+
+func (h *handlers) switchModeHandler(w http.ResponseWriter, r *http.Request) {
+	h.config.IsDoctor = !h.config.IsDoctor
+	http.Redirect(w, r, "/", 302)
 }

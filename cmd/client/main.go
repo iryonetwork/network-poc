@@ -77,6 +77,7 @@ func main() {
 		log:    log,
 	}
 
+	http.HandleFunc("/", h.indexHandler)
 	http.HandleFunc("/ehr/", h.ehrHandler)
 	http.HandleFunc("/save", h.saveEHRHandler)
 	http.HandleFunc("/close", h.closeHandler)
@@ -88,12 +89,8 @@ func main() {
 	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
 	if config.ClientType == "Doctor" {
-		http.HandleFunc("/", h.doctorIndexHandler)
+		http.HandleFunc("/switchMode", h.switchModeHandler)
 	}
-	if config.ClientType == "Patient" {
-		http.HandleFunc("/", h.patientIndexHandler)
-	}
-
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 
 	if err := http.ListenAndServe(config.ClientAddr, nil); err != nil {

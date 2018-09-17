@@ -14,8 +14,8 @@
     </head>
     <body>
     <div class="container">
-        <h1>Hello, {{.Type}}</h1>
-        <h2>{{.Name}}</h2>
+        <h1>Hello, {{.Name}}</h1>
+        <h2>{{.Username}}</h2>
         <img src="data:image/png;base64, {{ .Qr }}" alt="Cannot load image" style="width: 150px;height: 150px">
 
         {{if .Error}}
@@ -26,16 +26,19 @@
             </button>
         </div>
         {{end}}
-        
+    
         <div class="content">
         {{ if .Connected }}
-
+        {{ if not .IsDoctor }}
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 <li class="nav-item">
-                    <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Connections</a>
+                    <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Manage my connections</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">EHR</a>
+                    <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">My EHR</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="connected-tab" data-toggle="tab" href="#connected" role="tab" aria-controls="connected" aria-selected="false">Connected</a>
                 </li>
             </ul>
 
@@ -45,17 +48,17 @@
                         <thead>
                             <tr>
                                 <!--th scope="col">#</th>-->
-                                <th scope="col">Doctor</th>
+                                <th scope="col">User</th>
                                 <th scope="col"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {{range $i, $c := .Connections}}
+                            {{range $i, $c := .GrantedTo}}
                                 <tr>
                                     <!--<th scope="row">{{ $i }}</th>-->
                                     <td>{{ $c }}</td>
                                     <td>
-                                        <form action="/revoke">
+                                        <form action="/revoke"> 
                                             <input type="hidden" name="to" value="{{ $i }}">
                                             <button class="btn btn-secondary float-right" type="submit">Revoke access</button>
                                         </form>
@@ -67,7 +70,7 @@
 
                     <form action="/grant">
                         <div class="input-group mb-3">
-                            <input name="to" type="text" class="form-control" placeholder="Doctor's account name" aria-label="Doctor's account name" aria-describedby="basic-addon2">
+                            <input name="to" type="text" class="form-control" placeholder="User's account name" aria-label="User's account name" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-outline-secondary" type="submit">Grant access</button>
                             </div>
@@ -99,16 +102,17 @@
 
                 <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
                     {{ if .EHRData }}
-                    <div class="tab-content" id="myTabContent">
+                    
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link show active" id="viewEhr-tab" data-toggle="tab" href="#viewEhr" role="tab" aria-controls="viewEhr" aria-selected="true">Graphs</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="addEhr-tab" data-toggle="tab" href="#addEhr" role="tab" aria-controls="addEhr" aria-selected="false">Add Data</a>
+                        </li>
+                    </ul>
 
-                        <ul class="nav nav-tabs" id="myTab" role="tablist">
-                            <li class="nav-item">
-                                <a class="nav-link show active" id="viewEhr-tab" data-toggle="tab" href="#viewEhr" role="tab" aria-controls="viewEhr" aria-selected="true">Graphs</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="addEhr-tab" data-toggle="tab" href="#addEhr" role="tab" aria-controls="addEhr" aria-selected="false">Add Data</a>
-                            </li>
-                        </ul>
+                    <div class="tab-content" id="myTabContent">
 
                         <div class="tab-pane fade show active" id="viewEhr" role="tabpanel" aria-labelledby="viewEhr-tab">
                             {{range $i, $c := .EHRData}}
@@ -118,7 +122,7 @@
                         </div>
 
                         <div class="tab-pane fade" id="addEhr" role="tabpanel" aria-labelledby="addEhr-tab">
-                    {{end}}
+                        {{end}}
                             <form action="/save">
                                     Weight:<br>
                                     <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
@@ -130,17 +134,78 @@
 
                                 <button class="btn btn-primary" type="submit">Save</button>
                             </form>
-                    {{ if .EHRData}}
+                        {{ if .EHRData}}
                         </div>
+                    </div>
                     {{end}}
+                </div>
+
+                <div class="tab-pane fade" id="connected" role="tabpanel" aria-labelledby="connected-tab">
+                    {{ end }}
+                        {{ if .GrantedFrom }}
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <!--th scope="col">#</th>-->
+                                    <th scope="col">User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range $i, $c := .GrantedFrom}}
+                                    <tr>
+                                        <!--<th scope="row">{{ $i }}</th>-->
+                                        <td><a href="/ehr/{{ $i }}">{{ $c }}</a></td>
+                                    </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                        {{ else }}
+                            You have no connected users
+                        {{ end }}
+                        <form action="/request">
+                            <div class="input-group mb-3">
+                                <input name="to" type="text" class="form-control" placeholder="Patient's account name" aria-label="Friend's account name" aria-describedby="basic-addon2">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="submit">Request access</button>
+                                </div>
+                            </div>
+                        </form>
+                        {{ range $i, $c := .Granted}}
+                        {{ $c }}
+                        <form action="/request">
+                            <div class="input-group mb-3">
+                                <input name="to" type="hidden" class="form-control" value="{{ $i }}">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="submit">Request key</button>
+                                </div>
+                            </div>
+                        </form>
+                        <form action="/ignore">
+                            <p class="input-group mb-3">
+                                <input name="to" type="hidden" class="form-control" value="{{ $i }}">
+                                <p class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="submit">Ignore</button>
+                                </p>
+                            </p>
+                        </form>
+                        {{ end }}
+                    {{ if not .IsDoctor}}
                     </div>
                 </div>
+                {{ end }}
 
                 <div class="footer">
                     <div>Private key: {{.Private}}</div> 
-                    <div>Publuc key: {{.Public}}</div>    
-                    <p>Contract address: {{ .Contract }}</p>
+                    <div>Publuc key: {{.Public}}</div>
+                    {{ if not .IsDoctor}}
                     <a href="/reencrypt">Reencrypt data</a>
+                    {{end}}
+                    {{ if eq .Type "Doctor"}}
+                    <div>
+                        <a href="/switchMode">Switch to {{if .IsDoctor}}patient{{else}}doctor{{end}} mode</a>
+                    </div>
+                    {{end}}
+                    
                     <div>
                         <a href="/close">Close connection</a>
                     </div>

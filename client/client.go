@@ -347,13 +347,13 @@ func (c *Client) GrantAccess(to string) error {
 		}
 		// make sure doctor is on list of connected
 		conn := false
-		for _, v := range c.config.Connections {
+		for _, v := range c.config.Connections.GrantedTo {
 			if v == to {
 				conn = true
 			}
 		}
 		if !conn {
-			c.config.Connections = append(c.config.Connections, to)
+			c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo, to)
 		}
 		return nil
 	}
@@ -367,7 +367,7 @@ func (c *Client) GrantAccess(to string) error {
 
 	// if request for key was already made send the key
 	// else notify the doctor that request was granted
-	if _, ok := c.config.Requested[to]; ok {
+	if _, ok := c.config.Connections.Requested[to]; ok {
 		// send key for storage encryption
 		err = c.ws.SendKey(to)
 		if err != nil {
@@ -382,17 +382,17 @@ func (c *Client) GrantAccess(to string) error {
 
 	// add doctor to list of connected
 	conn := false
-	for _, v := range c.config.Connections {
+	for _, v := range c.config.Connections.GrantedTo {
 		if v == to {
 			conn = true
 		}
 	}
 	if !conn {
-		c.config.Connections = append(c.config.Connections, to)
+		c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo, to)
 	}
 
 	/// remove key from storage
-	delete(c.config.Requested, to)
+	delete(c.config.Connections.Requested, to)
 
 	return nil
 }
@@ -413,9 +413,9 @@ func (c *Client) RevokeAccess(to string) error {
 	}
 	// remove doctor from our connections
 	found := false
-	for i, v := range c.config.Connections {
+	for i, v := range c.config.Connections.GrantedTo {
 		if v == to {
-			c.config.Connections = append(c.config.Connections[:i], c.config.Connections[i+1:]...)
+			c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo[:i], c.config.Connections.GrantedTo[i+1:]...)
 			found = true
 			break
 		}

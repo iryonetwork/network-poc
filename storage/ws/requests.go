@@ -26,10 +26,10 @@ func (s *Storage) SendKey(to string) error {
 	r := newReq("SendKey")
 	r.append("to", to)
 	// Encrypt key
-	if _, ok := s.config.Requested[to]; !ok {
+	if _, ok := s.config.Connections.Requested[to]; !ok {
 		return fmt.Errorf("No key from user %s found", to)
 	}
-	encKey, err := rsa.EncryptPKCS1v15(rand.Reader, s.config.Requested[to], s.config.EncryptionKeys[s.config.EosAccount])
+	encKey, err := rsa.EncryptPKCS1v15(rand.Reader, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount])
 	if err != nil {
 		return err
 	}
@@ -81,9 +81,9 @@ func (s *Storage) RequestsKey(to string) error {
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
 	// Check if user is on GrantedWithoutKeys list
-	for i, v := range s.config.GrantedWithoutKeys {
+	for i, v := range s.config.Connections.WithoutKey {
 		if v == to {
-			s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys[:i], s.config.GrantedWithoutKeys[i+1:]...)
+			s.config.Connections.WithoutKey = append(s.config.Connections.WithoutKey[:i], s.config.Connections.WithoutKey[i+1:]...)
 		}
 	}
 
