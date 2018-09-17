@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
+	"crypto/rand"
 	"html/template"
 	"log"
 	"net/http"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/storage/ehr"
-	qrcode "github.com/skip2/go-qrcode"
 )
 
 type handlers struct {
@@ -21,47 +20,6 @@ type handlers struct {
 	client *client.Client
 	ehr    *ehr.Storage
 	log    *logger.Log
-}
-
-func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("templates/index.html")
-	if err != nil {
-		log.Fatalf("error parsing template files: %v", err)
-	}
-	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
-	if err != nil {
-		log.Fatalf("Error creating qr: %v", err)
-	}
-	img, err := qr.PNG(150)
-	if err != nil {
-		log.Fatalf("Error creating qr png: %v", err)
-	}
-
-	data := struct {
-		Type        string
-		Name        string
-		Public      string
-		Private     string
-		Connections map[string]string
-		Contract    string
-		Connected   bool
-		Granted     map[string]string
-		Qr          string
-	}{
-		h.config.ClientType,
-		h.config.EosAccount,
-		h.config.GetEosPublicKey(),
-		h.config.EosPrivate,
-		h.config.GetNames(h.config.Connections),
-		h.config.EosContractName,
-		h.config.Connceted,
-		h.config.GetNames(h.config.GrantedWithoutKeys),
-		base64.StdEncoding.EncodeToString(img),
-	}
-
-	if err := t.Execute(w, data); err != nil {
-		log.Printf("error executing template: %v", err)
-	}
 }
 
 func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +94,35 @@ func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 302)
 }
 
+func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	owner := h.config.EosAccount
+	if owners, ok := r.Form["owner"]; ok {
+		owner = owners[0]
+	}
+
+	weight := r.Form["weight"][0]
+	glucose := r.Form["glucose"][0]
+	systolic := r.Form["systolic"][0]
+	diastolic := r.Form["diastolic"][0]
+
+	var err error
+	data := ehrdata.NewVitalSigns(h.config)
+	if err = ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
+		err = ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
+	}
+	url := "/"
+	if h.config.ClientType == "Doctor" {
+		url = "/ehr/" + owner
+	}
+	if err != nil {
+		url += "?error=" + err.Error()
+	}
+
+	http.Redirect(w, r, url, 302)
+}
+
 func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
@@ -159,25 +146,46 @@ func (h *handlers) ignoreHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 302)
 }
 
-func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	owner := r.Form["owner"][0]
-	weight := r.Form["weight"][0]
-	glucose := r.Form["glucose"][0]
-	systolic := r.Form["systolic"][0]
-	diastolic := r.Form["diastolic"][0]
-
-	var err error
-	data := ehrdata.NewVitalSigns(h.config)
-	if err = ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
-		err = ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
+func (h *handlers) reencryptHandler(w http.ResponseWriter, r *http.Request) {
+	// We need new key
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		http.Redirect(w, r, "/?error="+err.Error(), 302)
+		return
 	}
 
-	url := "/ehr/" + owner
+	err = h.client.Reencrypt(key)
+	if err != nil {
+		http.Redirect(w, r, "/?error="+err.Error(), 302)
+		return
+	}
+
+	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	err := h.client.GrantAccess(r.Form["to"][0])
+	url := "/"
 	if err != nil {
 		url += "?error=" + err.Error()
 	}
+	http.Redirect(w, r, url, 302)
+}
+func (h *handlers) denyAccessHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	to := r.Form["to"][0]
+	delete(h.config.Requested, to)
+	http.Redirect(w, r, "/", 302)
+}
 
+func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	err := h.client.RevokeAccess(r.Form["to"][0])
+	url := "/"
+	if err != nil {
+		url += "?error=" + err.Error()
+	}
 	http.Redirect(w, r, url, 302)
 }

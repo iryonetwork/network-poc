@@ -94,15 +94,17 @@ services:
     - run
     - main.go
     - handlers.go
+    - indexHandlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_API=${EOS_NODE}
     - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
+    - CLIENT_TYPE=Patient
     ports:
     - 9001:9000
   patient2:
@@ -112,15 +114,17 @@ services:
     - run
     - main.go
     - handlers.go
+    - indexHandlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/patient
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_API=${EOS_NODE}
     - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
+    - CLIENT_TYPE=Patient
     ports:
     - 9002:9000
   ## Doctor
@@ -131,15 +135,17 @@ services:
     - run
     - main.go
     - handlers.go
+    - indexHandlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - EOS_API=${EOS_NODE}
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
+    - CLIENT_TYPE=Doctor
     ports:
     - 9003:9000
   ## Doctor
@@ -150,15 +156,17 @@ services:
     - run
     - main.go
     - handlers.go
+    - indexHandlers.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/doctor
+    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - EOS_API=${EOS_NODE}
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT}
     - CLIENT_ADDR=0.0.0.0:9000
     - DEBUG=1
+    - CLIENT_TYPE=Doctor
     ports:
     - 9004:9000
 

@@ -2,7 +2,8 @@ package main
 
 import (
 	"crypto/rand"
-	"log"
+	"crypto/rsa"
+	stdlog "log"
 	"net/http"
 
 	"github.com/iryonetwork/network-poc/client"
@@ -14,45 +15,48 @@ import (
 )
 
 func main() {
-	// config
 	config, err := config.New()
 	if err != nil {
-		log.Fatalf("failed to get config: %v", err)
+		stdlog.Fatalf("failed to get config: %v", err)
 	}
 
 	personaldata.New(config)
-	config.ClientType = "Patient"
 
-	// log
 	log := logger.New(config)
 
-	// eos
 	eos, err := eos.New(config, log)
 	if err != nil {
 		log.Fatalf("failed to setup eth storage; %v", err)
 	}
-
-	// ehr
 	ehr := ehr.New()
 
 	if eos.NewKey() != nil {
 		log.Fatalf("Failed to create new key; %v", err)
 	}
 
-	// Client
-	client, err := client.New(config, eos, ehr, log)
+	config.RSAKey, err = rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		log.Fatalf("Failed to get client: %v", err)
-	}
-	if err := client.Login(); err != nil {
-		log.Fatalf("Failed to log in: %v", err)
+		log.Fatalf("Failed generating rsa key")
 	}
 
-	// Create account
+	client, err := client.New(config, eos, ehr, log)
+	if err != nil {
+		log.Fatalf("Failed to setup client; %v", err)
+	}
+	if err = client.Login(); err != nil {
+		log.Fatalf("Failed to login; %v", err)
+	}
+
 	config.EosAccount, err = client.CreateAccount(config.GetEosPublicKey())
 	if err != nil {
 		log.Fatalf("Failed to create account: %v", err)
 	}
+
+	err = client.ConnectWs()
+	if err != nil {
+		log.Fatalf("ws problem: %v", err.Error())
+	}
+	defer client.CloseWs()
 
 	// Create key
 	key := make([]byte, 32)
@@ -62,30 +66,33 @@ func main() {
 	}
 	config.EncryptionKeys[config.EosAccount] = key
 
-	err = client.ConnectWs()
-	if err != nil {
-		log.Fatalf("ws problem: %v", err.Error())
-	}
-	defer client.CloseWs()
-
-	if personaldata.Upload(config, ehr, client) != nil {
-		log.Fatalf("error uploading patient data; %v", err)
+	if err := personaldata.Upload(config, ehr, client); err != nil {
+		log.Fatalf("Error uploading personal data: %v", err)
 	}
 
 	h := &handlers{
 		config: config,
-		client: client,
 		ehr:    ehr,
+		client: client,
+		log:    log,
 	}
 
-	http.HandleFunc("/", h.indexHandler)
+	http.HandleFunc("/ehr/", h.ehrHandler)
+	http.HandleFunc("/save", h.saveEHRHandler)
+	http.HandleFunc("/close", h.closeHandler)
+	http.HandleFunc("/connect", h.connectHandler)
+	http.HandleFunc("/request", h.requestHandler)
+	http.HandleFunc("/ignore", h.ignoreHandler)
+	http.HandleFunc("/reencrypt", h.reencryptHandler)
 	http.HandleFunc("/grant", h.grantAccessHandler)
 	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
-	http.HandleFunc("/save", h.saveEHRHandler)
-	http.HandleFunc("/reencrypt", h.reencryptHandler)
-	http.HandleFunc("/close", h.closeHandler)
-	http.HandleFunc("/connect", h.connectHandler)
+	if config.ClientType == "Doctor" {
+		http.HandleFunc("/", h.doctorIndexHandler)
+	}
+	if config.ClientType == "Patient" {
+		http.HandleFunc("/", h.patientIndexHandler)
+	}
 
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 
