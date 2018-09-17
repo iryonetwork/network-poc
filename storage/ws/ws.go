@@ -67,20 +67,6 @@ func (s *Storage) Reconnect() error {
 		return err
 	}
 
-	*s = *temp
+	s.conn = temp.conn
 	return nil
-}
-
-func (s *Storage) Subscribe() {
-	s.log.Debugf("Client::subscribe() called")
-
-	//subscribe to key sent event
-	switch s.config.ClientType {
-	default:
-		s.log.Fatalf("Unknown client type")
-	case "Patient":
-		s.SubscribePatient()
-	case "Doctor":
-		s.SubscribeDoctor()
-	}
 }

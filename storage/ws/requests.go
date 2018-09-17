@@ -147,7 +147,7 @@ func decode(r []byte) (*request, error) {
 	req := &request{}
 	err := json.Unmarshal(r, req)
 	if err != nil {
-		return req, err
+		return req, fmt.Errorf("Error decoding request: %v\nRequest sent in: %s", err, r)
 	}
 	return req, nil
 }

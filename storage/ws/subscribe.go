@@ -13,8 +13,13 @@ import (
 	"github.com/iryonetwork/network-poc/logger"
 )
 
-func (s *Storage) SubscribeDoctor() {
+type subscribe struct {
+	*Storage
+}
+
+func (s *Storage) Subscribe() {
 	s.log.Debugf("WS::SubscribeDoctor called")
+	sub := &subscribe{s}
 
 	s.config.Subscribed = true
 	defer func() {
@@ -22,203 +27,50 @@ func (s *Storage) SubscribeDoctor() {
 	}()
 	go func() {
 		for {
-			message, err := s.readMessage()
+			// Decode the message
+			r, err := sub.readMessage()
 			if websocket.IsCloseError(err, 1000) {
 				s.log.Printf("SUBSCRIBE:: Connection closed")
 				break
 			}
 			if err != nil {
-				s.log.Printf("SUBSCRIBE:: readMessageError: %v", err)
+				s.log.Printf("SUBSCRIBE:: Read message error: %v", err)
 				break
-			}
-			// Decode the message
-			r, err := decode(message)
-			if err != nil {
-				s.log.Printf("Error decoding: %v", err)
 			}
 
 			// Handle the request
 			switch r.Name {
-			default:
-				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
-
-			// Import key
-			// Get data from request, decrypt the key with RSA key used when request was sent
-			// add the key to storage
 			case "ImportKey":
-				keyenc, err := base64.StdEncoding.DecodeString(subscribeGetStringDataFromRequest(r, "key", s.log))
-				if err != nil {
-					s.log.Debugf("Error decoding key from base64; %v", err)
-				}
-				from := subscribeGetStringDataFromRequest(r, "from", s.log)
-				name := subscribeGetStringDataFromRequest(r, "name", s.log)
-
-				key, err := rsa.DecryptPKCS1v15(nil, s.config.RSAKey, keyenc)
-				if err != nil {
-					s.log.Printf("Error decrypting key: %v", err)
-					break
-				}
-
-				s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
-
-				s.config.Directory[from] = name
-				s.config.EncryptionKeys[from] = key
-
-				exists := false
-				for _, name := range s.config.Connections {
-					if name == from {
-						exists = true
-					}
-				}
-				if !exists {
-					s.config.Connections = append(s.config.Connections, from)
-				}
-				s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
+				sub.ImportKey(r)
 
 			// Revoke key
 			// Remove all entries connected to user
 			case "RevokeKey":
-				from := subscribeGetStringDataFromRequest(r, "from", s.log)
-				s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
-				s.ehr.RemoveUser(from)
-				delete(s.config.EncryptionKeys, from)
-				for i, v := range s.config.Connections {
-					if v == from {
-						s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
-						s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
-					}
-				}
+				sub.revokeKey(r)
 
 			// Data was reencrypted
 			// make a new key request and delete old data
 			case "Reencrypt":
-				from := subscribeGetStringDataFromRequest(r, "from", s.log)
-				s.ehr.RemoveUser(from)
-				err = s.RequestsKey(from)
-				if err != nil {
-					s.log.Printf("Error creating RequestKey: %v", err)
-				}
+				sub.subReencrypt(r)
 
 			// User has granted access to doctor
 			// Make a notification that acess has been granted
 			case "NotifyGranted":
-				name := subscribeGetStringDataFromRequest(r, "name", s.log)
-				from := subscribeGetStringDataFromRequest(r, "from", s.log)
+				sub.accessWasGranted(r)
 
-				s.log.Debugf("Got notification 'accessGranted' from %s", from)
-				s.config.Directory[from] = name
-				// Check if we already have the user on the list
-				onlist := false
-				for _, v := range s.config.Connections {
-					if v == from {
-						onlist = true
-						break
-					}
-				}
-				// if its not on list add it
-				if !onlist {
-					s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys, from)
-				}
-			}
-		}
-	}()
-}
+			// Key has beed request from another user
+			// Notify me
+			case "RequestKey":
+				sub.notifyKeyRequested(r)
 
-func (s *Storage) SubscribePatient() {
-	s.log.Debugf("WS::SubscribePatient called")
-
-	s.config.Subscribed = true
-	defer func() {
-		s.config.Subscribed = false
-	}()
-	go func() {
-		for {
-			message, err := s.readMessage()
-			if websocket.IsCloseError(err, 1000) {
-				s.log.Printf("SUBSCRIBE:: Connection closed")
-				break
-			}
-			if err != nil {
-				s.log.Printf("SUBSCRIBE:: readMessageError: %v", err)
-				break
-			}
-
-			// Decode message into request
-			r, err := decode(message)
-			if err != nil {
-				s.log.Printf("Error decoding: %v", err)
-			}
-
-			// Handle the message
-			switch r.Name {
 			default:
 				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
-			case "RequestKey":
-				s.log.Debugf("SUBSCRIBTION:: Got RequestKey request")
-				from := subscribeGetStringDataFromRequest(r, "from", s.log)
-				name := subscribeGetStringDataFromRequest(r, "name", s.log)
-				rsakey := subscribeGetDataFromRequest(r, "key", s.log)
-				eoskey := subscribeGetStringDataFromRequest(r, "eoskey", s.log)
-				sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
-
-				// Check if account and key are connected
-				valid, err := s.eos.CheckAccountKey(from, eoskey)
-				if err != nil {
-					s.log.Printf("Error checking valid account: %v", err)
-					break
-				}
-				if !valid {
-					s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account ")
-					break
-				}
-
-				// check if signature is correct
-				valid, err = checkRequestKeySignature(eoskey, sign, rsakey)
-				if err != nil {
-					s.log.Printf("Error checking valid signature: %v", err)
-					break
-				}
-				if !valid {
-					s.log.Debugf("SUBSCRIBE:: signature not valid")
-					break
-				}
-
-				// Save the request to storage for later usage
-				s.config.Requested[from], err = rsaPEMKeyT(rsakey)
-				if err != nil {
-					s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
-				}
-				s.log.Debugf("%s", s.config.Requested[from])
-				s.config.Directory[from] = name
-
-				// Check if access is already granted
-				// if it is, send the key without prompting the user for confirmation
-				granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
-				if err != nil {
-					s.log.Printf("Error getting key: %v", err)
-				}
-				if granted {
-					s.SendKey(from)
-
-					// make sure they are on the list
-					add := false
-					for _, name := range s.config.Connections {
-						if name == from {
-							add = false
-						}
-					}
-					if add {
-						s.config.Connections = append(s.config.Connections, from)
-					}
-					// Delete the user from requests
-					delete(s.config.Requested, from)
-				}
 			}
 		}
 	}()
 }
 
-func (s *Storage) readMessage() ([]byte, error) {
+func (s *subscribe) readMessage() (*request, error) {
 	// Read the message
 	_, message, err := s.conn.ReadMessage()
 	if err != nil {
@@ -232,7 +84,147 @@ func (s *Storage) readMessage() ([]byte, error) {
 		}
 		return nil, err
 	}
-	return message, nil
+	return decode(message)
+}
+
+func (s *subscribe) ImportKey(r *request) {
+	keyenc, err := base64.StdEncoding.DecodeString(subscribeGetStringDataFromRequest(r, "key", s.log))
+	if err != nil {
+		s.log.Debugf("Error decoding key from base64; %v", err)
+	}
+	from := subscribeGetStringDataFromRequest(r, "from", s.log)
+	name := subscribeGetStringDataFromRequest(r, "name", s.log)
+
+	key, err := rsa.DecryptPKCS1v15(nil, s.config.RSAKey, keyenc)
+	if err != nil {
+		s.log.Printf("Error decrypting key: %v", err)
+		return
+	}
+
+	s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
+
+	s.config.Directory[from] = name
+	s.config.EncryptionKeys[from] = key
+
+	exists := false
+	for _, name := range s.config.Connections {
+		if name == from {
+			exists = true
+		}
+	}
+	if !exists {
+		s.config.Connections = append(s.config.Connections, from)
+	}
+
+	s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
+}
+
+func (s *subscribe) revokeKey(r *request) {
+	from := subscribeGetStringDataFromRequest(r, "from", s.log)
+
+	s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
+
+	s.ehr.RemoveUser(from)
+	delete(s.config.EncryptionKeys, from)
+
+	for i, v := range s.config.Connections {
+		if v == from {
+			s.config.Connections = append(s.config.Connections[:i], s.config.Connections[i+1:]...)
+			s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
+		}
+	}
+}
+
+func (s *subscribe) subReencrypt(r *request) {
+	from := subscribeGetStringDataFromRequest(r, "from", s.log)
+	s.ehr.RemoveUser(from)
+	err := s.RequestsKey(from)
+	if err != nil {
+		s.log.Printf("Error creating RequestKey: %v", err)
+	}
+}
+
+func (s *subscribe) accessWasGranted(r *request) {
+	name := subscribeGetStringDataFromRequest(r, "name", s.log)
+	from := subscribeGetStringDataFromRequest(r, "from", s.log)
+
+	s.log.Debugf("Got notification 'accessGranted' from %s", from)
+	s.config.Directory[from] = name
+
+	// Check if we already have the user on the list
+	onlist := false
+	for _, v := range s.config.Connections {
+		if v == from {
+			onlist = true
+			return
+		}
+	}
+	// if its not on list add it
+	if !onlist {
+		s.config.GrantedWithoutKeys = append(s.config.GrantedWithoutKeys, from)
+	}
+}
+
+func (s *subscribe) notifyKeyRequested(r *request) {
+	s.log.Debugf("SUBSCRIBTION:: Got RequestKey request")
+	from := subscribeGetStringDataFromRequest(r, "from", s.log)
+	name := subscribeGetStringDataFromRequest(r, "name", s.log)
+	rsakey := subscribeGetDataFromRequest(r, "key", s.log)
+	eoskey := subscribeGetStringDataFromRequest(r, "eoskey", s.log)
+	sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
+
+	// Check if account and key are connected
+	valid, err := s.eos.CheckAccountKey(from, eoskey)
+	if err != nil {
+		s.log.Printf("Error checking valid account: %v", err)
+		return
+	}
+	if !valid {
+		s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account")
+		return
+	}
+
+	// check if signature is correct
+	valid, err = checkRequestKeySignature(eoskey, sign, rsakey)
+	if err != nil {
+		s.log.Printf("Error checking valid signature: %v", err)
+		return
+	}
+	if !valid {
+		s.log.Debugf("SUBSCRIBE:: signature not valid")
+		return
+	}
+
+	// Save the request to storage for later usage
+	s.config.Requested[from], err = rsaPEMKeyToRSAPublicKey(rsakey)
+	if err != nil {
+		s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
+	}
+	s.log.Debugf("%s", s.config.Requested[from])
+	s.config.Directory[from] = name
+
+	// Check if access is already granted
+	// if it is, send the key without prompting the user for confirmation
+	granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
+	if err != nil {
+		s.log.Printf("Error getting key: %v", err)
+	}
+	if granted {
+		s.SendKey(from)
+
+		// make sure they are on the list
+		add := false
+		for _, name := range s.config.Connections {
+			if name == from {
+				add = false
+			}
+		}
+		if add {
+			s.config.Connections = append(s.config.Connections, from)
+		}
+		// Delete the user from requests
+		delete(s.config.Requested, from)
+	}
 }
 
 func subscribeGetStringDataFromRequest(r *request, key string, log *logger.Log) string {
@@ -251,7 +243,7 @@ func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte
 	return out
 }
 
-func rsaPEMKeyT(pubPEMData []byte) (*rsa.PublicKey, error) {
+func rsaPEMKeyToRSAPublicKey(pubPEMData []byte) (*rsa.PublicKey, error) {
 
 	block, _ := pem.Decode(pubPEMData)
 	if block == nil || block.Type != "RSA PUBLIC KEY" {
