@@ -170,28 +170,16 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 	rsakey := subscribeGetDataFromRequest(r, "key", s.log)
-	eoskey := subscribeGetStringDataFromRequest(r, "eoskey", s.log)
 	sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
 
 	// Check if account and key are connected
-	valid, err := s.eos.CheckAccountKey(from, eoskey)
+	valid, err := s.verifyRequestKeyRequest(sign, from, rsakey)
 	if err != nil {
 		s.log.Printf("Error checking valid account: %v", err)
 		return
 	}
 	if !valid {
-		s.log.Debugf("SUBSCRIBE:: Account is not linked to eos account")
-		return
-	}
-
-	// check if signature is correct
-	valid, err = checkRequestKeySignature(eoskey, sign, rsakey)
-	if err != nil {
-		s.log.Printf("Error checking valid signature: %v", err)
-		return
-	}
-	if !valid {
-		s.log.Debugf("SUBSCRIBE:: signature not valid")
+		s.log.Printf("SUBSCRIBE:: request could not be verified")
 		return
 	}
 

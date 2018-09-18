@@ -138,10 +138,6 @@ func (s *Storage) reencrypt(r *request, from string) error {
 
 func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 	// Get the data in request
-	eoskey, err := r.getDataString("eoskey")
-	if err != nil {
-		return err
-	}
 	rsakey, err := r.getData("key")
 	if err != nil {
 		return err
@@ -151,66 +147,57 @@ func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 		return err
 	}
 
-	// Are key and account connected?
-	if ok, err := s.eos.CheckAccountKey(from, eoskey); !ok || err != nil {
-		conn, err2 := s.hub.GetConn(from)
-		if err2 != nil {
-			return err2
-		}
-
-		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
-		return err
-	}
-
 	// verify it
-	valid, err := checkRequestKeySignature(eoskey, sign, rsakey)
-	if err != nil {
+	if valid, err := s.verifyRequestKeyRequest(sign, from, rsakey); !valid || err != nil {
 		conn, err2 := s.hub.GetConn(from)
 		if err2 != nil {
 			return err2
 		}
-		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
 
+		conn.WriteMessage(websocket.BinaryMessage, []byte("Problem verifying your request"))
 		return err
 	}
 
-	// send if valid
-	if valid {
-		s.log.Debugf("Request verified")
+	s.log.Debugf("Request verified")
 
-		sendto, err := r.getDataString("to")
-		if err != nil {
-			return err
-		}
-		name, err := db.GetName(from)
-		if err != nil {
-			return err
-		}
-
-		r.remove("to")
-		r.append("from", from)
-		r.append("name", name)
-		s.sendRequest(r, sendto)
+	sendto, err := r.getDataString("to")
+	if err != nil {
+		return err
 	}
+	name, err := db.GetName(from)
+	if err != nil {
+		return err
+	}
+
+	r.remove("to")
+	r.append("from", from)
+	r.append("name", name)
+	s.sendRequest(r, sendto)
+
 	return nil
 }
 
-func checkRequestKeySignature(eoskey, strsign string, rsakey []byte) (bool, error) {
+func (s *Storage) verifyRequestKeyRequest(signature, from string, rsakey []byte) (bool, error) {
+	eoskey, err := requestGetKeyFromSignature(signature, rsakey)
+	if err != nil {
+		return false, err
+	}
+
+	return s.eos.CheckAccountKey(from, eoskey.String())
+}
+
+func requestGetKeyFromSignature(strsign string, rsakey []byte) (ecc.PublicKey, error) {
 
 	sign, err := ecc.NewSignature(strsign)
 	if err != nil {
-		return false, err
+		return ecc.PublicKey{}, err
 	}
 
-	key, err := ecc.NewPublicKey(eoskey)
+	key, err := sign.PublicKey(getHash(rsakey))
 	if err != nil {
-		return false, err
+		return ecc.PublicKey{}, fmt.Errorf("Signture could not be verified; %v", err)
 	}
-
-	if !sign.Verify(getHash(rsakey), key) {
-		return false, fmt.Errorf("Signature could not be verified")
-	}
-	return true, nil
+	return key, nil
 }
 
 func getHash(in []byte) []byte {

@@ -108,7 +108,6 @@ IN:
     "Fields":{
         "key":"RSA public key",
         "signature":"EOS's signature of sha256 hash of RSA public key"
-        "eoskey":"eoskey used to sign the hash",
         "to":"Account name"
     }
 }
@@ -119,7 +118,6 @@ OUT:
     "Fields":{
         "key":"RSA public key",
         "signature":"EOS's signature of sha256 hash of RSA public key"
-        "eoskey":"eoskey used to sign the hash",
         "from":"sender of request"
     }
 }
