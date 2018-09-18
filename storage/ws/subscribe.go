@@ -54,7 +54,7 @@ func (s *Storage) Subscribe() {
 				sub.subReencrypt(r)
 
 			// User has granted access to doctor
-			// Make a notification that acess has been granted
+			// Make a notification that access has been granted
 			case "NotifyGranted":
 				sub.accessWasGranted(r)
 
@@ -64,7 +64,7 @@ func (s *Storage) Subscribe() {
 				sub.notifyKeyRequested(r)
 
 			default:
-				s.log.Debugf("SUBSCRIBTION:: Got unknown request %v", r.Name)
+				s.log.Debugf("SUBSCRIPTION:: Got unknown request %v", r.Name)
 			}
 		}
 	}()
@@ -75,9 +75,9 @@ func (s *subscribe) readMessage() (*request, error) {
 	_, message, err := s.conn.ReadMessage()
 	if err != nil {
 		if !websocket.IsUnexpectedCloseError(err, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015) {
-			s.config.Connceted = false
-			s.log.Printf("SUBSCRIBTION:: Closing due to closed connection")
-			s.log.Printf("SUBSCRIBTION:: Trying to reastablish connection")
+			s.config.Connected = false
+			s.log.Printf("SUBSCRIPTION:: Closing due to closed connection")
+			s.log.Printf("SUBSCRIPTION:: Trying to reastablish connection")
 			if err2 := retry(2*time.Second, 5, s.Reconnect); err2 != nil {
 				return nil, err2
 			}
@@ -101,7 +101,7 @@ func (s *subscribe) ImportKey(r *request) {
 		return
 	}
 
-	s.log.Debugf("SUBSCRIBTION:: Improting key from user %s", from)
+	s.log.Debugf("SUBSCRIPTION:: Importing key from user %s", from)
 
 	s.config.Directory[from] = name
 	s.config.EncryptionKeys[from] = key
@@ -116,13 +116,13 @@ func (s *subscribe) ImportKey(r *request) {
 		s.config.Connections.WithKey = append(s.config.Connections.WithKey, from)
 	}
 
-	s.log.Debugf("SUBSCRIBTION:: Improted key from %s ", from)
+	s.log.Debugf("SUBSCRIPTION:: Imported key from %s ", from)
 }
 
 func (s *subscribe) revokeKey(r *request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
-	s.log.Debugf("SUBSCRIBTION:: Revoking %s's key", from)
+	s.log.Debugf("SUBSCRIPTION:: Revoking %s's key", from)
 
 	s.ehr.RemoveUser(from)
 	delete(s.config.EncryptionKeys, from)
@@ -130,7 +130,7 @@ func (s *subscribe) revokeKey(r *request) {
 	for i, v := range s.config.Connections.WithKey {
 		if v == from {
 			s.config.Connections.WithKey = append(s.config.Connections.WithKey[:i], s.config.Connections.WithKey[i+1:]...)
-			s.log.Debugf("SUBSCRIBTION:: Revoked %s's key ", from)
+			s.log.Debugf("SUBSCRIPTION:: Revoked %s's key ", from)
 		}
 	}
 }
@@ -166,7 +166,7 @@ func (s *subscribe) accessWasGranted(r *request) {
 }
 
 func (s *subscribe) notifyKeyRequested(r *request) {
-	s.log.Debugf("SUBSCRIBTION:: Got RequestKey request")
+	s.log.Debugf("SUBSCRIPTION:: Got RequestKey request")
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 	rsakey := subscribeGetDataFromRequest(r, "key", s.log)
@@ -244,7 +244,7 @@ func rsaPEMKeyToRSAPublicKey(pubPEMData []byte) (*rsa.PublicKey, error) {
 func retry(wait time.Duration, attempts int, f func() error) (err error) {
 	for i := 0; i < attempts; i++ {
 		if err = f(); err == nil {
-			log.Printf("Function called successfuly")
+			log.Printf("Function called successfully")
 			return nil
 		}
 

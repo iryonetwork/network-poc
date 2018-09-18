@@ -50,7 +50,7 @@ func (c *Client) ConnectWs() error {
 
 func (c *Client) CloseWs() {
 	c.ws.Close()
-	c.config.Connceted = false
+	c.config.Connected = false
 	c.ws = nil
 }
 

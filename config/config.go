@@ -26,7 +26,7 @@ type Config struct {
 	Debug              bool   `env:"DEBUG" envDefault:"1"`
 	StoragePath        string `env:"DATA_PATH" envDefault:"/data"`
 	Token              string
-	Connceted          bool
+	Connected          bool
 	Subscribed         bool
 	IsDoctor           bool
 	PersonalData       *openEHR.PersonalData
@@ -45,7 +45,7 @@ type Connections struct {
 
 func New() (*Config, error) {
 	cfg := &Config{
-		Connceted:      false,
+		Connected:      false,
 		Subscribed:     false,
 		PersonalData:   &openEHR.PersonalData{},
 		EncryptionKeys: make(map[string][]byte),

@@ -63,7 +63,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		outErr,
 		h.config.GetNames(mapKeysToArray(h.config.Connections.Requested)),
 		base64.StdEncoding.EncodeToString(img),
-		h.config.Connceted,
+		h.config.Connected,
 		h.config.GetNames(h.config.Connections.WithoutKey),
 		h.config.GetNames(h.config.Connections.WithKey),
 		h.config.IsDoctor,
@@ -115,7 +115,7 @@ func (h *handlers) doctorIndexHandler(w http.ResponseWriter, r *http.Request) {
 		h.config.EosPrivate,
 		h.config.GetNames(h.config.Connections.WithKey),
 		h.config.EosContractName,
-		h.config.Connceted,
+		h.config.Connected,
 		h.config.GetNames(h.config.Connections.WithoutKey),
 		base64.StdEncoding.EncodeToString(img),
 	}

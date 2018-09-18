@@ -49,7 +49,7 @@ func Connect(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.
 		if !config.Subscribed {
 			out.Subscribe()
 		}
-		config.Connceted = true
+		config.Connected = true
 		return out, nil
 	}
 

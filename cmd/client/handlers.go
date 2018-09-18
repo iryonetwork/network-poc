@@ -78,14 +78,14 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
-	if h.config.Connceted {
+	if h.config.Connected {
 		h.client.CloseWs()
 	}
 	http.Redirect(w, r, "/", 302)
 }
 
 func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.config.Connceted {
+	if !h.config.Connected {
 		err := h.client.ConnectWs()
 		if err != nil {
 			h.log.Printf("Failed to connect to ws:%v", err)
