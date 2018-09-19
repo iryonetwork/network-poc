@@ -1,7 +1,9 @@
 package ws
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -95,7 +97,8 @@ func (s *subscribe) ImportKey(r *request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 
-	key, err := rsa.DecryptPKCS1v15(nil, s.config.RSAKey, keyenc)
+	rnd := rand.Reader
+	key, err := rsa.DecryptOAEP(sha256.New(), rnd, s.config.RSAKey, keyenc, []byte{})
 	if err != nil {
 		s.log.Printf("Error decrypting key: %v", err)
 		return
@@ -232,13 +235,22 @@ func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte
 }
 
 func rsaPEMKeyToRSAPublicKey(pubPEMData []byte) (*rsa.PublicKey, error) {
-
 	block, _ := pem.Decode(pubPEMData)
-	if block == nil || block.Type != "RSA PUBLIC KEY" {
+	if block == nil || block.Type != "PUBLIC KEY" {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
 	}
 
-	return x509.ParsePKCS1PublicKey(block.Bytes)
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("Failed to cast pub to rsa.PublicKey (got %T)", pub)
+	}
+
+	return pubKey, err
 }
 
 func retry(wait time.Duration, attempts int, f func() error) (err error) {

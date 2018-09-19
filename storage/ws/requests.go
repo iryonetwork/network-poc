@@ -3,6 +3,7 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -29,7 +30,9 @@ func (s *Storage) SendKey(to string) error {
 	if _, ok := s.config.Connections.Requested[to]; !ok {
 		return fmt.Errorf("No key from user %s found", to)
 	}
-	encKey, err := rsa.EncryptPKCS1v15(rand.Reader, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount])
+	rnd := rand.Reader
+	encKey, err := rsa.EncryptOAEP(sha256.New(), rnd, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], []byte{})
+
 	if err != nil {
 		return err
 	}
@@ -63,7 +66,10 @@ func (s *Storage) RequestsKey(to string) error {
 	r.append("to", to)
 
 	// Generate public key
-	key := rsaPublicToByte(&s.config.RSAKey.PublicKey)
+	key, err := rsaPublicToByte(&s.config.RSAKey.PublicKey)
+	if err != nil {
+		return err
+	}
 
 	r.append("key", string(key))
 
@@ -90,14 +96,18 @@ func (s *Storage) RequestsKey(to string) error {
 	return err
 }
 
-func rsaPublicToByte(public *rsa.PublicKey) []byte {
-	keyBytes := x509.MarshalPKCS1PublicKey(public)
+func rsaPublicToByte(public *rsa.PublicKey) ([]byte, error) {
+	keyBytes, err := x509.MarshalPKIXPublicKey(public)
+	if err != nil {
+		return nil, err
+	}
+
 	keyBlock := pem.Block{
-		Type:    "RSA PUBLIC KEY",
+		Type:    "PUBLIC KEY",
 		Headers: nil,
 		Bytes:   keyBytes,
 	}
-	return pem.EncodeToMemory(&keyBlock)
+	return pem.EncodeToMemory(&keyBlock), nil
 }
 
 func (s *Storage) NotifyGranted(to string) error {
