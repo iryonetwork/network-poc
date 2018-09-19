@@ -3,7 +3,7 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -98,7 +98,7 @@ func (s *subscribe) ImportKey(r *request) {
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 
 	rnd := rand.Reader
-	key, err := rsa.DecryptOAEP(sha256.New(), rnd, s.config.RSAKey, keyenc, []byte{})
+	key, err := rsa.DecryptOAEP(sha512.New(), rnd, s.config.RSAKey, keyenc, []byte{})
 	if err != nil {
 		s.log.Printf("Error decrypting key: %v", err)
 		return

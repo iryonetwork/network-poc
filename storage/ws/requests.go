@@ -3,7 +3,7 @@ package ws
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -31,7 +31,7 @@ func (s *Storage) SendKey(to string) error {
 		return fmt.Errorf("No key from user %s found", to)
 	}
 	rnd := rand.Reader
-	encKey, err := rsa.EncryptOAEP(sha256.New(), rnd, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], []byte{})
+	encKey, err := rsa.EncryptOAEP(sha512.New(), rnd, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], []byte{})
 
 	if err != nil {
 		return err
