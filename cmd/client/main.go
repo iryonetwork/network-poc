@@ -88,6 +88,7 @@ func main() {
 	http.HandleFunc("/grant", h.grantAccessHandler)
 	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
+	http.HandleFunc("/config", h.configHandler)
 	if config.ClientType == "Doctor" {
 		http.HandleFunc("/switchMode", h.switchModeHandler)
 	}

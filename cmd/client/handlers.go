@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -193,4 +194,12 @@ func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) switchModeHandler(w http.ResponseWriter, r *http.Request) {
 	h.config.IsDoctor = !h.config.IsDoctor
 	http.Redirect(w, r, "/", 302)
+}
+
+func (h *handlers) configHandler(w http.ResponseWriter, r *http.Request) {
+	a, err := json.Marshal(h.config)
+	if err != nil {
+		h.log.Debugf("error marshaling config: %v", err)
+	}
+	w.Write(a)
 }
