@@ -33,15 +33,18 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	owner := parts[2]
 	outErr := ""
 
+	var graphData *map[string]ehrdata.Entry
 	ehr := make(map[string]string)
 	// Download missing/new files/ check if access was removed
 	err = h.client.Update(owner)
 	if err != nil {
-
+		outErr = err.Error()
+		goto show
 	} else {
 		for k := range h.ehr.Get(owner) {
 			ehr[k] = string(h.ehr.Getid(owner, k))
-			v, err := h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
+			var v []byte
+			v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
 			if err != nil {
 				break
 			}
@@ -50,26 +53,32 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		outErr = err.Error()
-	}
-	if outErr == "Code: 404" {
-		outErr = ""
+		goto show
 	}
 
+	graphData, err = ehrdata.ExtractEhrData(owner, h.ehr, h.config)
+	if err != nil {
+		outErr = err.Error()
+	}
+
+show:
 	data := struct {
-		Type          string
+		Name          string
 		Public        string
 		Contract      string
 		Owner         string
 		OwnerUsername string
 		EHRData       map[string]string
+		GraphData     *map[string]ehrdata.Entry
 		Error         string
 	}{
-		h.config.ClientType,
+		h.config.PersonalData.Name,
 		h.config.EosAccount,
 		h.config.EosContractName,
 		h.config.Directory[owner],
 		owner,
 		ehr,
+		graphData,
 		outErr,
 	}
 

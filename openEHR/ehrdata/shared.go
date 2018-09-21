@@ -48,7 +48,7 @@ type Entry struct {
 // Get each of EHR values in type of Entry. The order of indexes of Entry.Timestamp is equal to the order of indexes of Entry.Value
 func ExtractEhrData(owner string, ehr *ehr.Storage, config *config.Config) (*map[string]Entry, error) {
 	listOfData := []*openEHR.All{}
-	for _, id := range ehr.ListIds(config.EosAccount) {
+	for _, id := range ehr.ListIds(owner) {
 		datajson, err := ehr.Decrypt(owner, id, config.EncryptionKeys[owner])
 		if err != nil {
 			return nil, err

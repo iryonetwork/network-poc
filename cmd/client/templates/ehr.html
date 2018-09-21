@@ -14,46 +14,87 @@
     </head>
     <body>
     <div class="container">
-        <h1>Hello, {{.Type}}</h1>
+        <h1>Hello, {{.Name}}</h1>
         <h2>{{.Public}}</h2>
+
+        <h3>EHR for {{.Owner}}</h3>
+
+        <a href="/">Back to home</a>
+
+        {{if .Error}}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{.Error}}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {{else}}
 
         <div class="content">
 
-            <a href="/">Back to home</a>
 
-            {{if .Error}}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{.Error}}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            {{else}}
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                {{ if .GraphData }}
+                <li class="nav-item">
+                    <a class="nav-link active" id="graphs-tab" data-toggle="tab" href="#graphs" role="tab" aria-controls="graphs" aria-selected="true">Graphs</a>
+                </li>
+                <li class="nav-item">
+                        <a class="nav-link" id="add-tab" data-toggle="tab" href="#add" role="tab" aria-controls="add" aria-selected="false">Add data</a>
+                    </li>    
+                {{ else }}
 
-                <h3>EHR for {{.Owner}}</h3>
-                <form action="/save">
-                    <input name="owner" type="hidden" value="{{ .OwnerUsername }}"/>
-                    Weight:<br>
-                    <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
-                    Glucose:<br>
-                    <input type="number" step="0.1" name="glucose" placeholder="6.5"> mmol/l <br>
-                    Blood Pressure:<br>
-                    Systolic: <input type="number" step="0.1" name="systolic" placeholder="120"> mm[Hg] <br>
-                    Diastolic <input type="number" step="0.1" name="diastolic" placeholder="70"> mm[Hg] <br><br>
+                <li class="nav-item">
+                        <a class="nav-link active" id="add-tab" data-toggle="tab" href="#add" role="tab" aria-controls="add" aria-selected="false">Add data</a>
+                    </li> 
 
-                <button class="btn btn-primary" type="submit">Save</button>
-            </form>
-            <br>
-    {{ if .EHRData }}
-                <div>
-                    {{range $i, $c := .EHRData}}
+                {{ end }}
+
+                <li class="nav-item">
+                    <a class="nav-link" id="files-tab" data-toggle="tab" href="#files" role="tab" aria-controls="files" aria-selected="false">Files content</a>
+                </li>
+            </ul>
+            <div class="tab-content" id="myTabContent">
+                
+                {{ if .GraphData }}
+                <div class="tab-pane fade show active" id="graphs" role="tabpanel" aria-labelledby="graphs-tab">
+                        {{range $i, $c := .GraphData}}
                         <h1>{{ $i }}</h1>
-                        <div class="form-control" name="data" rows="10">{{ $c }}</div>
+                                <canvas class="chart" data-name="{{ $i }}" data-values="{{ .Value }}" data-timestamps="{{ .Timestamp }}" style="width: 50%"></canvas>
+                        {{ end }}
+                </div>
+                {{ end }}
+                {{ if .GraphData }}
+                <div class="tab-pane fade" id="add" role="tabpanel" aria-labelledby="add-tab">
+                {{ else }}
+                <div class="tab-pane fade show active" id="add" role="tabpanel" aria-labelledby="add-tab">                
+                {{ end }}
+                    <form action="/save">
+                        <input name="owner" type="hidden" value="{{ .OwnerUsername }}"/>
+                        Weight:<br>
+                        <input  type="number" step="0.1" name="weight" placeholder="75"> kg <br>
+                        Glucose:<br>
+                        <input type="number" step="0.1" name="glucose" placeholder="6.5"> mmol/l <br>
+                        Blood Pressure:<br>
+                        Systolic: <input type="number" step="0.1" name="systolic" placeholder="120"> mm[Hg] <br>
+                        Diastolic <input type="number" step="0.1" name="diastolic" placeholder="70"> mm[Hg] <br><br>
+
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </form>
+                </div>
+
+                <div class="tab-pane fade" id="files" role="tabpanel" aria-labelledby="files-tab">
+                    {{ if .EHRData }}
+                    <div>
+                        {{range $i, $c := .EHRData}}
+                            <h1>{{ $i }}</h1>
+                            <div class="form-control" name="data" rows="10">{{ $c }}</div>
+                        {{end}}
+                    </div>
+                    {{else}}
+                        <div> No data found for {{ .Owner }}</div> 
                     {{end}}
                 </div>
-                {{else}}
-                <div> No data found for {{ .Owner }}</div> 
-                {{end}}
+            </div>
             {{ end }}
             <div class="footer">
                 Contract address: {{ .Contract }}
@@ -67,52 +108,38 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
 
+
     <script>
-        $(document).ready(function() {
-            var data = $("textarea").val().split("\n").filter(function(point) {
-                return point.split(",").length == 2
-            }).map(function(point) {
-                var parts = point.split(",")
-                return {
-                    x: new Date(parseInt(parts[0])),
-                    y: parseInt(parts[1])
-                }
-            })
-
-            var ctx = document.getElementById('chart').getContext('2d')
-            var chart = new Chart(ctx, {
+        $( ".chart" ).each(function(i, canvas){
+            var ctx = canvas.getContext("2d")
+            var myChart = new Chart(ctx, {
                 type: 'line',
-
                 data: {
+                    labels: canvas.dataset.timestamps.slice(1,-1).split(" "),
                     datasets: [{
-                        label: "Heart rate",
-                        backgroundColor: 'rgb(255, 99, 132)',
-                        borderColor: 'rgb(255, 99, 132)',
-                        data: data,
+                        label: canvas.dataset.name,
+                        data: canvas.dataset.values.slice(1,-1).split(" "),
+                        backgroundColor: [
+                            'rgba(255,0,0,0)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1,
+                        lineTension: 0
                     }]
                 },
                 options: {
                     scales: {
                         xAxes: [{
-                            type: 'time',
-                            distribution: 'series'
-                        }]
+                            type: 'time'
+                            }]
                     }
                 }
             })
+        });
 
-            $("#add").click(function() {
-                var point = {
-                    x: Date.now(),
-                    y: Math.floor(Math.random() * 60) + 100
-                }
 
-                $("textarea").val($("textarea").val() + "\n" + point.x + "," + point.y)
-                chart.data.datasets[0].data.push(point)
-                chart.update()
-            })
-
-        })
-    </script>
+        </script>
     </body>
 </html>
