@@ -66,6 +66,7 @@ services:
     - main.go
     - handlers.go
     - wshandlers.go
+    - ws.go
     - accountCreate.go
     - checks.go
     - ehr.go

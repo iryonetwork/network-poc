@@ -1,8 +1,9 @@
-package ws
+package client
 
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
@@ -11,17 +12,23 @@ import (
 	"log"
 	"time"
 
+	"github.com/eoscanada/eos-go/ecc"
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/requests"
 )
 
 type subscribe struct {
-	*Storage
+	*Ws
+	*requests.Requests
+	client *Client
 }
 
-func (s *Storage) Subscribe() {
-	s.log.Debugf("WS::SubscribeDoctor called")
-	sub := &subscribe{s}
+func (s *Ws) Subscribe() {
+	s.log.Debugf("WS::Subscribe called")
+	reqs := requests.NewRequests(s.log, s.config, s.conn, s.eos)
+
+	sub := &subscribe{s, reqs, New(s.config, s.eos, s.ehr, s.log)}
 
 	s.config.Subscribed = true
 	defer func() {
@@ -75,7 +82,7 @@ func (s *Storage) Subscribe() {
 	}()
 }
 
-func (s *subscribe) readMessage() (*request, error) {
+func (s *subscribe) readMessage() (*requests.Request, error) {
 	// Read the message
 	_, message, err := s.conn.ReadMessage()
 	if err != nil {
@@ -89,10 +96,10 @@ func (s *subscribe) readMessage() (*request, error) {
 		}
 		return nil, err
 	}
-	return decode(message)
+	return requests.Decode(message)
 }
 
-func (s *subscribe) ImportKey(r *request) {
+func (s *subscribe) ImportKey(r *requests.Request) {
 	keyenc, err := base64.StdEncoding.DecodeString(subscribeGetStringDataFromRequest(r, "key", s.log))
 	if err != nil {
 		s.log.Debugf("Error decoding key from base64; %v", err)
@@ -125,7 +132,7 @@ func (s *subscribe) ImportKey(r *request) {
 	s.log.Debugf("SUBSCRIPTION:: Imported key from %s ", from)
 }
 
-func (s *subscribe) revokeKey(r *request) {
+func (s *subscribe) revokeKey(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
 	s.log.Debugf("SUBSCRIPTION:: Revoking %s's key", from)
@@ -141,7 +148,7 @@ func (s *subscribe) revokeKey(r *request) {
 	}
 }
 
-func (s *subscribe) subReencrypt(r *request) {
+func (s *subscribe) subReencrypt(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	s.ehr.RemoveUser(from)
 	err := s.RequestsKey(from)
@@ -150,7 +157,7 @@ func (s *subscribe) subReencrypt(r *request) {
 	}
 }
 
-func (s *subscribe) accessWasGranted(r *request) {
+func (s *subscribe) accessWasGranted(r *requests.Request) {
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
@@ -171,7 +178,7 @@ func (s *subscribe) accessWasGranted(r *request) {
 	}
 }
 
-func (s *subscribe) notifyKeyRequested(r *request) {
+func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 	s.log.Debugf("SUBSCRIPTION:: Got RequestKey request")
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
@@ -222,22 +229,23 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 	}
 }
 
-func (s *subscribe) newUpload(r *request) {
+func (s *subscribe) newUpload(r *requests.Request) {
 	account := subscribeGetStringDataFromRequest(r, "user", s.log)
 
 	s.log.Debugf("New file for user: %s", account)
+
 }
 
-func subscribeGetStringDataFromRequest(r *request, key string, log *logger.Log) string {
-	out, err := r.getDataString(key)
+func subscribeGetStringDataFromRequest(r *requests.Request, key string, log *logger.Log) string {
+	out, err := r.GetDataString(key)
 	if err != nil {
 		log.Printf("Error getting `%s`: %v", key, err)
 	}
 	return out
 }
 
-func subscribeGetDataFromRequest(r *request, key string, log *logger.Log) []byte {
-	out, err := r.getData(key)
+func subscribeGetDataFromRequest(r *requests.Request, key string, log *logger.Log) []byte {
+	out, err := r.GetData(key)
 	if err != nil {
 		log.Printf("Error getting `%s`: %v", key, err)
 	}
@@ -261,6 +269,35 @@ func rsaPEMKeyToRSAPublicKey(pubPEMData []byte) (*rsa.PublicKey, error) {
 	}
 
 	return pubKey, err
+}
+
+func (s *subscribe) verifyRequestKeyRequest(signature, from string, rsakey []byte) (bool, error) {
+	eoskey, err := requestGetKeyFromSignature(signature, rsakey)
+	if err != nil {
+		return false, err
+	}
+
+	return s.eos.CheckAccountKey(from, eoskey.String())
+}
+
+func requestGetKeyFromSignature(strsign string, rsakey []byte) (ecc.PublicKey, error) {
+
+	sign, err := ecc.NewSignature(strsign)
+	if err != nil {
+		return ecc.PublicKey{}, err
+	}
+
+	key, err := sign.PublicKey(getHash(rsakey))
+	if err != nil {
+		return ecc.PublicKey{}, fmt.Errorf("Signture could not be verified; %v", err)
+	}
+	return key, nil
+}
+
+func getHash(in []byte) []byte {
+	sha := sha256.New()
+	sha.Write(in)
+	return sha.Sum(nil)
 }
 
 func retry(wait time.Duration, attempts int, f func() error) (err error) {

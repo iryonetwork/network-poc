@@ -1,8 +1,9 @@
-package ws
+package main
 
 import (
-	"crypto/sha256"
 	"fmt"
+
+	"github.com/iryonetwork/network-poc/requests"
 
 	"github.com/eoscanada/eos-go/ecc"
 	"github.com/iryonetwork/network-poc/db"
@@ -10,21 +11,21 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
+func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 
-	inReq, err := decode(reqdata)
+	inReq, err := requests.Decode(reqdata)
 	if err != nil {
 		return err
 	}
 
 	s.log.Debugf("WS_API:: Got request: %s", inReq.Name)
-	var r *request
+	var r *requests.Request
 
 	switch inReq.Name {
 	case "SendKey":
 		s.log.Debugf("WS_API:: Sending key")
-		r = newReq("ImportKey")
-		key, err := inReq.getDataString("key")
+		r = requests.NewReq("ImportKey")
+		key, err := inReq.GetDataString("key")
 		if err != nil {
 			return err
 		}
@@ -32,14 +33,14 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		if err != nil {
 			return err
 		}
-		r.append("name", (name))
-		r.append("key", key)
-		r.append("from", (from))
+		r.Append("name", (name))
+		r.Append("key", key)
+		r.Append("from", (from))
 
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
-		r = newReq("RevokeKey")
-		r.append("from", (from))
+		r = requests.NewReq("RevokeKey")
+		r.Append("from", (from))
 
 	case "RequestKey":
 		s.log.Debugf("WS_API:: Requesting key")
@@ -57,16 +58,16 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		if err != nil {
 			return err
 		}
-		r = newReq("NotifyGranted")
-		r.append("from", (from))
-		r.append("name", (name))
+		r = requests.NewReq("NotifyGranted")
+		r.Append("from", (from))
+		r.Append("name", (name))
 	default:
 		s.log.Debugf("Recieved an invalid request")
 		return nil
 
 	}
 
-	sendTo, err := inReq.getDataString("to")
+	sendTo, err := inReq.GetDataString("to")
 	if err != nil {
 		return err
 	}
@@ -79,9 +80,9 @@ func (s *Storage) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 	return s.sendRequest(r, sendTo)
 }
 
-func (s *Storage) sendRequest(r *request, to string) error {
+func (s *wsStruct) sendRequest(r *requests.Request, to string) error {
 	// Encode
-	req, err := r.encode()
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -106,16 +107,16 @@ func (s *Storage) sendRequest(r *request, to string) error {
 
 }
 
-func (s *Storage) reencrypt(r *request, from string) error {
+func (s *wsStruct) reencrypt(r *requests.Request, from string) error {
 	// Create list of doctors to send message to
 	sendTo, err := s.eos.ListConnected(from)
 	if err != nil {
 		return err
 	}
 	// Construct request
-	r = newReq("Reencrypt")
-	r.append("from", (from))
-	req, err := r.encode()
+	r = requests.NewReq("Reencrypt")
+	r.Append("from", (from))
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -136,13 +137,13 @@ func (s *Storage) reencrypt(r *request, from string) error {
 	return err
 }
 
-func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
+func (s *wsStruct) requestKey(r *requests.Request, from string, db *db.Db) error {
 	// Get the data in request
-	rsakey, err := r.getData("key")
+	rsakey, err := r.GetData("key")
 	if err != nil {
 		return err
 	}
-	sign, err := r.getDataString("signature")
+	sign, err := r.GetDataString("signature")
 	if err != nil {
 		return err
 	}
@@ -160,7 +161,7 @@ func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 
 	s.log.Debugf("Request verified")
 
-	sendto, err := r.getDataString("to")
+	sendto, err := r.GetDataString("to")
 	if err != nil {
 		return err
 	}
@@ -169,15 +170,15 @@ func (s *Storage) requestKey(r *request, from string, db *db.Db) error {
 		return err
 	}
 
-	r.remove("to")
-	r.append("from", from)
-	r.append("name", name)
+	r.Remove("to")
+	r.Append("from", from)
+	r.Append("name", name)
 	s.sendRequest(r, sendto)
 
 	return nil
 }
 
-func (s *Storage) verifyRequestKeyRequest(signature, from string, rsakey []byte) (bool, error) {
+func (s *wsStruct) verifyRequestKeyRequest(signature, from string, rsakey []byte) (bool, error) {
 	eoskey, err := requestGetKeyFromSignature(signature, rsakey)
 	if err != nil {
 		return false, err
@@ -198,10 +199,4 @@ func requestGetKeyFromSignature(strsign string, rsakey []byte) (ecc.PublicKey, e
 		return ecc.PublicKey{}, fmt.Errorf("Signture could not be verified; %v", err)
 	}
 	return key, nil
-}
-
-func getHash(in []byte) []byte {
-	sha := sha256.New()
-	sha.Write(in)
-	return sha.Sum(nil)
 }

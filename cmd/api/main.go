@@ -43,16 +43,12 @@ func main() {
 	defer db.Close()
 
 	h := &handlers{
+		hub:    hub,
+		token:  token.Init(log),
+		eos:    eos,
 		config: config,
 		log:    log,
-		f: &storage{
-			hub:    hub,
-			token:  token.Init(log),
-			eos:    eos,
-			config: config,
-			log:    log,
-			db:     db,
-		},
+		db:     db,
 	}
 	router := mux.NewRouter()
 

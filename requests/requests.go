@@ -1,4 +1,4 @@
-package ws
+package requests
 
 import (
 	"crypto/rand"
@@ -9,24 +9,30 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"log"
+
+	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/storage/eos"
 
 	"github.com/gorilla/websocket"
+	"github.com/iryonetwork/network-poc/logger"
 )
 
-type Requests interface {
-	SendKey(to string)
-	RevokeKey(to string)
-	RequestKey(to string)
-	NotifyGranted(to string)
-	ReencryptRequest()
+type Requests struct {
+	log    *logger.Log
+	config *config.Config
+	conn   *websocket.Conn
+	eos    *eos.Storage
 }
 
-func (s *Storage) SendKey(to string) error {
+func NewRequests(log *logger.Log, config *config.Config, conn *websocket.Conn, eos *eos.Storage) *Requests {
+	return &Requests{log, config, conn, eos}
+}
+
+func (s *Requests) SendKey(to string) error {
 	s.log.Debugf("WS:: Sending encryption key to %s", to)
 
-	r := newReq("SendKey")
-	r.append("to", to)
+	r := NewReq("SendKey")
+	r.Append("to", to)
 	// Encrypt key
 	if _, ok := s.config.Connections.Requested[to]; !ok {
 		return fmt.Errorf("No key from user %s found", to)
@@ -37,8 +43,8 @@ func (s *Storage) SendKey(to string) error {
 	if err != nil {
 		return err
 	}
-	r.append("key", base64.StdEncoding.EncodeToString(encKey))
-	req, err := r.encode()
+	r.Append("key", base64.StdEncoding.EncodeToString(encKey))
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -47,12 +53,12 @@ func (s *Storage) SendKey(to string) error {
 	return err
 }
 
-func (s *Storage) RevokeKey(to string) error {
+func (s *Requests) RevokeKey(to string) error {
 	s.log.Debugf("WS:: Revoking encryption key at %s", to)
 
-	r := newReq("RevokeKey")
-	r.append("to", to)
-	req, err := r.encode()
+	r := NewReq("RevokeKey")
+	r.Append("to", to)
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -60,11 +66,11 @@ func (s *Storage) RevokeKey(to string) error {
 	return err
 }
 
-func (s *Storage) RequestsKey(to string) error {
+func (s *Requests) RequestsKey(to string) error {
 	s.log.Debugf("WS:: Requesting encryption key from %s", to)
 
-	r := newReq("RequestKey")
-	r.append("to", to)
+	r := NewReq("RequestKey")
+	r.Append("to", to)
 
 	// Generate public key
 	key, err := rsaPublicToByte(&s.config.RSAKey.PublicKey)
@@ -72,19 +78,19 @@ func (s *Storage) RequestsKey(to string) error {
 		return err
 	}
 
-	r.append("key", string(key))
+	r.Append("key", string(key))
 
 	// Sign the key
 	sign, err := s.eos.SignHash(key)
 	if err != nil {
 		return err
 	}
-	r.append("signature", sign)
+	r.Append("signature", sign)
 
 	// And add your EOS key
-	r.append("eoskey", s.config.GetEosPublicKey())
+	r.Append("eoskey", s.config.GetEosPublicKey())
 
-	req, err := r.encode()
+	req, err := r.Encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
 	// Check if user is on GrantedWithoutKeys list
@@ -95,18 +101,6 @@ func (s *Storage) RequestsKey(to string) error {
 	}
 
 	return err
-}
-
-func NotifyUploadRequest(owner string) []byte {
-	req := newReq("NewUpload")
-	req.append("user", owner)
-
-	out, err := req.encode()
-	if err != nil {
-		log.Printf("Error encoding requset NewUpload; %v", err)
-	}
-
-	return out
 }
 
 func rsaPublicToByte(public *rsa.PublicKey) ([]byte, error) {
@@ -123,12 +117,12 @@ func rsaPublicToByte(public *rsa.PublicKey) ([]byte, error) {
 	return pem.EncodeToMemory(&keyBlock), nil
 }
 
-func (s *Storage) NotifyGranted(to string) error {
+func (s *Requests) NotifyGranted(to string) error {
 	s.log.Debugf("WS:: Notifying %s that access was granted", to)
 
-	r := newReq("NotifyGranted")
-	r.append("to", to)
-	req, err := r.encode()
+	r := NewReq("NotifyGranted")
+	r.Append("to", to)
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -136,11 +130,11 @@ func (s *Storage) NotifyGranted(to string) error {
 	return err
 }
 
-func (s *Storage) ReencryptRequest() error {
+func (s *Requests) ReencryptRequest() error {
 	s.log.Debugf("WS: Sending reeencrypted notification")
 
-	r := newReq("Reencrypt")
-	req, err := r.encode()
+	r := NewReq("Reencrypt")
+	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
@@ -149,25 +143,25 @@ func (s *Storage) ReencryptRequest() error {
 	return err
 }
 
-type request struct {
+type Request struct {
 	Name   string
 	Fields map[string]string
 }
 
-func newReq(name string) *request {
-	return &request{name, make(map[string]string)}
+func NewReq(name string) *Request {
+	return &Request{name, make(map[string]string)}
 }
 
-func (r *request) append(name string, data string) {
+func (r *Request) Append(name string, data string) {
 	r.Fields[name] = data
 }
 
-func (r *request) encode() ([]byte, error) {
+func (r *Request) Encode() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-func decode(r []byte) (*request, error) {
-	req := &request{}
+func Decode(r []byte) (*Request, error) {
+	req := &Request{}
 	err := json.Unmarshal(r, req)
 	if err != nil {
 		return req, fmt.Errorf("Error decoding request: %v\nRequest sent in: %s", err, r)
@@ -175,20 +169,20 @@ func decode(r []byte) (*request, error) {
 	return req, nil
 }
 
-func (r *request) getData(key string) ([]byte, error) {
+func (r *Request) GetData(key string) ([]byte, error) {
 	if d, ok := r.Fields[key]; ok {
 		return []byte(d), nil
 	}
 	return []byte{}, fmt.Errorf("No data found for key %s", key)
 }
 
-func (r *request) getDataString(key string) (string, error) {
+func (r *Request) GetDataString(key string) (string, error) {
 	if d, ok := r.Fields[key]; ok {
 		return d, nil
 	}
 	return "", fmt.Errorf("No data found for key %s", key)
 }
-func (r *request) remove(key string) {
+func (r *Request) Remove(key string) {
 	if _, ok := r.Fields[key]; ok {
 		delete(r.Fields, key)
 	}

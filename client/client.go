@@ -14,37 +14,40 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iryonetwork/network-poc/requests"
+
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
-	"github.com/iryonetwork/network-poc/storage/ws"
 )
 
 type Client struct {
-	config *config.Config
-	eos    *eos.Storage
-	ehr    *ehr.Storage
-	log    *logger.Log
-	ws     *ws.Storage
+	config  *config.Config
+	eos     *eos.Storage
+	ehr     *ehr.Storage
+	log     *logger.Log
+	ws      *Ws
+	request *requests.Requests
 }
 
-func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) (*Client, error) {
+func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) *Client {
 	return &Client{
 		config: config,
 		eos:    eos,
 		ehr:    ehr,
 		log:    log,
-	}, nil
+	}
 }
 
 func (c *Client) ConnectWs() error {
 	c.Login()
-	wsStorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos)
+	wsStorage, err := ConnectWs(c.config, c.log, c.ehr, c.eos)
 	if err != nil {
 		return err
 	}
 	c.ws = wsStorage
+	c.request = requests.NewRequests(c.log, c.config, wsStorage.Conn(), c.eos)
 	return nil
 }
 
@@ -315,7 +318,7 @@ func (c *Client) Reencrypt(key []byte) error {
 	c.config.EncryptionKeys[c.config.EosAccount] = key
 
 	// Send notification about reencrypting to api
-	err = c.ws.ReencryptRequest()
+	err = c.request.ReencryptRequest()
 	if err != nil {
 		return err
 	}
@@ -369,12 +372,12 @@ func (c *Client) GrantAccess(to string) error {
 	// else notify the doctor that request was granted
 	if _, ok := c.config.Connections.Requested[to]; ok {
 		// send key for storage encryption
-		err = c.ws.SendKey(to)
+		err = c.request.SendKey(to)
 		if err != nil {
 			return fmt.Errorf("failed to send key; %v", err)
 		}
 	} else {
-		err = c.ws.NotifyGranted(to)
+		err = c.request.NotifyGranted(to)
 		if err != nil {
 			return fmt.Errorf("Failed to notify access granted; %v", err)
 		}
@@ -401,7 +404,7 @@ func (c *Client) RevokeAccess(to string) error {
 	c.log.Debugf("Client::revokeAccess(%s) called", to)
 
 	// send empty key to doctor to revoke the access
-	err := c.ws.RevokeKey(to)
+	err := c.request.RevokeKey(to)
 	if err != nil {
 		return fmt.Errorf("Error revoking key: %v", err)
 	}
@@ -427,7 +430,7 @@ func (c *Client) RevokeAccess(to string) error {
 }
 
 func (c *Client) RequestAccess(to string) error {
-	err := c.ws.RequestsKey(to)
+	err := c.request.RequestsKey(to)
 	return err
 }
 

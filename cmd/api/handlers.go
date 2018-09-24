@@ -15,12 +15,6 @@ import (
 )
 
 type handlers struct {
-	config *config.Config
-	log    *logger.Log
-	f      *storage
-}
-
-type storage struct {
 	eos    *eos.Storage
 	hub    *hub.Hub
 	token  *token.TokenList
@@ -29,7 +23,12 @@ type storage struct {
 	db     *db.Db
 }
 
+type storage struct {
+	*handlers
+}
+
 func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
+	funcs := storage{h}
 	h.log.Debugf("Got login request")
 
 	// Get data from form
@@ -43,7 +42,7 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 		id = name[0]
 
 		// Are key and acc connected?
-		code, err := h.f.checkKeyAndID(id, key)
+		code, err := funcs.checkKeyAndID(id, key)
 		if err != nil {
 			h.writeErrorJson(w, code, err.Error())
 			return
@@ -53,13 +52,13 @@ func (h *handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify Signature
-	if code, err := h.f.checkSignature(key, r.Form["sign"][0], []byte(r.Form["hash"][0])); err != nil {
+	if code, err := funcs.checkSignature(key, r.Form["sign"][0], []byte(r.Form["hash"][0])); err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
 	// Create new token
-	token, validUntil, code, err := h.f.newToken(id, exists)
+	token, validUntil, code, err := funcs.newToken(id, exists)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
@@ -78,6 +77,8 @@ type uploadResponse struct {
 }
 
 func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid string) {
+	funcs := storage{h}
+
 	response := uploadResponse{}
 	if !isMultipart(r) {
 		h.writeErrorJson(w, 400, "Request is not multipart/form-data")
@@ -88,7 +89,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid str
 
 	// Authorize the user
 	token := r.Header.Get("Authorization")
-	account, code, err := h.f.tokenValidateGetName(token)
+	account, code, err := funcs.tokenValidateGetName(token)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
@@ -112,13 +113,13 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid str
 	}
 
 	// Save the file
-	fid, ts, code, err := h.f.saveFileWithChecks(owner, account, key, r.FormValue("sign"), file, header, fid)
+	fid, ts, code, err := funcs.saveFileWithChecks(owner, account, key, r.FormValue("sign"), file, header, fid)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
-	h.f.notifyConnectedUpload(owner, account)
+	funcs.notifyConnectedUpload(owner, account)
 
 	//Generate response
 	response.FileID = fid
@@ -129,22 +130,24 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid str
 }
 
 func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
+	funcs := storage{h}
+
 	params := mux.Vars(r)
 	owner := params["account"]
 
 	//Authorize
 	token := r.Header.Get("Authorization")
-	account, code, err := h.f.tokenValidateGetName(token)
+	account, code, err := funcs.tokenValidateGetName(token)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
-	if code, err = h.f.checkAccessGranted(owner, account); err != nil {
+	if code, err = funcs.checkAccessGranted(owner, account); err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
-	response, code, err := h.f.listFiles(owner)
+	response, code, err := funcs.listFiles(owner)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
@@ -154,19 +157,21 @@ func (h *handlers) lsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
+	funcs := storage{h}
+
 	params := mux.Vars(r)
 
 	fid := params["fid"]
 	owner := params["account"]
 	//Authorize
 	token := r.Header.Get("Authorization")
-	account, code, err := h.f.tokenValidateGetName(token)
+	account, code, err := funcs.tokenValidateGetName(token)
 	// make sure connected has access to data
-	if code, err := h.f.checkAccessGranted(owner, account); err != nil {
+	if code, err := funcs.checkAccessGranted(owner, account); err != nil {
 		h.writeErrorBody(w, code, err.Error())
 		return
 	}
-	f, code, err := h.f.readFileData(owner, fid)
+	f, code, err := funcs.readFileData(owner, fid)
 	if err != nil {
 		h.writeErrorBody(w, code, err.Error())
 		return
@@ -177,48 +182,52 @@ func (h *handlers) downloadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) createaccHandler(w http.ResponseWriter, r *http.Request) {
+	funcs := storage{h}
+
 	response := make(map[string]string)
 	r.ParseForm()
 	// Authorize the user
 	token := r.Header.Get("Authorization")
 	h.log.Debugf("Checking token")
-	key, code, err := h.f.tokenAccountCreation(token)
+	key, code, err := funcs.tokenAccountCreation(token)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 	h.log.Debugf("Creating new account")
-	accountname, code, err := h.f.newAccount(key)
+	accountname, code, err := funcs.newAccount(key)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
-	h.f.db.AddName(accountname, r.Form["name"][0])
+	h.db.AddName(accountname, r.Form["name"][0])
 	response["account"] = accountname
-	h.f.token.AccCreated(token, accountname, key)
+	h.token.AccCreated(token, accountname, key)
 	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(response)
 }
 
 func (h *handlers) accountToIDHandler(w http.ResponseWriter, r *http.Request) {
+	funcs := storage{h}
+
 	owner := mux.Vars(r)["account"]
 	token := r.Header.Get("Authorization")
 
-	account, code, err := h.f.tokenValidateGetName(token)
+	account, code, err := funcs.tokenValidateGetName(token)
 	if err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
-	if code, err = h.f.checkAccessGranted(owner, account); err != nil {
+	if code, err = funcs.checkAccessGranted(owner, account); err != nil {
 		h.writeErrorJson(w, code, err.Error())
 		return
 	}
 
 	response := make(map[string]string)
 
-	if response["name"], err = h.f.db.GetName(owner); err != nil {
+	if response["name"], err = h.db.GetName(owner); err != nil {
 		h.writeErrorJson(w, 500, err.Error())
 		return
 	}
