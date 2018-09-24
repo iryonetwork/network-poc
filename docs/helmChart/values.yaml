@@ -1,6 +1,5 @@
 apiDockerImage: iryo/poc-api:latest
-doctorDockerImage: iryo/poc-doctor:latest
-patientDockerImage: iryo/poc-patient:latest
+clientDockerImage: iryo/poc-client:latest
 apiDomain: api.poc.stg.iryo.io
 patientDomain: patient.poc.stg.iryo.io
 doctorDomain: doctor.poc.stg.iryo.io

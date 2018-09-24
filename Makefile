@@ -28,14 +28,6 @@ stop: ## stop all services in docker-compose
 stop/%: ## stop a service in docker-compose
 	docker-compose stop $*
 
-# build/%: ## builds a specific project
-# 	@mkdir -p .bin
-# 	@if [ -a cmd/$*/main.go ]; then \
-# 		GOOS=linux GOARCH=amd64 go build -o ./.bin/$* ./cmd/$* ; \
-# 	else \
-# 		echo "No sources found in cmd/$*/main.go"; \
-# 	fi
-
 logs: ## shows docker compose logs
 	docker-compose logs -f --tail=0 $*
 
@@ -63,12 +55,12 @@ help: ## displays this message
 watch/%: ## helper for running tasks on file change (requires watchdog)
 	watchmedo shell-command -i "./.git/*;./.data/*;./.bin/*" --recursive --ignore-directories --wait --command "$(MAKE) $*"
 
-package: package/api package/doctor package/patient
+package: package/api package/client
 
 package/%:
 	docker build --build-arg BIN=$* --file=Dockerfile.build --tag=iryo/poc-$*:$(DOCKER_TAG) .
 
-publish: publish/api publish/doctor publish/patient
+publish: publish/api publish/client
 
 publish/%: package/%
 	docker push iryo/poc-$*:$(DOCKER_TAG)
