@@ -273,8 +273,11 @@
     var ws = new WebSocket("ws://"+window.location.host+"/ws")
 
     ws.onmessage = function(event){
-        document.getElementById("chart").dataset.ehr = event.data
-        updateChart()    
+        // dont update the graph unless the currently open user is the one being updated
+        if (JSON.parse(event.data.slice(0, event.data.indexOf("}")+1)).account == {{ .Username }}){
+            document.getElementById("chart").dataset.ehr = event.data.slice(event.data.indexOf("}")+1, event.data.length)
+            updateChart()
+        }
     }
         </script>
     </body>

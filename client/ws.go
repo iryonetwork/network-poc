@@ -84,6 +84,6 @@ func (c *Client) RemoveFrontendWS(conn *websocket.Conn) error {
 	if !deleted {
 		return fmt.Errorf("Ws connection not found")
 	}
-	c.log.Debugf("Closing ws connection")
+	c.log.Debugf("Closing client's ws connection")
 	return conn.Close()
 }

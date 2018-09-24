@@ -251,8 +251,9 @@ func (s *subscribe) newUpload(r *requests.Request) {
 	if err != nil {
 		s.log.Debugf("Error marshaling json: %v", err)
 	}
+	userdata := []byte(fmt.Sprintf(`{"account":"%s"}`, account))
 	for _, conn := range s.frontendConn {
-		err = conn.WriteMessage(1, data)
+		err = conn.WriteMessage(1, append(userdata, data...))
 		if err != nil {
 			s.log.Debugf("Error writing message: %v", err)
 		}
