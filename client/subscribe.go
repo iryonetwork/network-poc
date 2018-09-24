@@ -252,7 +252,7 @@ func (s *subscribe) newUpload(r *requests.Request) {
 		s.log.Debugf("Error marshaling json: %v", err)
 	}
 	for _, conn := range s.frontendConn {
-		err = conn.WriteMessage(2, data)
+		err = conn.WriteMessage(1, data)
 		if err != nil {
 			s.log.Debugf("Error writing message: %v", err)
 		}
