@@ -437,3 +437,17 @@ func (c *Client) RequestAccess(to string) error {
 func (c *Client) NewRequestKeyQr() string {
 	return fmt.Sprintf("%s", c.config.EosAccount)
 }
+
+func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	id, err := c.ehr.Encrypt(user, jsonData, c.config.EncryptionKeys[user])
+	if err != nil {
+		return err
+	}
+
+	return c.Upload(user, id, false)
+}

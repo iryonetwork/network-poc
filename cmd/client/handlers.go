@@ -120,7 +120,7 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	data := ehrdata.NewVitalSigns(h.config)
 	if err = ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
-		err = ehrdata.SaveAndUpload(owner, h.config, h.ehr, h.client, data)
+		err = h.client.SaveAndUploadEhrData(owner, data)
 	}
 	url := "/"
 	if h.config.ClientType == "Doctor" {
