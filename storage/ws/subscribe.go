@@ -65,6 +65,9 @@ func (s *Storage) Subscribe() {
 			case "RequestKey":
 				sub.notifyKeyRequested(r)
 
+			case "NewUpload":
+				sub.newUpload(r)
+
 			default:
 				s.log.Debugf("SUBSCRIPTION:: Got unknown request %v", r.Name)
 			}
@@ -191,7 +194,8 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 	if err != nil {
 		s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
 	}
-	s.log.Debugf("%s", s.config.Connections.Requested[from])
+
+	// Add user to directory
 	s.config.Directory[from] = name
 
 	// Check if access is already granted
@@ -216,6 +220,12 @@ func (s *subscribe) notifyKeyRequested(r *request) {
 		// Delete the user from requests
 		delete(s.config.Connections.Requested, from)
 	}
+}
+
+func (s *subscribe) newUpload(r *request) {
+	account := subscribeGetStringDataFromRequest(r, "user", s.log)
+
+	s.log.Debugf("New file for user: %s", account)
 }
 
 func subscribeGetStringDataFromRequest(r *request, key string, log *logger.Log) string {

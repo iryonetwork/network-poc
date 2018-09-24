@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"log"
 
 	"github.com/gorilla/websocket"
 )
@@ -94,6 +95,18 @@ func (s *Storage) RequestsKey(to string) error {
 	}
 
 	return err
+}
+
+func NotifyUploadRequest(owner string) []byte {
+	req := newReq("NewUpload")
+	req.append("user", owner)
+
+	out, err := req.encode()
+	if err != nil {
+		log.Printf("Error encoding requset NewUpload; %v", err)
+	}
+
+	return out
 }
 
 func rsaPublicToByte(public *rsa.PublicKey) ([]byte, error) {

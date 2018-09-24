@@ -118,6 +118,8 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid str
 		return
 	}
 
+	h.f.notifyConnectedUpload(owner, account)
+
 	//Generate response
 	response.FileID = fid
 	response.CreatedAt = ts

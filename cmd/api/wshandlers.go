@@ -64,3 +64,32 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+func (s *storage) notifyConnectedUpload(owner, uploader string) {
+	// generate message
+	notification := ws.NotifyUploadRequest(owner)
+
+	// list users to notify
+	connected, err := s.eos.ListConnected(owner)
+	if err != nil {
+		s.log.Printf("Error getting list of connections, %v", err)
+	}
+	connected = append(connected, owner)
+
+	// notify all connected users and skip the creator of this request
+	for _, v := range connected {
+		if v == uploader {
+			continue
+		}
+
+		// if user is connected send notification
+		if s.hub.Connected(v) {
+			c, err := s.hub.GetConn(v)
+			if err != nil {
+				s.log.Printf("Error getting ws.conn; err", err)
+			}
+			c.WriteMessage(websocket.BinaryMessage, notification)
+		}
+	}
+
+}
