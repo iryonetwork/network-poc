@@ -9,5 +9,6 @@ storageSize: 1Gi
 
 eos:
     contractName: name
+    contractAccount: account
     privateKey: key
     apiHost: eos.io
