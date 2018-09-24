@@ -10,8 +10,8 @@ import (
 	"github.com/iryonetwork/network-poc/db"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/storage/eos"
-	"github.com/iryonetwork/network-poc/storage/hub"
 	"github.com/iryonetwork/network-poc/storage/token"
+	"github.com/iryonetwork/network-poc/storage/ws/hub"
 )
 
 type handlers struct {

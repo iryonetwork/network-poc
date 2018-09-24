@@ -40,11 +40,11 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 
 func (c *Client) ConnectWs() error {
 	c.Login()
-	wsstorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos)
+	wsStorage, err := ws.Connect(c.config, c.log, c.ehr, c.eos)
 	if err != nil {
 		return err
 	}
-	c.ws = wsstorage
+	c.ws = wsStorage
 	return nil
 }
 

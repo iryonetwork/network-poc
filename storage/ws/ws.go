@@ -6,7 +6,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
-	"github.com/iryonetwork/network-poc/storage/hub"
+	"github.com/iryonetwork/network-poc/storage/ws/hub"
 
 	"github.com/iryonetwork/network-poc/logger"
 

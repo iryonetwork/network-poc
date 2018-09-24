@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/iryonetwork/network-poc/storage/hub"
 	"github.com/iryonetwork/network-poc/storage/token"
+	"github.com/iryonetwork/network-poc/storage/ws/hub"
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
