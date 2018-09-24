@@ -96,6 +96,7 @@ services:
     - main.go
     - handlers.go
     - indexHandlers.go
+    - wsHandler.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
@@ -116,6 +117,7 @@ services:
     - main.go
     - handlers.go
     - indexHandlers.go
+    - wsHandler.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
@@ -137,6 +139,7 @@ services:
     - main.go
     - handlers.go
     - indexHandlers.go
+    - wsHandler.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
@@ -158,6 +161,7 @@ services:
     - main.go
     - handlers.go
     - indexHandlers.go
+    - wsHandler.go
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client

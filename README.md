@@ -180,6 +180,17 @@ OUT:
 
 ```
 
+New File uploaded
+```
+{
+    "Name":"NewUpload"
+    "Fields":{
+        "user":"username of owner of new file uploaded"
+    }
+}
+
+```
+
 ### Login
 POST /login
 ```

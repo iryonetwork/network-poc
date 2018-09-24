@@ -7,10 +7,13 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 
 	"github.com/eoscanada/eos-go/ecc"
 	"github.com/gorilla/websocket"
@@ -234,6 +237,26 @@ func (s *subscribe) newUpload(r *requests.Request) {
 
 	s.log.Debugf("New file for user: %s", account)
 
+	err := s.client.Update(account)
+	if err != nil {
+		s.log.Debugf("error updating: %v", err)
+	}
+
+	dataMap, err := ehrdata.ExtractEhrData(account, s.ehr, s.config)
+	if err != nil {
+		s.log.Debugf("Error getting ehrdata: %v", err)
+	}
+
+	data, err := json.Marshal(dataMap)
+	if err != nil {
+		s.log.Debugf("Error marshaling json: %v", err)
+	}
+	for _, conn := range s.frontendConn {
+		err = conn.WriteMessage(2, data)
+		if err != nil {
+			s.log.Debugf("Error writing message: %v", err)
+		}
+	}
 }
 
 func subscribeGetStringDataFromRequest(r *requests.Request, key string, log *logger.Log) string {

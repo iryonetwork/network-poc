@@ -87,9 +87,11 @@ func main() {
 	http.HandleFunc("/deny", h.denyAccessHandler)
 	http.HandleFunc("/revoke", h.revokeAccessHandler)
 	http.HandleFunc("/config", h.configHandler)
+	http.HandleFunc("/ws", h.wsHandler)
 	if config.ClientType == "Doctor" {
 		http.HandleFunc("/switchMode", h.switchModeHandler)
 	}
+
 	log.Printf("starting HTTP server on http://%s", config.ClientAddr)
 
 	if err := http.ListenAndServe(config.ClientAddr, nil); err != nil {

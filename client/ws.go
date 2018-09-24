@@ -14,11 +14,12 @@ import (
 )
 
 type Ws struct {
-	conn   *websocket.Conn
-	config *config.Config
-	ehr    *ehr.Storage
-	eos    *eos.Storage
-	log    *logger.Log
+	conn         *websocket.Conn
+	frontendConn []*websocket.Conn
+	config       *config.Config
+	ehr          *ehr.Storage
+	eos          *eos.Storage
+	log          *logger.Log
 }
 
 // Connect connects client to api
@@ -66,4 +67,23 @@ func (s *Ws) Reconnect() error {
 
 	s.conn = temp.conn
 	return nil
+}
+
+func (c *Client) AddFrontendWS(conn *websocket.Conn) {
+	c.ws.frontendConn = append(c.ws.frontendConn, conn)
+}
+
+func (c *Client) RemoveFrontendWS(conn *websocket.Conn) error {
+	deleted := false
+	for i, v := range c.ws.frontendConn {
+		if v == conn {
+			c.ws.frontendConn = append(c.ws.frontendConn[:i], c.ws.frontendConn[i+1:]...)
+			deleted = true
+		}
+	}
+	if !deleted {
+		return fmt.Errorf("Ws connection not found")
+	}
+	c.log.Debugf("Closing ws connection")
+	return conn.Close()
 }
