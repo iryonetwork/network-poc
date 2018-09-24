@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -27,6 +28,10 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		outErr = err.Error()
 	}
+	jsonEhr, err := json.Marshal(ehr)
+	if err != nil {
+		outErr = err.Error()
+	}
 
 	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
 	if err != nil {
@@ -44,7 +49,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		Public      string
 		Private     string
 		GrantedTo   map[string]string
-		EHRData     *map[string]ehrdata.Entry
+		EHRData     string
 		Error       string
 		Requested   map[string]string
 		Qr          string
@@ -59,7 +64,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		h.config.GetEosPublicKey(),
 		h.config.EosPrivate,
 		h.config.GetNames(h.config.Connections.GrantedTo),
-		ehr,
+		string(jsonEhr),
 		outErr,
 		h.config.GetNames(mapKeysToArray(h.config.Connections.Requested)),
 		base64.StdEncoding.EncodeToString(img),

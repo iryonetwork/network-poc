@@ -115,12 +115,7 @@
                     <div class="tab-content" id="myTabContent">
 
                         <div class="tab-pane fade show active" id="viewEhr" role="tabpanel" aria-labelledby="viewEhr-tab">
-                            <div class="charts">
-                            {{range $i, $c := .EHRData}}
-                            <h1>{{ $i }}</h1>
-                                    <canvas class="chart" data-name="{{ $i }}" data-values="{{ .Value }}" data-timestamps="{{ .Timestamp }}" style="width: 50%"></canvas>
-                            {{ end }}
-                            </div>
+                                <canvas id="chart" class="chart" data-ehr="{{ .EHRData }}" style="width: 50%"></canvas>
                         </div>
 
                         <div class="tab-pane fade" id="addEhr" role="tabpanel" aria-labelledby="addEhr-tab">
@@ -229,68 +224,58 @@
 
 
     <script>
-    var color = 1
-    function charts(){
-        $( ".chart" ).each(function(i, canvas){
-            console.log("#"+color.toString(16))
-            var ctx = canvas.getContext("2d")
-            var myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: canvas.dataset.timestamps.slice(1,-1).split(" "),
-                    datasets: [{
-                        label: canvas.dataset.name,
-                        data: canvas.dataset.values.slice(1,-1).split(" "),
-                        borderColor: VBColorToHEX(color),
-                        fill: false,    
-                        borderWidth: 2 ,
-                        lineTension: 0
+    updateChart()
+    
+    function updateChart(){
+    canvas = document.getElementById("chart")
+    var chart = new Chart(document.getElementById("chart"), {
+        type: 'line',
+        data: getChartData(canvas.dataset.ehr.replace("map","")),
+        options: {
+            scales: {
+                xAxes: [{
+                    type: 'time'
                     }]
-                },
-                options: {
-                    scales: {
-                        xAxes: [{
-                            type: 'time'
-                            }]
-                    }
-                }
-            })
+            }
+        }
+    })
+    }
+
+    function getChartData(s){
+    var color = 1
+    var chartData = {datasets:[]}
+    jsonData = JSON.parse(s)
+    for ( name in jsonData ){
+        el = jsonData[name]
+        currentElementData = {
+            data:[],
+            label:name,
+            fill:false,
+            borderColor:VBColorToHEX(color),
+            lineTension:0
+        }
+            for (i in el["Timestamp"]){
+            currentElementData.data.push({x:el["Timestamp"][i], y: el["Value"][i]})
+        }
+        chartData.datasets.push(currentElementData)
         color = color * 255
-        });
+
+    }
+    return chartData
     }
 
     function VBColorToHEX(i) {
     var bbggrr =  ("000000" + i.toString(16)).slice(-6);
     var rrggbb = bbggrr.substr(4, 2) + bbggrr.substr(2, 2) + bbggrr.substr(0, 2);
     return "#" + rrggbb;
-}
-
-    charts()
+    }
     
-    var ws = new WebSocket("ws://localhost:9001/ws")
+    var ws = new WebSocket("ws://"+window.location.host+"/ws")
 
     ws.onmessage = function(event){
-        console.log(event.data)
-        var jsondata = JSON.parse(event.data)
-        console.log(jsondata)
-        for(chartname in jsondata){
-            $(".chart").each(function(i, element){
-                if(element.dataset.name == chartname){
-                    element.dataset.timestamps = addSquareBrackets(jsondata[chartname]["Timestamp"]).replace(/,/g, " ") 
-                    element.dataset.values = addSquareBrackets(jsondata[chartname]["Value"]).replace(/,/g, " ")
-                }
-            }) 
-
-        }
-
-    charts()
+        document.getElementById("chart").dataset.ehr = event.data
+        updateChart()    
     }
-
-    function addSquareBrackets(str){
-        return "["+str+"]"
-    }
-
-
         </script>
     </body>
 </html>

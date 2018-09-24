@@ -34,6 +34,7 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	outErr := ""
 
 	var graphData *map[string]ehrdata.Entry
+	var graphDataJSON []byte
 	ehr := make(map[string]string)
 	// Download missing/new files/ check if access was removed
 	err = h.client.Update(owner)
@@ -59,6 +60,12 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 	graphData, err = ehrdata.ExtractEhrData(owner, h.ehr, h.config)
 	if err != nil {
 		outErr = err.Error()
+		goto show
+	}
+
+	graphDataJSON, err = json.Marshal(graphData)
+	if err != nil {
+		outErr = err.Error()
 	}
 
 show:
@@ -69,7 +76,7 @@ show:
 		Owner         string
 		OwnerUsername string
 		EHRData       map[string]string
-		GraphData     *map[string]ehrdata.Entry
+		GraphData     string
 		Error         string
 	}{
 		h.config.PersonalData.Name,
@@ -78,7 +85,7 @@ show:
 		h.config.Directory[owner],
 		owner,
 		ehr,
-		graphData,
+		string(graphDataJSON),
 		outErr,
 	}
 
