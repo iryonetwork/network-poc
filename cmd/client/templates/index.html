@@ -115,6 +115,8 @@
                     <div class="tab-content" id="myTabContent">
 
                         <div class="tab-pane fade show active" id="viewEhr" role="tabpanel" aria-labelledby="viewEhr-tab">
+                                <input type="text" id="timepicker" name="datetimes" style="width: 25%"/>
+                                <br>
                                 <canvas id="chart" class="chart" data-ehr="{{ .EHRData }}" style="width: 50%"></canvas>
                         </div>
 
@@ -221,12 +223,15 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
-
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    
 
     <script>
-    updateChart()
-    
-    function updateChart(){
+    var minDate = 0
+    var maxDate = 0
     canvas = document.getElementById("chart")
     var chart = new Chart(document.getElementById("chart"), {
         type: 'line',
@@ -239,29 +244,42 @@
             }
         }
     })
-    }
 
     function getChartData(s){
-    var color = 1
-    var chartData = {datasets:[]}
-    jsonData = JSON.parse(s)
-    for ( name in jsonData ){
-        el = jsonData[name]
-        currentElementData = {
-            data:[],
-            label:name,
-            fill:false,
-            borderColor:VBColorToHEX(color),
-            lineTension:0
-        }
-            for (i in el["Timestamp"]){
-            currentElementData.data.push({x:el["Timestamp"][i], y: el["Value"][i]})
-        }
-        chartData.datasets.push(currentElementData)
-        color = color * 255
+        var color = 1
+        var chartData = {datasets:[]}
+        jsonData = JSON.parse(s)
+        for ( name in jsonData ){
+            el = jsonData[name]
+            currentElementData = {
+                data:[],
+                label:name,
+                fill:false,
+                borderColor:VBColorToHEX(color),
+                lineTension:0
+            }
+            
+            // set current max/mins
+            if (Date.parse(el.Timestamp[0]) < minDate || minDate === 0){
+                minDate = Date.parse(el.Timestamp[0])
+            }
+            if (Date.parse(el.Timestamp[el.Timestamp.length - 1]) > maxDate || maxDate === 0){
+                maxDate = Date.parse(el.Timestamp[el.Timestamp.length - 1])
+            }
 
-    }
-    return chartData
+                for (i in el["Timestamp"]){
+                    ts = Date.parse(el["Timestamp"][i])
+                    value = el["Value"][i]
+                currentElementData.data.push({x: ts, y: value})
+            }
+            if (currentElementData.data.length == 0){
+                continue
+            }
+            chartData.datasets.push(currentElementData)
+            color = color * 255
+
+        }
+        return chartData
     }
 
     function VBColorToHEX(i) {
@@ -273,12 +291,33 @@
     var ws = new WebSocket("ws://"+window.location.host+"/ws")
 
     ws.onmessage = function(event){
+        ele = document.getElementById("chart")
         // dont update the graph unless the currently open user is the one being updated
-        if (JSON.parse(event.data.slice(0, event.data.indexOf("}")+1)).account == {{ .Username }}){
-            document.getElementById("chart").dataset.ehr = event.data.slice(event.data.indexOf("}")+1, event.data.length)
-            updateChart()
+        if (JSON.parse(event.data.slice(0, event.data.indexOf("}")+1)).account == "{{ .Username }}"){
+            ele.dataset.ehr= event.data.slice(event.data.indexOf("}")+1, event.data.length)
+            chart.data.datasets=getChartData(ele.dataset.ehr).datasets
+            
+            chart.update()
         }
     }
+
+    $('#timepicker').on('apply.daterangepicker', function(ev, picker) {
+        chart.options.scales.xAxes[0].time.min = Date.parse(picker.startDate.format())
+        chart.options.scales.xAxes[0].time.max = Date.parse(picker.endDate.format())
+        chart.update()
+    });
+
+    $('input[name="datetimes"]').daterangepicker({
+        timePicker: true,
+        startDate: moment(minDate),
+        endDate: moment().add(1, 'hour'),
+        minDate: moment(minDate),
+        maxDate: moment().add(1, 'hour'),
+        locale: {
+        format: 'DD/M hh:mm A'
+        }
+    });
+
         </script>
     </body>
 </html>
