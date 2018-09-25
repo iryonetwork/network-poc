@@ -1,7 +1,7 @@
 DOCKER_TAG ?= latest
 .PHONY: up run stop build specs
 
-ALL: init
+ALL: vendorSync
 
 attach/%:
 	docker-compose run $*
@@ -12,7 +12,7 @@ clear: ## clears generated artifacts
 	rm -f contract/iryo.abi contract/iryo.wasm contract/iryo.wast
 	rm -fr .data/
 
-init: vendorSync up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
+init: up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
 up: up/nodeos up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
 
@@ -42,12 +42,11 @@ test/unit: ## run all unit tests
 test/unit/%: ## run unit tests for a specific project
 	go test ./$*
 
-vendorSync: vendor/vendor.json ## syncs the vendor folder to match vendor.json
-	govendor sync
+vendorSync: go.mod ## syncs the vendor folder to match vendor.json
+	go mod vendor
 
 vendorUpdate: ## updates the vendor folder
-	govendor fetch +missing +external
-	govendor remove +unused
+	go mod tidy
 
 help: ## displays this message
 	@grep -E '^[a-zA-Z_/%\-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

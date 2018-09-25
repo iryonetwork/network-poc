@@ -3,4 +3,4 @@
 /contract/iryo.wasm
 /contract/iryo.abi
 /contract/iryo.wast
-/vendor/*/
+/vendor/**

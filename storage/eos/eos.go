@@ -51,7 +51,7 @@ func (s *Storage) GrantAccess(to string) error {
 		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
-	s.log.Debugf("Granted access to user; %+v", err)
+	s.log.Debugf("Granted access to user; %+v", to)
 	return err
 }
 
