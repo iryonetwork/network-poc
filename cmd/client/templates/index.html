@@ -288,7 +288,9 @@
     return "#" + rrggbb;
     }
     
-    var ws = new WebSocket("ws://"+window.location.host+"/ws")
+    protocol = window.location.protocol.replace("http", "ws") 
+    
+    var ws = new WebSocket(protocol+"//"+window.location.host+"/ws")
 
     ws.onmessage = function(event){
         ele = document.getElementById("chart")
