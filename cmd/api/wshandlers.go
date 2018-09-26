@@ -70,9 +70,9 @@ func (h *handlers) wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // notify all users that are online and connected to `owner` that new file has been uploaded
-func (s *storage) notifyConnectedUpload(owner, uploader string) {
+func (s *storage) notifyConnectedUpload(owner, uploader, fileID string) {
 	// generate message
-	notification := s.notifyUploadRequest(owner)
+	notification := s.notifyUploadRequest(owner, fileID)
 
 	// list users to notify
 	connected, err := s.eos.ListConnected(owner)
@@ -98,9 +98,10 @@ func (s *storage) notifyConnectedUpload(owner, uploader string) {
 	}
 }
 
-func (s *storage) notifyUploadRequest(owner string) []byte {
+func (s *storage) notifyUploadRequest(owner, fileID string) []byte {
 	req := requests.NewReq("NewUpload")
 	req.Append("user", owner)
+	req.Append("fileID", fileID)
 
 	out, err := req.Encode()
 	if err != nil {

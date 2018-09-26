@@ -119,7 +119,7 @@ func (h *handlers) uploadHandler(w http.ResponseWriter, r *http.Request, fid str
 		return
 	}
 
-	funcs.notifyConnectedUpload(owner, account)
+	funcs.notifyConnectedUpload(owner, account, fid)
 
 	//Generate response
 	response.FileID = fid
