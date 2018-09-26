@@ -91,7 +91,7 @@ func (s *storage) notifyConnectedUpload(owner, uploader string) {
 		if s.hub.Connected(v) {
 			c, err := s.hub.GetConn(v)
 			if err != nil {
-				s.log.Printf("Error getting ws.conn; err", err)
+				s.log.Printf("Error getting ws.conn; %v", err)
 			}
 			c.WriteMessage(websocket.BinaryMessage, notification)
 		}
