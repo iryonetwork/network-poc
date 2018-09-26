@@ -42,7 +42,7 @@ services:
     tty: true
 ## Deploy contract
   deploy:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run
@@ -59,7 +59,7 @@ services:
     - EOS_TOKEN_NAME=eosio.token # name of token contract
     - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
   api:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run
@@ -89,7 +89,7 @@ services:
     - 8000:8000
   ## patient server
   patient1:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run
@@ -110,7 +110,7 @@ services:
     ports:
     - 9001:9000
   patient2:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run
@@ -132,7 +132,7 @@ services:
     - 9002:9000
   ## Doctor
   doctor1:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run
@@ -154,7 +154,7 @@ services:
     - 9003:9000
   ## Doctor
   doctor2:
-    image: golang:1.10-alpine
+    image: golang:1.11-alpine
     command:
     - go
     - run

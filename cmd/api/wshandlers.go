@@ -96,7 +96,6 @@ func (s *storage) notifyConnectedUpload(owner, uploader string) {
 			c.WriteMessage(websocket.BinaryMessage, notification)
 		}
 	}
-
 }
 
 func (s *storage) notifyUploadRequest(owner string) []byte {
