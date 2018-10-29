@@ -100,7 +100,7 @@ type TableEntry struct {
 }
 
 func (s *Storage) ListConnected(patient string) ([]string, error) {
-	s.log.Debugf("Eos::listAccountFromTable(%s, %v) called", patient)
+	s.log.Debugf("Eos::listAccountFromTable(%s) called", patient)
 
 	// Get the table
 	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractAccount, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
