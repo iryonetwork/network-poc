@@ -429,13 +429,13 @@ func (c *Client) RevokeAccess(to string) error {
 	return nil
 }
 
-func (c *Client) RequestAccess(to string) error {
-	err := c.request.RequestsKey(to)
+func (c *Client) RequestAccess(to, customData string) error {
+	err := c.request.RequestsKey(to, customData)
 	return err
 }
 
 func (c *Client) NewRequestKeyQr() string {
-	return fmt.Sprintf("%s", c.config.EosAccount)
+	return fmt.Sprintf("%s\n%s %s", c.config.EosAccount, c.config.PersonalData.FirstName, c.config.PersonalData.FamilyName)
 }
 
 func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {

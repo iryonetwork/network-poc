@@ -14,7 +14,7 @@ In this project we would like to define and implement a system that allows user 
 
 In Iryo we planning to build an EHR system that will allow patients to take control of the data. They will be able to carry their EHR around with them as they will have an option to have a copy of it stored on their smart phone. As owners of data they will also have full control of who is able to read and modify data. By default any ungranted access to the data will not be possible. As can't afford to only have one copy of the patient's EHR, an encrypted copy will be uploaded to an external storage and only the patient will posses the key to decrypt this copy.
 
-This PoC explores how we could utilize blockchain to transparently store and manage access control lists that will then control data flow and connections between different actors in the ecosystem. 
+This PoC explores how we could utilize blockchain to transparently store and manage access control lists that will then control data flow and connections between different actors in the ecosystem.
 
 The setup consists of following components:
 
@@ -58,10 +58,10 @@ cd network-poc
 # master is used to create both iryo accounts. iryo has iryo contract loaded. iryo.token has eosio.token contract loaded
 make
 
-# reset testnet 
+# reset testnet
 make clear init
 
-# (re)start api, patients and doctors 
+# (re)start api, patients and doctors
 make up
 
 # check logs
@@ -77,7 +77,7 @@ open http://localhost:9004 #doctor2
 ## API
 ### WS
 /ws
-all requests are json websocket messages of type `websocket.BinaryMessage`  
+all requests are json websocket messages of type `websocket.BinaryMessage`
 
 When connecting to websocket endpoint send the token in `token` cookie field.
 After connection is authorized a message will be sent back saying `Authorized`
@@ -108,7 +108,8 @@ IN:
     "Fields":{
         "key":"RSA public key",
         "signature":"EOS's signature of sha256 hash of RSA public key"
-        "to":"Account name"
+        "to":"Account name",
+        "customData": "optional string"
     }
 }
 
@@ -118,7 +119,8 @@ OUT:
     "Fields":{
         "key":"RSA public key",
         "signature":"EOS's signature of sha256 hash of RSA public key"
-        "from":"sender of request"
+        "from":"sender of request",
+        "customData": "optional string"
     }
 }
 ```
@@ -129,7 +131,8 @@ IN:
     "Name":"SendKey",
     "Fields":{
         "key":"base64 encdoed encrypted ehr signing key",
-        "to":"account which made RequestKey request"
+        "to":"account which made RequestKey request",
+        "customData": "optional string"
     }
 }
 
@@ -138,7 +141,8 @@ OUT:
     "Name":"ImportKey",
     "Fields":{
         "key":"base64 encdoed encrypted ehr signing key"
-        "from":"sender of request"
+        "from":"sender of request",
+        "customData": "optional string"
     }
 }
 
@@ -202,7 +206,7 @@ account: "acount_name" optional
 
 OUT:
 {
-    token: uuid    
+    token: uuid
     validUntil: unix format
 }
 ```
@@ -255,7 +259,7 @@ OR
 }
 ```
 
-### List 
+### List
 GET /<account_name>
 ```json
 {

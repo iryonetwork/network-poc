@@ -33,21 +33,28 @@ func (s *Requests) SendKey(to string) error {
 
 	r := NewReq("SendKey")
 	r.Append("to", to)
-	// Encrypt key
-	if _, ok := s.config.Connections.Requested[to]; !ok {
+	accessRequest, ok := s.config.Connections.Requested[to]
+	if !ok {
 		return fmt.Errorf("No key from user %s found", to)
 	}
+
+	// Encrypt key
 	rnd := rand.Reader
-	encKey, err := rsa.EncryptOAEP(sha512.New(), rnd, s.config.Connections.Requested[to], s.config.EncryptionKeys[s.config.EosAccount], []byte{})
+	encKey, err := rsa.EncryptOAEP(sha512.New(), rnd, accessRequest.Key, s.config.EncryptionKeys[s.config.EosAccount], []byte{})
 
 	if err != nil {
 		return err
 	}
 	r.Append("key", base64.StdEncoding.EncodeToString(encKey))
+
+	// append customData if set
+	r.Append("customData", accessRequest.CustomData)
+
 	req, err := r.Encode()
 	if err != nil {
 		return err
 	}
+
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 	s.log.Debugf("Sent SendKey request")
 	return err
@@ -66,7 +73,7 @@ func (s *Requests) RevokeKey(to string) error {
 	return err
 }
 
-func (s *Requests) RequestsKey(to string) error {
+func (s *Requests) RequestsKey(to, customData string) error {
 	s.log.Debugf("WS:: Requesting encryption key from %s", to)
 
 	r := NewReq("RequestKey")
@@ -87,8 +94,13 @@ func (s *Requests) RequestsKey(to string) error {
 	}
 	r.Append("signature", sign)
 
-	// And add your EOS key
+	// Add your EOS key
 	r.Append("eoskey", s.config.GetEosPublicKey())
+
+	// Add customData if set
+	if customData != "" {
+		r.Append("customData", customData)
+	}
 
 	req, err := r.Encode()
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)

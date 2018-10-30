@@ -144,7 +144,7 @@ func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
 
-	err := h.client.RequestAccess(to)
+	err := h.client.RequestAccess(to, "test")
 	if err != nil {
 		h.log.Fatalf("Error requesting access: %v ", err)
 	}

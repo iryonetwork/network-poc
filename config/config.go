@@ -37,10 +37,15 @@ type Config struct {
 }
 
 type Connections struct {
-	WithKey    []string                  // Access is written on the blockchain and we have the key
-	WithoutKey []string                  // Access has been written on the blockchain, but we do not have the key
-	GrantedTo  []string                  // We have granted the access to our data to these users. Its on them to make key request
-	Requested  map[string]*rsa.PublicKey // They are not connected to us, but request for key has been made
+	WithKey    []string           // Access is written on the blockchain and we have the key
+	WithoutKey []string           // Access has been written on the blockchain, but we do not have the key
+	GrantedTo  []string           // We have granted the access to our data to these users. Its on them to make key request
+	Requested  map[string]Request // They are not connected to us, but request for key has been made
+}
+
+type Request struct {
+	Key        *rsa.PublicKey
+	CustomData string
 }
 
 func New() (*Config, error) {
@@ -53,7 +58,7 @@ func New() (*Config, error) {
 			WithKey:    []string{},
 			WithoutKey: []string{},
 			GrantedTo:  []string{},
-			Requested:  make(map[string]*rsa.PublicKey),
+			Requested:  make(map[string]Request),
 		},
 		Directory: make(map[string]string),
 		IsDoctor:  false,

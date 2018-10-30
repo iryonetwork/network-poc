@@ -1,12 +1,13 @@
 package main
 
 import (
-	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
+
+	"github.com/iryonetwork/network-poc/config"
 
 	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 	qrcode "github.com/skip2/go-qrcode"
@@ -79,7 +80,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func mapKeysToArray(m map[string]*rsa.PublicKey) []string {
+func mapKeysToArray(m map[string]config.Request) []string {
 	out := []string{}
 	for k := range m {
 		out = append(out, k)

@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/requests"
+	"github.com/iryonetwork/network-poc/config"
 )
 
 type subscribe struct {
@@ -109,6 +110,7 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 	}
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
+	customData := subscribeGetStringDataFromRequest(r, "customData", s.log)
 
 	rnd := rand.Reader
 	key, err := rsa.DecryptOAEP(sha512.New(), rnd, s.config.RSAKey, keyenc, []byte{})
@@ -117,7 +119,7 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 		return
 	}
 
-	s.log.Debugf("SUBSCRIPTION:: Importing key from user %s", from)
+	s.log.Debugf("SUBSCRIPTION:: Importing key from user %s (%s)", from, customData)
 
 	s.config.Directory[from] = name
 	s.config.EncryptionKeys[from] = key
@@ -154,7 +156,7 @@ func (s *subscribe) revokeKey(r *requests.Request) {
 func (s *subscribe) subReencrypt(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	s.ehr.RemoveUser(from)
-	err := s.RequestsKey(from)
+	err := s.RequestsKey(from, "")
 	if err != nil {
 		s.log.Printf("Error creating RequestKey: %v", err)
 	}
@@ -187,6 +189,7 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 	rsakey := subscribeGetDataFromRequest(r, "key", s.log)
 	sign := subscribeGetStringDataFromRequest(r, "signature", s.log)
+	customData := subscribeGetStringDataFromRequest(r, "customData", s.log)
 
 	// Check if account and key are connected
 	valid, err := s.verifyRequestKeyRequest(sign, from, rsakey)
@@ -200,10 +203,11 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 	}
 
 	// Save the request to storage for later usage
-	s.config.Connections.Requested[from], err = rsaPEMKeyToRSAPublicKey(rsakey)
+	pubKey, err := rsaPEMKeyToRSAPublicKey(rsakey)
 	if err != nil {
 		s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
 	}
+	s.config.Connections.Requested[from] = config.Request{Key: pubKey, CustomData: customData}
 
 	// Add user to directory
 	s.config.Directory[from] = name

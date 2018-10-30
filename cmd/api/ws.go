@@ -12,7 +12,6 @@ import (
 )
 
 func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
-
 	inReq, err := requests.Decode(reqdata)
 	if err != nil {
 		return err
@@ -33,9 +32,11 @@ func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		if err != nil {
 			return err
 		}
-		r.Append("name", (name))
+		customData, _ := inReq.GetDataString("customData")
+		r.Append("name", name)
 		r.Append("key", key)
-		r.Append("from", (from))
+		r.Append("from", from)
+		r.Append("customData", customData)
 
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
@@ -148,6 +149,9 @@ func (s *wsStruct) requestKey(r *requests.Request, from string, db *db.Db) error
 		return err
 	}
 
+	// ignore error if not set
+	customData, _ := r.GetDataString("customData")
+
 	// verify it
 	if valid, err := s.verifyRequestKeyRequest(sign, from, rsakey); !valid || err != nil {
 		conn, err2 := s.hub.GetConn(from)
@@ -173,6 +177,9 @@ func (s *wsStruct) requestKey(r *requests.Request, from string, db *db.Db) error
 	r.Remove("to")
 	r.Append("from", from)
 	r.Append("name", name)
+	if customData != "" {
+		r.Append("customData", customData)
+	}
 	s.sendRequest(r, sendto)
 
 	return nil
@@ -188,7 +195,6 @@ func (s *wsStruct) verifyRequestKeyRequest(signature, from string, rsakey []byte
 }
 
 func requestGetKeyFromSignature(strsign string, rsakey []byte) (ecc.PublicKey, error) {
-
 	sign, err := ecc.NewSignature(strsign)
 	if err != nil {
 		return ecc.PublicKey{}, err
