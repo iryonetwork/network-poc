@@ -14,7 +14,7 @@ services:
     - /bin/bash
     - -c
     - |
-      cleos wallet create
+      cleos wallet create --to-console
       cleos wallet import --private-key $$EOS_PRIVATE
       cleos wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 #default eosio account private key
       cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
