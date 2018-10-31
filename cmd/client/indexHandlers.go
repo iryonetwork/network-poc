@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/state"
 
 	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 	qrcode "github.com/skip2/go-qrcode"
@@ -20,12 +20,12 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	outErr := r.URL.Query().Get("error")
 
-	user := h.config.EosAccount
+	user := h.state.EosAccount
 	err = h.client.Update(user)
 	if err != nil {
 		outErr = err.Error()
 	}
-	ehr, err := ehrdata.ExtractEhrData(h.config.EosAccount, h.ehr, h.config)
+	ehr, err := ehrdata.ExtractEhrData(h.state.EosAccount, h.ehr, h.state)
 	if err != nil {
 		outErr = err.Error()
 	}
@@ -60,19 +60,19 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		IsDoctor    bool
 	}{
 		h.config.ClientType,
-		h.config.PersonalData.Name,
+		h.state.PersonalData.Name,
 		user,
-		h.config.GetEosPublicKey(),
-		h.config.EosPrivate,
-		h.config.GetNames(h.config.Connections.GrantedTo),
+		h.state.GetEosPublicKey(),
+		h.state.EosPrivate,
+		h.state.GetNames(h.state.Connections.GrantedTo),
 		string(jsonEhr),
 		outErr,
-		h.config.GetNames(mapKeysToArray(h.config.Connections.Requested)),
+		h.state.GetNames(mapKeysToArray(h.state.Connections.Requested)),
 		base64.StdEncoding.EncodeToString(img),
-		h.config.Connected,
-		h.config.GetNames(h.config.Connections.WithoutKey),
-		h.config.GetNames(h.config.Connections.WithKey),
-		h.config.IsDoctor,
+		h.state.Connected,
+		h.state.GetNames(h.state.Connections.WithoutKey),
+		h.state.GetNames(h.state.Connections.WithKey),
+		h.state.IsDoctor,
 	}
 
 	if err := t.Execute(w, data); err != nil {
@@ -80,7 +80,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func mapKeysToArray(m map[string]config.Request) []string {
+func mapKeysToArray(m map[string]state.Request) []string {
 	out := []string{}
 	for k := range m {
 		out = append(out, k)
@@ -115,14 +115,14 @@ func (h *handlers) doctorIndexHandler(w http.ResponseWriter, r *http.Request) {
 		Qr          string
 	}{
 		h.config.ClientType,
-		h.config.PersonalData.Name,
-		h.config.EosAccount,
-		h.config.GetEosPublicKey(),
-		h.config.EosPrivate,
-		h.config.GetNames(h.config.Connections.WithKey),
+		h.state.PersonalData.Name,
+		h.state.EosAccount,
+		h.state.GetEosPublicKey(),
+		h.state.EosPrivate,
+		h.state.GetNames(h.state.Connections.WithKey),
 		h.config.EosContractName,
-		h.config.Connected,
-		h.config.GetNames(h.config.Connections.WithoutKey),
+		h.state.Connected,
+		h.state.GetNames(h.state.Connections.WithoutKey),
 		base64.StdEncoding.EncodeToString(img),
 	}
 

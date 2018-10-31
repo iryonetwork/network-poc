@@ -18,12 +18,14 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 type Client struct {
 	config  *config.Config
+	state   *state.State
 	eos     *eos.Storage
 	ehr     *ehr.Storage
 	log     *logger.Log
@@ -31,9 +33,10 @@ type Client struct {
 	request *requests.Requests
 }
 
-func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) *Client {
+func New(config *config.Config, state *state.State, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) *Client {
 	return &Client{
 		config: config,
+		state:  state,
 		eos:    eos,
 		ehr:    ehr,
 		log:    log,
@@ -42,18 +45,18 @@ func New(config *config.Config, eos *eos.Storage, ehr *ehr.Storage, log *logger.
 
 func (c *Client) ConnectWs() error {
 	c.Login()
-	wsStorage, err := ConnectWs(c.config, c.log, c.ehr, c.eos)
+	wsStorage, err := ConnectWs(c.config, c.state, c.log, c.ehr, c.eos)
 	if err != nil {
 		return err
 	}
 	c.ws = wsStorage
-	c.request = requests.NewRequests(c.log, c.config, wsStorage.Conn(), c.eos)
+	c.request = requests.NewRequests(c.log, c.config, c.state, wsStorage.Conn(), c.eos)
 	return nil
 }
 
 func (c *Client) CloseWs() {
 	c.ws.Close()
-	c.config.Connected = false
+	c.state.Connected = false
 	c.ws = nil
 }
 
@@ -71,8 +74,8 @@ func (c *Client) Login() error {
 		return fmt.Errorf("Failed to sign the login request; %v", err)
 	}
 
-	req := url.Values{"sign": {sig}, "key": {c.config.GetEosPublicKey()}, "hash": {string(hash)}}
-	if account := c.config.EosAccount; account != "" {
+	req := url.Values{"sign": {sig}, "key": {c.state.GetEosPublicKey()}, "hash": {string(hash)}}
+	if account := c.state.EosAccount; account != "" {
 		req["account"] = []string{account}
 	}
 
@@ -92,7 +95,7 @@ func (c *Client) Login() error {
 	// Login again after token expires
 	go c.loginWaiter(data["validUntil"])
 	// save token to client
-	c.config.Token = data["token"]
+	c.state.Token = data["token"]
 	return nil
 }
 
@@ -114,15 +117,15 @@ func (c *Client) CreateAccount(key string) (string, error) {
 
 	client := &http.Client{}
 
-	data := url.Values{"name": {c.config.PersonalData.Name}}
-	data.Add("name", c.config.PersonalData.Name)
+	data := url.Values{"name": {c.state.PersonalData.Name}}
+	data.Add("name", c.state.PersonalData.Name)
 	r, err := http.NewRequest("POST", fmt.Sprintf("%s/account", c.config.IryoAddr), strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", err
 	}
 
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	r.Header.Add("Authorization", c.config.Token)
+	r.Header.Add("Authorization", c.state.Token)
 	res, err := client.Do(r)
 	if err != nil {
 		return "", err
@@ -153,7 +156,7 @@ func (c *Client) Ls(owner string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", c.config.Token)
+	req.Header.Add("Authorization", c.state.Token)
 	client := &http.Client{}
 	res, err := client.Do(req)
 
@@ -182,7 +185,7 @@ func (c *Client) Download(owner, fileID string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", c.config.Token)
+	req.Header.Add("Authorization", c.state.Token)
 	client := &http.Client{}
 	res, err := client.Do(req)
 
@@ -207,8 +210,8 @@ func (c *Client) Download(owner, fileID string) error {
 // Update downloads files for user, if they do not exist. Remove them if access was removed
 func (c *Client) Update(owner string) error {
 	// First check if access is granted
-	if owner != c.config.EosAccount {
-		granted, err := c.eos.AccessGranted(owner, c.config.EosAccount)
+	if owner != c.state.EosAccount {
+		granted, err := c.eos.AccessGranted(owner, c.state.EosAccount)
 		if err != nil {
 			return err
 		}
@@ -250,8 +253,8 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	// Get body for the request
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("account", c.config.EosAccount)
-	writer.WriteField("key", c.config.GetEosPublicKey())
+	writer.WriteField("account", c.state.EosAccount)
+	writer.WriteField("key", c.state.GetEosPublicKey())
 	writer.WriteField("sign", sign)
 	part, err := writer.CreateFormFile("data", id)
 	if err != nil {
@@ -275,7 +278,7 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to call Upload; %v", err)
 	}
-	req.Header.Add("Authorization", c.config.Token)
+	req.Header.Add("Authorization", c.state.Token)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -305,17 +308,17 @@ func (c *Client) Upload(owner, id string, reupload bool) error {
 
 func (c *Client) Reencrypt(key []byte) error {
 	c.log.Debugf("Client:: Reencrypting")
-	err := c.Update(c.config.EosAccount)
+	err := c.Update(c.state.EosAccount)
 	if err != nil {
 		return err
 	}
-	err = c.ehr.Reencrypt(c.config.EosAccount, c.config.EncryptionKeys[c.config.EosAccount], key)
+	err = c.ehr.Reencrypt(c.state.EosAccount, c.state.EncryptionKeys[c.state.EosAccount], key)
 	if err != nil {
 		return err
 	}
 
 	// Save the new key
-	c.config.EncryptionKeys[c.config.EosAccount] = key
+	c.state.EncryptionKeys[c.state.EosAccount] = key
 
 	// Send notification about reencrypting to api
 	err = c.request.ReencryptRequest()
@@ -327,9 +330,9 @@ func (c *Client) Reencrypt(key []byte) error {
 	time.Sleep(2 * time.Second)
 
 	// Upload new files
-	for id := range c.ehr.Get(c.config.EosAccount) {
+	for id := range c.ehr.Get(c.state.EosAccount) {
 		c.log.Debugf("Uploading %s", id)
-		c.Upload(c.config.EosAccount, id, true)
+		c.Upload(c.state.EosAccount, id, true)
 	}
 	return nil
 }
@@ -343,20 +346,20 @@ func (c *Client) GrantAccess(to string) error {
 	}
 
 	// Check that users are not yet connected
-	if ok, err := c.eos.AccessGranted(c.config.EosAccount, to); ok {
+	if ok, err := c.eos.AccessGranted(c.state.EosAccount, to); ok {
 		c.log.Debugf("Access already granted to %s", to)
 		if err != nil {
 			return err
 		}
 		// make sure doctor is on list of connected
 		conn := false
-		for _, v := range c.config.Connections.GrantedTo {
+		for _, v := range c.state.Connections.GrantedTo {
 			if v == to {
 				conn = true
 			}
 		}
 		if !conn {
-			c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo, to)
+			c.state.Connections.GrantedTo = append(c.state.Connections.GrantedTo, to)
 		}
 		return nil
 	}
@@ -370,7 +373,7 @@ func (c *Client) GrantAccess(to string) error {
 
 	// if request for key was already made send the key
 	// else notify the doctor that request was granted
-	if _, ok := c.config.Connections.Requested[to]; ok {
+	if _, ok := c.state.Connections.Requested[to]; ok {
 		// send key for storage encryption
 		err = c.request.SendKey(to)
 		if err != nil {
@@ -385,17 +388,17 @@ func (c *Client) GrantAccess(to string) error {
 
 	// add doctor to list of connected
 	conn := false
-	for _, v := range c.config.Connections.GrantedTo {
+	for _, v := range c.state.Connections.GrantedTo {
 		if v == to {
 			conn = true
 		}
 	}
 	if !conn {
-		c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo, to)
+		c.state.Connections.GrantedTo = append(c.state.Connections.GrantedTo, to)
 	}
 
 	/// remove key from storage
-	delete(c.config.Connections.Requested, to)
+	delete(c.state.Connections.Requested, to)
 
 	return nil
 }
@@ -416,9 +419,9 @@ func (c *Client) RevokeAccess(to string) error {
 	}
 	// remove doctor from our connections
 	found := false
-	for i, v := range c.config.Connections.GrantedTo {
+	for i, v := range c.state.Connections.GrantedTo {
 		if v == to {
-			c.config.Connections.GrantedTo = append(c.config.Connections.GrantedTo[:i], c.config.Connections.GrantedTo[i+1:]...)
+			c.state.Connections.GrantedTo = append(c.state.Connections.GrantedTo[:i], c.state.Connections.GrantedTo[i+1:]...)
 			found = true
 			break
 		}
@@ -435,7 +438,7 @@ func (c *Client) RequestAccess(to, customData string) error {
 }
 
 func (c *Client) NewRequestKeyQr() string {
-	return fmt.Sprintf("%s\n%s %s", c.config.EosAccount, c.config.PersonalData.FirstName, c.config.PersonalData.FamilyName)
+	return fmt.Sprintf("%s\n%s %s", c.state.EosAccount, c.state.PersonalData.FirstName, c.state.PersonalData.FamilyName)
 }
 
 func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {
@@ -444,7 +447,7 @@ func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {
 		return err
 	}
 
-	id, err := c.ehr.Encrypt(user, jsonData, c.config.EncryptionKeys[user])
+	id, err := c.ehr.Encrypt(user, jsonData, c.state.EncryptionKeys[user])
 	if err != nil {
 		return err
 	}

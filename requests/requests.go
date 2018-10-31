@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/eos"
 
 	"github.com/gorilla/websocket"
@@ -20,12 +21,13 @@ import (
 type Requests struct {
 	log    *logger.Log
 	config *config.Config
+	state  *state.State
 	conn   *websocket.Conn
 	eos    *eos.Storage
 }
 
-func NewRequests(log *logger.Log, config *config.Config, conn *websocket.Conn, eos *eos.Storage) *Requests {
-	return &Requests{log, config, conn, eos}
+func NewRequests(log *logger.Log, cfg *config.Config, state *state.State, conn *websocket.Conn, eos *eos.Storage) *Requests {
+	return &Requests{log, cfg, state, conn, eos}
 }
 
 func (s *Requests) SendKey(to string) error {
@@ -33,14 +35,14 @@ func (s *Requests) SendKey(to string) error {
 
 	r := NewReq("SendKey")
 	r.Append("to", to)
-	accessRequest, ok := s.config.Connections.Requested[to]
+	accessRequest, ok := s.state.Connections.Requested[to]
 	if !ok {
 		return fmt.Errorf("No key from user %s found", to)
 	}
 
 	// Encrypt key
 	rnd := rand.Reader
-	encKey, err := rsa.EncryptOAEP(sha512.New(), rnd, accessRequest.Key, s.config.EncryptionKeys[s.config.EosAccount], []byte{})
+	encKey, err := rsa.EncryptOAEP(sha512.New(), rnd, accessRequest.Key, s.state.EncryptionKeys[s.state.EosAccount], []byte{})
 
 	if err != nil {
 		return err
@@ -80,7 +82,7 @@ func (s *Requests) RequestsKey(to, customData string) error {
 	r.Append("to", to)
 
 	// Generate public key
-	key, err := rsaPublicToByte(&s.config.RSAKey.PublicKey)
+	key, err := rsaPublicToByte(&s.state.RSAKey.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -95,7 +97,7 @@ func (s *Requests) RequestsKey(to, customData string) error {
 	r.Append("signature", sign)
 
 	// Add your EOS key
-	r.Append("eoskey", s.config.GetEosPublicKey())
+	r.Append("eoskey", s.state.GetEosPublicKey())
 
 	// Add customData if set
 	if customData != "" {
@@ -106,9 +108,9 @@ func (s *Requests) RequestsKey(to, customData string) error {
 	err = s.conn.WriteMessage(websocket.BinaryMessage, req)
 
 	// Check if user is on GrantedWithoutKeys list
-	for i, v := range s.config.Connections.WithoutKey {
+	for i, v := range s.state.Connections.WithoutKey {
 		if v == to {
-			s.config.Connections.WithoutKey = append(s.config.Connections.WithoutKey[:i], s.config.Connections.WithoutKey[i+1:]...)
+			s.state.Connections.WithoutKey = append(s.state.Connections.WithoutKey[:i], s.state.Connections.WithoutKey[i+1:]...)
 		}
 	}
 

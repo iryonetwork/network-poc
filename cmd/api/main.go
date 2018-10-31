@@ -13,13 +13,13 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/eos"
 	"github.com/rs/cors"
 )
 
 func main() {
 	config, err := config.New()
-
 	if err != nil {
 		stdlog.Fatalf("failed to get config: %v", err)
 	}
@@ -27,11 +27,17 @@ func main() {
 
 	log := logger.New(config)
 
-	eos, err := eos.New(config, log)
+	state, err := state.New(config, log)
+	if err != nil {
+		log.Fatalf("failed to initialize state: %v", err)
+	}
+	defer state.Close()
+
+	eos, err := eos.New(config, state, log)
 	if err != nil {
 		log.Fatalf("Erorr creating eos storage; %v", err)
 	}
-	eos.ImportKey(config.EosPrivate)
+	eos.ImportKey(state.EosPrivate)
 
 	hub := hub.NewHub(log)
 	go hub.Run()
@@ -46,6 +52,7 @@ func main() {
 		hub:    hub,
 		token:  token.Init(log),
 		eos:    eos,
+		state:  state,
 		config: config,
 		log:    log,
 		db:     db,

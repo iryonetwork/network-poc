@@ -5,6 +5,7 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
@@ -16,7 +17,13 @@ func main() {
 
 	log := logger.New(config)
 
-	eos, err := eos.New(config, log)
+	state, err := state.New(config, log)
+	if err != nil {
+		log.Fatalf("failed to initialize state: %v", err)
+	}
+	defer state.Close()
+
+	eos, err := eos.New(config, state, log)
 	if err != nil {
 		log.Fatalf("failed to setup eos storage; %v", err)
 	}

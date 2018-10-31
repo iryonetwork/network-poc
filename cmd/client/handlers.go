@@ -13,11 +13,13 @@ import (
 	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
 type handlers struct {
 	config *config.Config
+	state  *state.State
 	client *client.Client
 	ehr    *ehr.Storage
 	log    *logger.Log
@@ -45,7 +47,7 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 		for k := range h.ehr.Get(owner) {
 			ehr[k] = string(h.ehr.Getid(owner, k))
 			var v []byte
-			v, err = h.ehr.Decrypt(owner, k, h.config.EncryptionKeys[owner])
+			v, err = h.ehr.Decrypt(owner, k, h.state.EncryptionKeys[owner])
 			if err != nil {
 				break
 			}
@@ -57,7 +59,7 @@ func (h *handlers) ehrHandler(w http.ResponseWriter, r *http.Request) {
 		goto show
 	}
 
-	graphData, err = ehrdata.ExtractEhrData(owner, h.ehr, h.config)
+	graphData, err = ehrdata.ExtractEhrData(owner, h.ehr, h.state)
 	if err != nil {
 		outErr = err.Error()
 		goto show
@@ -79,10 +81,10 @@ show:
 		GraphData     string
 		Error         string
 	}{
-		h.config.PersonalData.Name,
-		h.config.EosAccount,
+		h.state.PersonalData.Name,
+		h.state.EosAccount,
 		h.config.EosContractName,
-		h.config.Directory[owner],
+		h.state.Directory[owner],
 		owner,
 		ehr,
 		string(graphDataJSON),
@@ -95,14 +97,14 @@ show:
 }
 
 func (h *handlers) closeHandler(w http.ResponseWriter, r *http.Request) {
-	if h.config.Connected {
+	if h.state.Connected {
 		h.client.CloseWs()
 	}
 	http.Redirect(w, r, "/", 302)
 }
 
 func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.config.Connected {
+	if !h.state.Connected {
 		err := h.client.ConnectWs()
 		if err != nil {
 			h.log.Printf("Failed to connect to ws:%v", err)
@@ -114,7 +116,7 @@ func (h *handlers) connectHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	owner := h.config.EosAccount
+	owner := h.state.EosAccount
 	if owners, ok := r.Form["owner"]; ok {
 		owner = owners[0]
 	}
@@ -125,7 +127,7 @@ func (h *handlers) saveEHRHandler(w http.ResponseWriter, r *http.Request) {
 	diastolic := r.Form["diastolic"][0]
 
 	var err error
-	data := ehrdata.NewVitalSigns(h.config)
+	data := ehrdata.NewVitalSigns(h.state)
 	if err = ehrdata.AddVitalSigns(data, weight, glucose, systolic, diastolic); err == nil {
 		err = h.client.SaveAndUploadEhrData(owner, data)
 	}
@@ -155,9 +157,9 @@ func (h *handlers) requestHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) ignoreHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	for i, v := range h.config.Connections.WithoutKey {
+	for i, v := range h.state.Connections.WithoutKey {
 		if v == to {
-			h.config.Connections.WithoutKey = append(h.config.Connections.WithoutKey[:i], h.config.Connections.WithoutKey[i+1:]...)
+			h.state.Connections.WithoutKey = append(h.state.Connections.WithoutKey[:i], h.state.Connections.WithoutKey[i+1:]...)
 		}
 	}
 	http.Redirect(w, r, "/", 302)
@@ -193,7 +195,7 @@ func (h *handlers) grantAccessHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) denyAccessHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	to := r.Form["to"][0]
-	delete(h.config.Connections.Requested, to)
+	delete(h.state.Connections.Requested, to)
 	http.Redirect(w, r, "/", 302)
 }
 
@@ -208,7 +210,7 @@ func (h *handlers) revokeAccessHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) switchModeHandler(w http.ResponseWriter, r *http.Request) {
-	h.config.IsDoctor = !h.config.IsDoctor
+	h.state.IsDoctor = !h.state.IsDoctor
 	http.Redirect(w, r, "/", 302)
 }
 

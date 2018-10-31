@@ -8,20 +8,20 @@ import (
 	"time"
 
 	"github.com/iryonetwork/network-poc/client"
-	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/openEHR"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 )
 
-func New(config *config.Config) {
+func New(state *state.State) {
 	fname := newName()
 	sname := newSurname()
 	name := fmt.Sprintf("%s %s", fname, sname)
-	config.PersonalData = &openEHR.PersonalData{
+	state.PersonalData = &openEHR.PersonalData{
 		Shared: openEHR.Shared{
 			Repeating: openEHR.Repeating{
 				Composer: openEHR.Composer{
-					ID:   config.EosAccount,
+					ID:   state.EosAccount,
 					Name: name,
 				},
 				Language: "en",
@@ -57,14 +57,14 @@ func getGender() string {
 	return "local::at0311|Female|"
 }
 
-func Upload(config *config.Config, ehr *ehr.Storage, client *client.Client) error {
-	data, err := json.Marshal(config.PersonalData)
+func Upload(state *state.State, ehr *ehr.Storage, client *client.Client) error {
+	data, err := json.Marshal(state.PersonalData)
 	if err != nil {
 		return err
 	}
-	id, err := ehr.Encrypt(config.EosAccount, data, config.EncryptionKeys[config.EosAccount])
+	id, err := ehr.Encrypt(state.EosAccount, data, state.EncryptionKeys[state.EosAccount])
 	if err != nil {
 		return err
 	}
-	return client.Upload(config.EosAccount, id, false)
+	return client.Upload(state.EosAccount, id, false)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/openEHR/personaldata"
+	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
@@ -20,11 +21,17 @@ func main() {
 		stdlog.Fatalf("failed to get config: %v", err)
 	}
 
-	personaldata.New(config)
-
 	log := logger.New(config)
 
-	eos, err := eos.New(config, log)
+	state, err := state.New(config, log)
+	if err != nil {
+		log.Fatalf("failed to initialize state: %v", err)
+	}
+	defer state.Close()
+
+	personaldata.New(state)
+
+	eos, err := eos.New(config, state, log)
 	if err != nil {
 		log.Fatalf("failed to setup eth storage; %v", err)
 	}
@@ -34,18 +41,18 @@ func main() {
 		log.Fatalf("Failed to create new key; %v", err)
 	}
 
-	config.RSAKey, err = rsa.GenerateKey(rand.Reader, 4096)
+	state.RSAKey, err = rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		log.Fatalf("Failed generating rsa key")
 	}
 
-	client := client.New(config, eos, ehr, log)
+	client := client.New(config, state, eos, ehr, log)
 
 	if err = client.Login(); err != nil {
 		log.Fatalf("Failed to login; %v", err)
 	}
 
-	config.EosAccount, err = client.CreateAccount(config.GetEosPublicKey())
+	state.EosAccount, err = client.CreateAccount(state.GetEosPublicKey())
 	if err != nil {
 		log.Fatalf("Failed to create account: %v", err)
 	}
@@ -62,14 +69,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to generate random key: %v", err)
 	}
-	config.EncryptionKeys[config.EosAccount] = key
+	state.EncryptionKeys[state.EosAccount] = key
 
-	if err := personaldata.Upload(config, ehr, client); err != nil {
+	if err := personaldata.Upload(state, ehr, client); err != nil {
 		log.Fatalf("Error uploading personal data: %v", err)
 	}
 
 	h := &handlers{
 		config: config,
+		state:  state,
 		ehr:    ehr,
 		client: client,
 		log:    log,

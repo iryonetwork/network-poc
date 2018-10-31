@@ -11,24 +11,26 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/state"
 )
 
 type Ws struct {
 	conn         *websocket.Conn
 	frontendConn []*websocket.Conn
 	config       *config.Config
+	state        *state.State
 	ehr          *ehr.Storage
 	eos          *eos.Storage
 	log          *logger.Log
 }
 
 // Connect connects client to api
-func ConnectWs(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eos.Storage) (*Ws, error) {
-	addr := fmt.Sprintf("ws%s/ws?token=%s", config.IryoAddr[4:], config.Token)
+func ConnectWs(config *config.Config, state *state.State, log *logger.Log, ehr *ehr.Storage, eos *eos.Storage) (*Ws, error) {
+	addr := fmt.Sprintf("ws%s/ws?token=%s", config.IryoAddr[4:], state.Token)
 	log.Debugf("WS:: Connecting to ws")
 
 	// Call API's WS
-	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Cookie": []string{fmt.Sprintf("token=%s", config.Token)}})
+	c, _, err := websocket.DefaultDialer.Dial(addr, http.Header{"Cookie": []string{fmt.Sprintf("token=%s", state.Token)}})
 	if err != nil {
 		return nil, err
 	}
@@ -39,11 +41,11 @@ func ConnectWs(config *config.Config, log *logger.Log, ehr *ehr.Storage, eos *eo
 		return nil, err
 	}
 	if string(msg) == "Authorized" {
-		out := &Ws{conn: c, config: config, log: log, ehr: ehr, eos: eos}
-		if !config.Subscribed {
+		out := &Ws{conn: c, config: config, state: state, log: log, ehr: ehr, eos: eos}
+		if !state.Subscribed {
 			out.Subscribe()
 		}
-		config.Connected = true
+		state.Connected = true
 		return out, nil
 	}
 
@@ -60,7 +62,7 @@ func (s *Ws) Conn() *websocket.Conn {
 }
 
 func (s *Ws) Reconnect() error {
-	temp, err := ConnectWs(s.config, s.log, s.ehr, s.eos)
+	temp, err := ConnectWs(s.config, s.state, s.log, s.ehr, s.eos)
 	if err != nil {
 		return err
 	}

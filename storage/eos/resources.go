@@ -59,20 +59,20 @@ func getMissingResources(available *resources) *resources {
 
 func (s *Storage) buyRAM(user string, amount uint32) error {
 	s.log.Debugf("Buying %d bytes of RAM for %s", amount, user)
-	_, err := s.api.SignPushActions(system.NewBuyRAMBytes(eos.AN(s.config.EosAccount), eos.AN(user), amount))
+	_, err := s.api.SignPushActions(system.NewBuyRAMBytes(eos.AN(s.state.EosAccount), eos.AN(user), amount))
 	return err
 }
 
 func (s *Storage) buyCpuNet(user string, cpuVal, netVal int64) error {
 	s.log.Debugf("Buying %d CPU and %d NET for %s", cpuVal, netVal, user)
-	_, err := s.api.SignPushActions(s.buyCpuNetRequest(s.config.EosAccount, cpuVal, netVal))
+	_, err := s.api.SignPushActions(s.buyCpuNetRequest(s.state.EosAccount, cpuVal, netVal))
 	return err
 }
 
 func (s *Storage) buyCpuNetRequest(account string, cpuVal, netVal int64) *eos.Action {
 	transfer := false
-	if account != s.config.EosAccount {
+	if account != s.state.EosAccount {
 		transfer = true
 	}
-	return system.NewDelegateBW(eos.AN(s.config.EosAccount), eos.AN(account), eos.NewEOSAsset(cpuVal), eos.NewEOSAsset(netVal), transfer)
+	return system.NewDelegateBW(eos.AN(s.state.EosAccount), eos.AN(account), eos.NewEOSAsset(cpuVal), eos.NewEOSAsset(netVal), transfer)
 }

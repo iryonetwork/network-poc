@@ -13,20 +13,22 @@ import (
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/state"
 )
 
 type Storage struct {
 	config *config.Config
+	state  *state.State
 	api    *eos.API
 	log    *logger.Log
 }
 
 // New sets the connection to nodeos API up and adds keybag signer
-func New(cfg *config.Config, log *logger.Log) (*Storage, error) {
+func New(cfg *config.Config, state *state.State, log *logger.Log) (*Storage, error) {
 	log.Debugf("Eos:: Adding EOS_API from %s", cfg.EosAPI)
 	node := eos.New(cfg.EosAPI)
 	node.SetSigner(eos.NewKeyBag())
-	s := &Storage{log: log, config: cfg, api: node}
+	s := &Storage{log: log, config: cfg, state: state, api: node}
 	s.api = node
 	return s, nil
 }
@@ -46,9 +48,9 @@ func (s *Storage) GrantAccess(to string) error {
 		Account: eos.AN(s.config.EosContractAccount),
 		Name:    eos.ActN("grantaccess"),
 		Authorization: []eos.PermissionLevel{
-			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
+			{eos.AN(s.state.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{eos.AN(s.state.EosAccount), eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
 	s.log.Debugf("Granted access to user; %+v", to)
@@ -63,9 +65,9 @@ func (s *Storage) RevokeAccess(to string) error {
 		Account: eos.AN(s.config.EosContractAccount),
 		Name:    eos.ActN("revokeaccess"),
 		Authorization: []eos.PermissionLevel{
-			{eos.AN(s.config.EosAccount), eos.PermissionName("active")},
+			{eos.AN(s.state.EosAccount), eos.PermissionName("active")},
 		},
-		ActionData: eos.NewActionData(AccessReq{eos.AN(s.config.EosAccount), eos.AN(to)}),
+		ActionData: eos.NewActionData(AccessReq{eos.AN(s.state.EosAccount), eos.AN(to)}),
 	}
 	_, err := s.api.SignPushActions(action)
 	return err
@@ -141,7 +143,7 @@ func (s *Storage) DeployContract() error {
 	if s.config.EosTokenName == "" {
 		return fmt.Errorf("No config.EosTokenName specified, unable to deploy token")
 	}
-	if s.config.EosAccount == "" {
+	if s.state.EosAccount == "" {
 		return fmt.Errorf("No config.EosAccount specified, unable to createa account to deploy token to")
 	}
 	err = s.pushContract(s.config.EosTokenAccount, s.config.EosTokenName)
@@ -154,7 +156,7 @@ func (s *Storage) DeployContract() error {
 
 func (s *Storage) pushContract(n, cn string) error {
 	// import key
-	key, err := s.ImportKey(s.config.EosPrivate)
+	key, err := s.ImportKey(s.state.EosPrivate)
 	if err != nil {
 		return err
 	}
@@ -183,7 +185,7 @@ func (s *Storage) CreateAccount(account, keyStr string) error {
 	s.log.Debugf("Eos::createAccount(%s) called", account)
 
 	// Check if we have enough resources to create new account
-	if err := s.checkBuyResources(s.config.EosAccount); err != nil {
+	if err := s.checkBuyResources(s.state.EosAccount); err != nil {
 		s.log.Debugf("Bought resources error: %+v", err)
 	}
 
@@ -195,10 +197,10 @@ func (s *Storage) CreateAccount(account, keyStr string) error {
 	actions := []*eos.Action{}
 
 	// Create new account
-	actions = append(actions, system.NewNewAccount(eos.AN(s.config.EosAccount), eos.AN(account), key))
+	actions = append(actions, system.NewNewAccount(eos.AN(s.state.EosAccount), eos.AN(account), key))
 
 	if s.config.EosRequiresRAM {
-		actions = append(actions, system.NewBuyRAMBytes(eos.AccountName(s.config.EosAccount), eos.AccountName(account), 4096))
+		actions = append(actions, system.NewBuyRAMBytes(eos.AccountName(s.state.EosAccount), eos.AccountName(account), 4096))
 		actions = append(actions, s.buyCpuNetRequest(account, 10000, 10000))
 	}
 
@@ -232,7 +234,7 @@ func (s *Storage) NewKey() error {
 		return err
 	}
 	s.ImportKey(key.String())
-	s.config.EosPrivate = key.String()
+	s.state.EosPrivate = key.String()
 	return nil
 }
 
@@ -272,7 +274,7 @@ func (s *Storage) SignHash(data []byte) (string, error) {
 }
 
 func (s *Storage) SignByte(data []byte) (string, error) {
-	sk, err := ecc.NewPrivateKey(s.config.EosPrivate)
+	sk, err := ecc.NewPrivateKey(s.state.EosPrivate)
 	if err != nil {
 		return "", err
 	}

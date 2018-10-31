@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/iryonetwork/network-poc/logger"
 	"github.com/iryonetwork/network-poc/requests"
-	"github.com/iryonetwork/network-poc/config"
+	"github.com/iryonetwork/network-poc/state"
 )
 
 type subscribe struct {
@@ -30,13 +30,13 @@ type subscribe struct {
 
 func (s *Ws) Subscribe() {
 	s.log.Debugf("WS::Subscribe called")
-	reqs := requests.NewRequests(s.log, s.config, s.conn, s.eos)
+	reqs := requests.NewRequests(s.log, s.config, s.state, s.conn, s.eos)
 
-	sub := &subscribe{s, reqs, New(s.config, s.eos, s.ehr, s.log)}
+	sub := &subscribe{s, reqs, New(s.config, s.state, s.eos, s.ehr, s.log)}
 
-	s.config.Subscribed = true
+	s.state.Subscribed = true
 	defer func() {
-		s.config.Subscribed = false
+		s.state.Subscribed = false
 	}()
 	go func() {
 		for {
@@ -91,7 +91,7 @@ func (s *subscribe) readMessage() (*requests.Request, error) {
 	_, message, err := s.conn.ReadMessage()
 	if err != nil {
 		if !websocket.IsUnexpectedCloseError(err, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015) {
-			s.config.Connected = false
+			s.state.Connected = false
 			s.log.Printf("SUBSCRIPTION:: Closing due to closed connection")
 			s.log.Printf("SUBSCRIPTION:: Trying to reastablish connection")
 			if err2 := retry(2*time.Second, 5, s.Reconnect); err2 != nil {
@@ -113,7 +113,7 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 	customData := subscribeGetStringDataFromRequest(r, "customData", s.log)
 
 	rnd := rand.Reader
-	key, err := rsa.DecryptOAEP(sha512.New(), rnd, s.config.RSAKey, keyenc, []byte{})
+	key, err := rsa.DecryptOAEP(sha512.New(), rnd, s.state.RSAKey, keyenc, []byte{})
 	if err != nil {
 		s.log.Printf("Error decrypting key: %v", err)
 		return
@@ -121,17 +121,17 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 
 	s.log.Debugf("SUBSCRIPTION:: Importing key from user %s (%s)", from, customData)
 
-	s.config.Directory[from] = name
-	s.config.EncryptionKeys[from] = key
+	s.state.Directory[from] = name
+	s.state.EncryptionKeys[from] = key
 
 	exists := false
-	for _, name := range s.config.Connections.WithKey {
+	for _, name := range s.state.Connections.WithKey {
 		if name == from {
 			exists = true
 		}
 	}
 	if !exists {
-		s.config.Connections.WithKey = append(s.config.Connections.WithKey, from)
+		s.state.Connections.WithKey = append(s.state.Connections.WithKey, from)
 	}
 
 	s.log.Debugf("SUBSCRIPTION:: Imported key from %s ", from)
@@ -143,11 +143,11 @@ func (s *subscribe) revokeKey(r *requests.Request) {
 	s.log.Debugf("SUBSCRIPTION:: Revoking %s's key", from)
 
 	s.ehr.RemoveUser(from)
-	delete(s.config.EncryptionKeys, from)
+	delete(s.state.EncryptionKeys, from)
 
-	for i, v := range s.config.Connections.WithKey {
+	for i, v := range s.state.Connections.WithKey {
 		if v == from {
-			s.config.Connections.WithKey = append(s.config.Connections.WithKey[:i], s.config.Connections.WithKey[i+1:]...)
+			s.state.Connections.WithKey = append(s.state.Connections.WithKey[:i], s.state.Connections.WithKey[i+1:]...)
 			s.log.Debugf("SUBSCRIPTION:: Revoked %s's key ", from)
 		}
 	}
@@ -167,11 +167,11 @@ func (s *subscribe) accessWasGranted(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
 	s.log.Debugf("Got notification 'accessGranted' from %s", from)
-	s.config.Directory[from] = name
+	s.state.Directory[from] = name
 
 	// Check if we already have the user on the list
 	onlist := false
-	for _, v := range s.config.Connections.WithKey {
+	for _, v := range s.state.Connections.WithKey {
 		if v == from {
 			onlist = true
 			return
@@ -179,7 +179,7 @@ func (s *subscribe) accessWasGranted(r *requests.Request) {
 	}
 	// if its not on list add it
 	if !onlist {
-		s.config.Connections.WithoutKey = append(s.config.Connections.WithoutKey, from)
+		s.state.Connections.WithoutKey = append(s.state.Connections.WithoutKey, from)
 	}
 }
 
@@ -207,14 +207,14 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 	if err != nil {
 		s.log.Printf("SUBSCRIBE:: Error getting rsa public key; %v", err)
 	}
-	s.config.Connections.Requested[from] = config.Request{Key: pubKey, CustomData: customData}
+	s.state.Connections.Requested[from] = state.Request{Key: pubKey, CustomData: customData}
 
 	// Add user to directory
-	s.config.Directory[from] = name
+	s.state.Directory[from] = name
 
 	// Check if access is already granted
 	// if it is, send the key without prompting the user for confirmation
-	granted, err := s.eos.AccessGranted(s.config.EosAccount, from)
+	granted, err := s.eos.AccessGranted(s.state.EosAccount, from)
 	if err != nil {
 		s.log.Printf("Error getting key: %v", err)
 	}
@@ -223,16 +223,16 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 
 		// make sure they are on the list
 		add := false
-		for _, name := range s.config.Connections.GrantedTo {
+		for _, name := range s.state.Connections.GrantedTo {
 			if name == from {
 				add = false
 			}
 		}
 		if add {
-			s.config.Connections.GrantedTo = append(s.config.Connections.GrantedTo, from)
+			s.state.Connections.GrantedTo = append(s.state.Connections.GrantedTo, from)
 		}
 		// Delete the user from requests
-		delete(s.config.Connections.Requested, from)
+		delete(s.state.Connections.Requested, from)
 	}
 }
 
@@ -246,7 +246,7 @@ func (s *subscribe) newUpload(r *requests.Request) {
 		s.log.Debugf("error updating: %v", err)
 	}
 
-	dataMap, err := ehrdata.ExtractEhrData(account, s.ehr, s.config)
+	dataMap, err := ehrdata.ExtractEhrData(account, s.ehr, s.state)
 	if err != nil {
 		s.log.Debugf("Error getting ehrdata: %v", err)
 	}

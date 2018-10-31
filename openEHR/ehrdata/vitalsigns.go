@@ -3,14 +3,14 @@ package ehrdata
 import (
 	"fmt"
 
-	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/openEHR"
+	"github.com/iryonetwork/network-poc/state"
 )
 
-func NewVitalSigns(config *config.Config) *openEHR.VitalSigns {
+func NewVitalSigns(state *state.State) *openEHR.VitalSigns {
 	return &openEHR.VitalSigns{
 		Shared: openEHR.Shared{
-			Repeating: config.PersonalData.Repeating,
+			Repeating: state.PersonalData.Repeating,
 			Category:  "433|event",
 			Timestamp: timestamp(),
 		},
