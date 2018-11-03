@@ -454,7 +454,11 @@ func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {
 		return err
 	}
 
-	id, err := c.ehr.Encrypt(user, jsonData, c.state.EncryptionKeys[user])
+	return c.SaveAndUploadData(user, jsonData)
+}
+
+func (c *Client) SaveAndUploadData(user string, data []byte) error {
+	id, err := c.ehr.Encrypt(user, data, c.state.EncryptionKeys[user])
 	if err != nil {
 		return err
 	}
