@@ -14,43 +14,50 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iryonetwork/network-poc/requests"
+	"github.com/gorilla/websocket"
 
 	"github.com/iryonetwork/network-poc/config"
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/requests"
 	"github.com/iryonetwork/network-poc/state"
 	"github.com/iryonetwork/network-poc/storage/ehr"
 	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 type Client struct {
-	config  *config.Config
-	state   *state.State
-	eos     *eos.Storage
-	ehr     *ehr.Storage
-	log     *logger.Log
-	ws      *Ws
-	request *requests.Requests
+	config         *config.Config
+	state          *state.State
+	eos            *eos.Storage
+	ehr            *ehr.Storage
+	messageHandler MessageHandler
+	log            *logger.Log
+	ws             *Ws
+	request        *requests.Requests
 }
 
-func New(config *config.Config, state *state.State, eos *eos.Storage, ehr *ehr.Storage, log *logger.Log) *Client {
-	return &Client{
-		config: config,
-		state:  state,
-		eos:    eos,
-		ehr:    ehr,
-		log:    log,
+func New(config *config.Config, state *state.State, eos *eos.Storage, ehr *ehr.Storage, messageHandler MessageHandler, log *logger.Log) *Client {
+	c := &Client{
+		config:         config,
+		state:          state,
+		eos:            eos,
+		ehr:            ehr,
+		messageHandler: messageHandler,
+		log:            log,
 	}
+	messageHandler.SetClient(c)
+
+	return c
 }
 
 func (c *Client) ConnectWs() error {
 	c.Login()
-	wsStorage, err := ConnectWs(c.config, c.state, c.log, c.ehr, c.eos)
+	wsStorage, err := ConnectWs(c.config, c.state, c.log, c.messageHandler, c.ehr, c.eos)
 	if err != nil {
 		return err
 	}
 	c.ws = wsStorage
 	c.request = requests.NewRequests(c.log, c.config, c.state, wsStorage.Conn(), c.eos)
+	c.messageHandler.SetRequests(c.request)
 	return nil
 }
 
@@ -453,4 +460,23 @@ func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {
 	}
 
 	return c.Upload(user, id, false)
+}
+
+func (c *Client) AddFrontendWS(conn *websocket.Conn) {
+	c.ws.frontendConn = append(c.ws.frontendConn, conn)
+}
+
+func (c *Client) RemoveFrontendWS(conn *websocket.Conn) error {
+	deleted := false
+	for i, v := range c.ws.frontendConn {
+		if v == conn {
+			c.ws.frontendConn = append(c.ws.frontendConn[:i], c.ws.frontendConn[i+1:]...)
+			deleted = true
+		}
+	}
+	if !deleted {
+		return fmt.Errorf("Ws connection not found")
+	}
+	c.log.Debugf("Closing client's ws connection")
+	return conn.Close()
 }

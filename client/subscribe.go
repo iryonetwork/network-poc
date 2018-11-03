@@ -10,97 +10,47 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"log"
-	"time"
-
-	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 
 	"github.com/eoscanada/eos-go/ecc"
-	"github.com/gorilla/websocket"
+
 	"github.com/iryonetwork/network-poc/logger"
+	"github.com/iryonetwork/network-poc/openEHR/ehrdata"
 	"github.com/iryonetwork/network-poc/requests"
 	"github.com/iryonetwork/network-poc/state"
+	"github.com/iryonetwork/network-poc/storage/ehr"
+	"github.com/iryonetwork/network-poc/storage/eos"
 )
 
 type subscribe struct {
-	*Ws
-	*requests.Requests
-	client *Client
+	eos      *eos.Storage
+	ehr      *ehr.Storage
+	requests *requests.Requests
+	ws       *Ws
+	client   *Client
+	state    *state.State
+	log      *logger.Log
 }
 
-func (s *Ws) Subscribe() {
-	s.log.Debugf("WS::Subscribe called")
-	reqs := requests.NewRequests(s.log, s.config, s.state, s.conn, s.eos)
-
-	sub := &subscribe{s, reqs, New(s.config, s.state, s.eos, s.ehr, s.log)}
-
-	s.state.Subscribed = true
-	defer func() {
-		s.state.Subscribed = false
-	}()
-	go func() {
-		for {
-			// Decode the message
-			r, err := sub.readMessage()
-			if websocket.IsCloseError(err, 1000) {
-				s.log.Printf("SUBSCRIBE:: Connection closed")
-				break
-			}
-			if err != nil {
-				s.log.Printf("SUBSCRIBE:: Read message error: %v", err)
-				break
-			}
-
-			// Handle the request
-			switch r.Name {
-			case "ImportKey":
-				sub.ImportKey(r)
-
-			// Revoke key
-			// Remove all entries connected to user
-			case "RevokeKey":
-				sub.revokeKey(r)
-
-			// Data was reencrypted
-			// make a new key request and delete old data
-			case "Reencrypt":
-				sub.subReencrypt(r)
-
-			// User has granted access to doctor
-			// Make a notification that access has been granted
-			case "NotifyGranted":
-				sub.accessWasGranted(r)
-
-			// Key has beed request from another user
-			// Notify me
-			case "RequestKey":
-				sub.notifyKeyRequested(r)
-
-			case "NewUpload":
-				sub.newUpload(r)
-
-			default:
-				s.log.Debugf("SUBSCRIPTION:: Got unknown request %v", r.Name)
-			}
-		}
-	}()
+func NewMessageHandler(state *state.State, ehr *ehr.Storage, eos *eos.Storage, log *logger.Log) *subscribe {
+	return &subscribe{eos: eos, ehr: ehr, state: state, log: log}
 }
 
-func (s *subscribe) readMessage() (*requests.Request, error) {
-	// Read the message
-	_, message, err := s.conn.ReadMessage()
-	if err != nil {
-		if !websocket.IsUnexpectedCloseError(err, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015) {
-			s.state.Connected = false
-			s.log.Printf("SUBSCRIPTION:: Closing due to closed connection")
-			s.log.Printf("SUBSCRIPTION:: Trying to reastablish connection")
-			if err2 := retry(2*time.Second, 5, s.Reconnect); err2 != nil {
-				return nil, err2
-			}
-		}
-		return nil, err
-	}
-	return requests.Decode(message)
+func (s *subscribe) SetClient(client *Client) MessageHandler {
+	s.client = client
+
+	return s
+}
+
+func (s *subscribe) SetWs(ws *Ws) MessageHandler {
+	s.ws = ws
+
+	return s
+}
+
+func (s *subscribe) SetRequests(requests *requests.Requests) MessageHandler {
+	s.requests = requests
+
+	return s
 }
 
 func (s *subscribe) ImportKey(r *requests.Request) {
@@ -137,7 +87,7 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 	s.log.Debugf("SUBSCRIPTION:: Imported key from %s ", from)
 }
 
-func (s *subscribe) revokeKey(r *requests.Request) {
+func (s *subscribe) RevokeKey(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
 	s.log.Debugf("SUBSCRIPTION:: Revoking %s's key", from)
@@ -153,16 +103,16 @@ func (s *subscribe) revokeKey(r *requests.Request) {
 	}
 }
 
-func (s *subscribe) subReencrypt(r *requests.Request) {
+func (s *subscribe) SubReencrypt(r *requests.Request) {
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	s.ehr.RemoveUser(from)
-	err := s.RequestsKey(from, "")
+	err := s.requests.RequestsKey(from, "")
 	if err != nil {
 		s.log.Printf("Error creating RequestKey: %v", err)
 	}
 }
 
-func (s *subscribe) accessWasGranted(r *requests.Request) {
+func (s *subscribe) AccessWasGranted(r *requests.Request) {
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 
@@ -183,7 +133,7 @@ func (s *subscribe) accessWasGranted(r *requests.Request) {
 	}
 }
 
-func (s *subscribe) notifyKeyRequested(r *requests.Request) {
+func (s *subscribe) NotifyKeyRequested(r *requests.Request) {
 	s.log.Debugf("SUBSCRIPTION:: Got RequestKey request")
 	from := subscribeGetStringDataFromRequest(r, "from", s.log)
 	name := subscribeGetStringDataFromRequest(r, "name", s.log)
@@ -219,7 +169,7 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 		s.log.Printf("Error getting key: %v", err)
 	}
 	if granted {
-		s.SendKey(from)
+		s.requests.SendKey(from)
 
 		// make sure they are on the list
 		add := false
@@ -236,7 +186,7 @@ func (s *subscribe) notifyKeyRequested(r *requests.Request) {
 	}
 }
 
-func (s *subscribe) newUpload(r *requests.Request) {
+func (s *subscribe) NewUpload(r *requests.Request) {
 	account := subscribeGetStringDataFromRequest(r, "user", s.log)
 
 	s.log.Debugf("New file for user: %s", account)
@@ -256,7 +206,7 @@ func (s *subscribe) newUpload(r *requests.Request) {
 		s.log.Debugf("Error marshaling json: %v", err)
 	}
 	userdata := []byte(fmt.Sprintf(`{"account":"%s"}`, account))
-	for _, conn := range s.frontendConn {
+	for _, conn := range s.ws.frontendConn {
 		err = conn.WriteMessage(1, append(userdata, data...))
 		if err != nil {
 			s.log.Debugf("Error writing message: %v", err)
@@ -309,7 +259,6 @@ func (s *subscribe) verifyRequestKeyRequest(signature, from string, rsakey []byt
 }
 
 func requestGetKeyFromSignature(strsign string, rsakey []byte) (ecc.PublicKey, error) {
-
 	sign, err := ecc.NewSignature(strsign)
 	if err != nil {
 		return ecc.PublicKey{}, err
@@ -326,19 +275,4 @@ func getHash(in []byte) []byte {
 	sha := sha256.New()
 	sha.Write(in)
 	return sha.Sum(nil)
-}
-
-func retry(wait time.Duration, attempts int, f func() error) (err error) {
-	for i := 0; i < attempts; i++ {
-		if err = f(); err == nil {
-			log.Printf("Function called successfully")
-			return nil
-		}
-
-		time.Sleep(wait)
-
-		log.Println("retrying after error:", err)
-	}
-
-	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

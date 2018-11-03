@@ -46,7 +46,7 @@ func main() {
 		log.Fatalf("Failed generating rsa key")
 	}
 
-	client := client.New(config, state, eos, ehr, log)
+	client := client.New(config, state, eos, ehr, client.NewMessageHandler(state, ehr, eos, log), log)
 
 	if err = client.Login(); err != nil {
 		log.Fatalf("Failed to login; %v", err)
