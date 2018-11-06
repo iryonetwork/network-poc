@@ -441,7 +441,7 @@ func (c *Client) RevokeAccess(to string) error {
 
 // CheckGrantedStatus checks if access is granted for given account and if the encryption key is available.
 func (c *Client) CheckGrantedStatus(eosAccountName string) (accessGranted bool, keyAvailable bool, err error) {
-	c.log.Debugf("Client::ensureKey(%s) called", eosAccountName)
+	c.log.Debugf("Client::CheckGrantedStatus(%s) called", eosAccountName)
 
 	// Check if access was granted
 	ok, err := c.eos.AccessGranted(c.state.EosAccount, eosAccountName)
@@ -510,8 +510,13 @@ func (c *Client) RequestAccess(to, customData string) error {
 	return err
 }
 
-func (c *Client) NewRequestKeyQr() string {
-	return fmt.Sprintf("%s\n%s %s", c.state.EosAccount, c.state.PersonalData.FirstName, c.state.PersonalData.FamilyName)
+func (c *Client) NewRequestKeyQr(customData string) string {
+	qrKey := fmt.Sprintf("%s\n%s", c.state.EosAccount, c.state.PersonalData.Name)
+	if customData != "" {
+		qrKey = fmt.Sprintf("%s\n%s", qrKey, customData)
+	}
+
+	return qrKey
 }
 
 func (c *Client) SaveAndUploadEhrData(user string, data interface{}) error {

@@ -34,7 +34,7 @@ func (h *handlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		outErr = err.Error()
 	}
 
-	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
+	qr, err := qrcode.New(h.client.NewRequestKeyQr(""), qrcode.Highest)
 	if err != nil {
 		log.Fatalf("Error creating qr: %v", err)
 	}
@@ -93,7 +93,7 @@ func (h *handlers) doctorIndexHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("error parsing template files: %v", err)
 	}
-	qr, err := qrcode.New(h.client.NewRequestKeyQr(), qrcode.Highest)
+	qr, err := qrcode.New(h.client.NewRequestKeyQr(""), qrcode.Highest)
 	if err != nil {
 		log.Fatalf("Error creating qr: %v", err)
 	}
