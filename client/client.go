@@ -439,6 +439,72 @@ func (c *Client) RevokeAccess(to string) error {
 	return nil
 }
 
+// CheckGrantedStatus checks if access is granted for given account and if the encryption key is available.
+func (c *Client) CheckGrantedStatus(eosAccountName string) (accessGranted bool, keyAvailable bool, err error) {
+	c.log.Debugf("Client::ensureKey(%s) called", eosAccountName)
+
+	// Check if access was granted
+	ok, err := c.eos.AccessGranted(c.state.EosAccount, eosAccountName)
+	if err != nil {
+		return false, false, err
+	}
+
+	if ok {
+		// check if key is available and make sure connections lists are correct
+		if _, ok := c.state.EncryptionKeys[eosAccountName]; !ok {
+			for i, v := range c.state.Connections.WithKey {
+				if v == eosAccountName {
+					c.state.Connections.WithKey = append(c.state.Connections.WithKey[:i], c.state.Connections.WithKey[i+1:]...)
+				}
+			}
+			onlist := false
+			for _, v := range c.state.Connections.WithoutKey {
+				if v == eosAccountName {
+					onlist = true
+				}
+			}
+			if !onlist {
+				c.state.Connections.WithoutKey = append(c.state.Connections.WithoutKey, eosAccountName)
+			}
+
+			return true, false, nil
+		}
+
+		for i, v := range c.state.Connections.WithoutKey {
+			if v == eosAccountName {
+				c.state.Connections.WithoutKey = append(c.state.Connections.WithoutKey[:i], c.state.Connections.WithoutKey[i+1:]...)
+			}
+		}
+		onlist := false
+		for _, v := range c.state.Connections.WithKey {
+			if v == eosAccountName {
+				onlist = true
+			}
+		}
+		if !onlist {
+			c.state.Connections.WithKey = append(c.state.Connections.WithKey, eosAccountName)
+		}
+
+		return true, true, nil
+	}
+
+	// access is not granted, make sure to remove from all the list
+	c.ehr.RemoveUser(eosAccountName)
+	delete(c.state.EncryptionKeys, eosAccountName)
+	for i, v := range c.state.Connections.WithKey {
+		if v == eosAccountName {
+			c.state.Connections.WithKey = append(c.state.Connections.WithKey[:i], c.state.Connections.WithKey[i+1:]...)
+		}
+	}
+	for i, v := range c.state.Connections.WithoutKey {
+		if v == eosAccountName {
+			c.state.Connections.WithoutKey = append(c.state.Connections.WithoutKey[:i], c.state.Connections.WithoutKey[i+1:]...)
+		}
+	}
+
+	return false, false, nil
+}
+
 func (c *Client) RequestAccess(to, customData string) error {
 	err := c.request.RequestsKey(to, customData)
 	return err
