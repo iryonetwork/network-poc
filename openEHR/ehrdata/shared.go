@@ -67,9 +67,9 @@ func setDataByTime(data []*openEHR.All) *map[string]Entry {
 				entry.Timestamp = append(entry.Timestamp, v.BloodPressure.Ts)
 				out["bpSys"] = entry
 			}
-			if v.BloodPressure.Diastolyc != "" {
+			if v.BloodPressure.Diastolic != "" {
 				entry := out["bpDia"]
-				entry.Value = append(entry.Value, removeUnit(v.BloodPressure.Diastolyc))
+				entry.Value = append(entry.Value, removeUnit(v.BloodPressure.Diastolic))
 				entry.Timestamp = append(entry.Timestamp, v.BloodPressure.Ts)
 				out["bpDia"] = entry
 			}
