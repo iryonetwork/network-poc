@@ -387,7 +387,7 @@ func (c *Client) GrantAccess(to string) error {
 			return fmt.Errorf("failed to send key; %v", err)
 		}
 	} else {
-		err = c.request.NotifyGranted(to)
+		err = c.request.NotifyGranted(to, "")
 		if err != nil {
 			return fmt.Errorf("Failed to notify access granted; %v", err)
 		}
