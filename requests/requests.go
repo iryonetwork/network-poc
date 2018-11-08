@@ -131,11 +131,17 @@ func rsaPublicToByte(public *rsa.PublicKey) ([]byte, error) {
 	return pem.EncodeToMemory(&keyBlock), nil
 }
 
-func (s *Requests) NotifyGranted(to string) error {
+func (s *Requests) NotifyGranted(to, customData string) error {
 	s.log.Debugf("WS:: Notifying %s that access was granted", to)
 
 	r := NewReq("NotifyGranted")
 	r.Append("to", to)
+
+	// Add customData if set
+	if customData != "" {
+		r.Append("customData", customData)
+	}
+
 	req, err := r.Encode()
 	if err != nil {
 		return err

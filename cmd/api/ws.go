@@ -16,6 +16,7 @@ func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 	if err != nil {
 		return err
 	}
+	customData, _ := inReq.GetDataString("customData")
 
 	s.log.Debugf("WS_API:: Got request: %s", inReq.Name)
 	var r *requests.Request
@@ -32,11 +33,12 @@ func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		if err != nil {
 			return err
 		}
-		customData, _ := inReq.GetDataString("customData")
 		r.Append("name", name)
 		r.Append("key", key)
 		r.Append("from", from)
-		r.Append("customData", customData)
+		if customData != "" {
+			r.Append("customData", customData)
+		}
 
 	case "RevokeKey":
 		s.log.Debugf("WS_API:: Revoking key")
@@ -62,6 +64,10 @@ func (s *wsStruct) HandleRequest(reqdata []byte, from string, db *db.Db) error {
 		r = requests.NewReq("NotifyGranted")
 		r.Append("from", (from))
 		r.Append("name", (name))
+		if customData != "" {
+			r.Append("customData", customData)
+		}
+
 	default:
 		s.log.Debugf("Recieved an invalid request")
 		return nil
