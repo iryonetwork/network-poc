@@ -29,6 +29,11 @@ type subscribe struct {
 	client   *Client
 	state    *state.State
 	log      *logger.Log
+	connecter connecter
+}
+
+type connecter interface{
+	Connect(string, string) error
 }
 
 func NewMessageHandler(state *state.State, ehr *ehr.Storage, eos *eos.Storage, log *logger.Log) *subscribe {
@@ -49,6 +54,12 @@ func (s *subscribe) SetWs(ws *Ws) MessageHandler {
 
 func (s *subscribe) SetRequests(requests *requests.Requests) MessageHandler {
 	s.requests = requests
+
+	return s
+}
+
+func (s *subscribe) SetConnecter(c connecter) MessageHandler {
+	s.connecter = c
 
 	return s
 }
@@ -82,6 +93,12 @@ func (s *subscribe) ImportKey(r *requests.Request) {
 	}
 	if !exists {
 		s.state.Connections.WithKey = append(s.state.Connections.WithKey, from)
+	}
+
+	if s.connecter != nil {
+		if err:= s.connecter.Connect(from, customData); err != nil {
+			s.log.Debugf("Failed to call external Connect function when import keys for %s (%s)", from, customData)
+		}
 	}
 
 	s.log.Debugf("SUBSCRIPTION:: Imported key from %s ", from)
@@ -119,17 +136,29 @@ func (s *subscribe) AccessWasGranted(r *requests.Request) {
 	s.log.Debugf("Got notification 'accessGranted' from %s", from)
 	s.state.Directory[from] = name
 
-	// Check if we already have the user on the list
+	// check if we already have the user's key
+	for _, v := range s.state.Connections.WithKey {
+		if v == from {
+			return
+		}
+	}
+
+	// check if user's already on the list of connections without key
 	onlist := false
 	for _, v := range s.state.Connections.WithKey {
 		if v == from {
 			onlist = true
-			return
 		}
 	}
+
 	// if its not on list add it
 	if !onlist {
 		s.state.Connections.WithoutKey = append(s.state.Connections.WithoutKey, from)
+	}
+
+	// automatically request key
+	if err := s.requests.RequestsKey(from, ""); err != nil {
+		s.log.Printf("Error occurred while requesting key %s", err.Error())
 	}
 }
 
