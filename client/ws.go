@@ -31,6 +31,7 @@ type (
 		SetClient(client *Client) MessageHandler
 		SetWs(ws *Ws) MessageHandler
 		SetRequests(requests *requests.Requests) MessageHandler
+		SetConnecter(connecter) MessageHandler
 		ImportKey(r *requests.Request)
 		RevokeKey(r *requests.Request)
 		SubReencrypt(r *requests.Request)
