@@ -72,7 +72,7 @@ func (s *State) GetNames(list []string) map[string]string {
 	return out
 }
 
-func (s *State) Close() error {
+func (s *State) Save() error {
 	if s.persistent != nil {
 		err := s.persistent.Set(StorageKeyIsDoctor, s.IsDoctor)
 		if err != nil {
@@ -125,7 +125,17 @@ func (s *State) Close() error {
 				return err
 			}
 		}
+	}
 
+	return nil
+}
+
+func (s *State) Close() error {
+	if err := s.Save(); err != nil {
+		return err
+	}
+
+	if s.persistent != nil {
 		return s.persistent.Close()
 	}
 
