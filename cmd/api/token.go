@@ -37,7 +37,7 @@ func (s *storage) tokenAccountCreation(token string) (string, int, error) {
 		return "", code, err
 	}
 	if exists {
-		return "", 403, fmt.Errorf("There is alreay an account tied to provided token")
+		return "", 403, fmt.Errorf("There is already an account tied to provided token")
 	}
 	return id, 200, nil
 }

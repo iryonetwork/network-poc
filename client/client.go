@@ -444,7 +444,7 @@ func (c *Client) CheckGrantedStatus(eosAccountName string) (accessGranted bool, 
 	c.log.Debugf("Client::CheckGrantedStatus(%s) called", eosAccountName)
 
 	// Check if access was granted
-	ok, err := c.eos.AccessGranted(c.state.EosAccount, eosAccountName)
+	ok, err := c.eos.AccessGranted(eosAccountName, c.state.EosAccount)
 	if err != nil {
 		return false, false, err
 	}
@@ -486,20 +486,6 @@ func (c *Client) CheckGrantedStatus(eosAccountName string) (accessGranted bool, 
 		}
 
 		return true, true, nil
-	}
-
-	// access is not granted, make sure to remove from all the list
-	c.ehr.RemoveUser(eosAccountName)
-	delete(c.state.EncryptionKeys, eosAccountName)
-	for i, v := range c.state.Connections.WithKey {
-		if v == eosAccountName {
-			c.state.Connections.WithKey = append(c.state.Connections.WithKey[:i], c.state.Connections.WithKey[i+1:]...)
-		}
-	}
-	for i, v := range c.state.Connections.WithoutKey {
-		if v == eosAccountName {
-			c.state.Connections.WithoutKey = append(c.state.Connections.WithoutKey[:i], c.state.Connections.WithoutKey[i+1:]...)
-		}
 	}
 
 	return false, false, nil
