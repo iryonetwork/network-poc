@@ -491,6 +491,19 @@ func (c *Client) CheckGrantedStatus(eosAccountName string) (accessGranted bool, 
 	return false, false, nil
 }
 
+func (c *Client) RemoveConnection(eosAccountName string) {
+	c.log.Debugf("Removing connection: %s", eosAccountName)
+
+	c.ehr.RemoveUser(eosAccountName)
+	delete(c.state.EncryptionKeys, eosAccountName)
+
+	for i, v := range c.state.Connections.WithKey {
+		if v == eosAccountName {
+			c.state.Connections.WithKey = append(c.state.Connections.WithKey[:i], c.state.Connections.WithKey[i+1:]...)
+		}
+	}
+}
+
 func (c *Client) RequestAccess(to, customData string) error {
 	err := c.request.RequestsKey(to, customData)
 	return err
