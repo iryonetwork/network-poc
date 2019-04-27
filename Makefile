@@ -30,11 +30,18 @@ stop: ## stop all services in docker-compose
 stop/%: ## stop a service in docker-compose
 	docker-compose stop $*
 
+.bin/patient1: CMD=client
+.bin/patient2: CMD=client
+.bin/doctor1: CMD=client
+.bin/doctor2: CMD=client
+
+.bin/%: CMD=%
 .bin/%: .FORCE ## builds a specific command line app
+	echo ${CMD}
 	@mkdir -p .bin
-	@if [ -a cmd/$*/main.go ]; then \
-		echo -n Building $* ...; \
-		GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -installsuffix cgo -o ./.bin/$* ./cmd/$* || exit 1; \
+	@if [ -a cmd/${CMD}/main.go ]; then \
+		echo -n Building ${CMD} ...; \
+		GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -installsuffix cgo -o ./.bin/$* ./cmd/${CMD} || exit 1; \
 		echo " Done"; \
 	fi
 

@@ -72,7 +72,7 @@ services:
     command:
     - /iryo/api
     volumes:
-    - ./bin:/iryo
+    - ./.bin:/iryo
     - ./.data:/data
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
     environment:
@@ -92,11 +92,9 @@ services:
   patient1:
     image: golang:1.12-alpine
     command:
-    - /iryo/client
+    - /iryo/patient1
     volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    - ./bin:/iryo
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
+    - ./.bin:/iryo
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_API=${EOS_NODE}
@@ -111,11 +109,9 @@ services:
   patient2:
     image: golang:1.12-alpine
     command:
-    - /iryo/client
+    - /iryo/patient2
     volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    - ./bin:/iryo
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
+    - ./.bin:/iryo
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
     - EOS_API=${EOS_NODE}
@@ -130,11 +126,9 @@ services:
   doctor1:
     image: golang:1.12-alpine
     command:
-    - /iryo/client
+    - /iryo/doctor1
     volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    - ./bin:/iryo
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
+    - ./.bin:/iryo
     environment:
     - EOS_API=${EOS_NODE}
     - IRYO_ADDR=${IRYO_ADDR}
@@ -149,11 +143,9 @@ services:
   doctor2:
     image: golang:1.12-alpine
     command:
-    - /iryo/client
+    - /iryo/doctor2
     volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    - ./bin:/iryo
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
+    - ./.bin:/iryo
     environment:
     - EOS_API=${EOS_NODE}
     - IRYO_ADDR=${IRYO_ADDR}
