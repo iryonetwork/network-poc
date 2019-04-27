@@ -29,7 +29,7 @@ spec:
         ports:
           - name: http
             containerPort: {{.Values.serverPort }}
-        command: [ "/api" ]
+        command: [ "/iryo/api" ]
         env:
           - name: IRYO_ADDR
             value: 0.0.0.0:{{ .Values.serverPort }}
@@ -110,7 +110,7 @@ spec:
         ports:
           - name: http
             containerPort: {{ .Values.serverPort }}
-        command: [ "/client" ]
+        command: [ "/iryo/client" ]
         env:
           - name: CLIENT_ADDR
             value: 0.0.0.0:{{ .Values.serverPort }}
@@ -169,7 +169,7 @@ spec:
         ports:
           - name: http
             containerPort: {{ .Values.serverPort }}
-        command: [ "/client" ]
+        command: [ "/iryo/client" ]
         env:
           - name: CLIENT_ADDR
             value: 0.0.0.0:{{ .Values.serverPort }}

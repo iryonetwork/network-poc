@@ -1,94 +1,72 @@
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
-#include <string>
+#include <eosio/eosio.hpp>
 
-namespace ZP {
-    using namespace eosio;
-    using std::string;
+using namespace eosio;
 
-    class Person : public contract {
-        using contract::contract;
+class [[eosio::contract]] iryo : public contract {
+  public:
+      using contract::contract;
 
-    public:
-        Person(account_name self):contract(self) {}
-	
-		//@abi action
-        void grantaccess(account_name patient, account_name account) {
-            require_auth( patient );
-            
-            personInx persons(_self, patient);
+      [[eosio::action]]
+      void grantaccess( name patient, name connectedUser ) {
+        require_auth( patient );
 
-            auto itr = persons.find(account);
-            eosio_assert(itr == persons.end(), "Access already granted");
+        personInx persons( get_self(), patient.value );
 
-            //
-            // We add the new person in the table
-            //
-            persons.emplace(patient, [&](auto& person) {
-                person.account_name = account;
-            });
+        // check if access is already granted
+        auto iterator = persons.find(connectedUser.value);
+        eosio::check(iterator == persons.end(), "Access already granted");
 
-            itr = persons.find(account);
-            eosio_assert(itr != persons.end(), "Connection not created properly");
+        // add to table
+        persons.emplace(patient, [&]( auto& row ) {
+          row.key = connectedUser;
+        });
 
-        }
-		
-		//@abi action
-        void revokeaccess(account_name patient, account_name account) {
-            require_auth( patient );
-            
-            personInx persons(_self, patient);
+        // check if access was granted
+        iterator = persons.find(connectedUser.value);
+        eosio::check(iterator != persons.end(), "Failed to grant access");
+      }
 
-            auto itr = persons.find(account);
-            eosio_assert(itr != persons.end(), "Address for account not found");
+      [[eosio::action]]
+      void revokeaccess( name patient, name connectedUser ) {
+        require_auth( patient );
 
-            //
-            // We remove account from the table
-            //
-            persons.erase(itr);
-            
-            // 
-            // Check if value was erased
-            //
-            itr = persons.find(account);
-            eosio_assert(itr == persons.end(), "Connection not erased properly");
+        personInx persons( get_self(), patient.value );
 
-        }
-		
-		//@abi action
-        void revokeaccess2(account_name patient, account_name account) {
-            require_auth( account );
-            
-            personInx persons(_self, patient);
+        // check access was granted in the past
+        auto iterator = persons.find(connectedUser.value);
+        eosio::check(iterator != persons.end(), "Did not find a connection to revoke");
 
-            auto itr = persons.find(account);
-            eosio_assert(itr != persons.end(), "Address for account not found");
+        // remove row
+        persons.erase(iterator);
 
-            //
-            // We remove account from the table
-            //
-            persons.erase(itr);
-            
-            // 
-            // Check if value was erased
-            //
-            itr = persons.find(account);
-            eosio_assert(itr == persons.end(), "Connection not erased properly");
+        // check access was revoked
+        iterator = persons.find(connectedUser.value);
+        eosio::check(iterator == persons.end(), "Connection not removed");
+      }
 
-        }
+      [[eosio::action]]
+      void revokeaccess2( name patient, name connectedUser ) {
+        require_auth( connectedUser );
 
-    private:
-        //@abi table person i64
-        struct person {
-            account_name account_name;
+        personInx persons( get_self(), patient.value );
 
-            uint64_t primary_key() const { return account_name; }
+        // check access was granted in the past
+        auto iterator = persons.find(connectedUser.value);
+        eosio::check(iterator != persons.end(), "Did not find a connection to revoke");
 
-            EOSLIB_SERIALIZE(person, (account_name))
-        };
+        // remove row
+        persons.erase(iterator);
 
-        typedef multi_index<N(person), person> personInx;
+        // check access was revoked
+        iterator = persons.find(connectedUser.value);
+        eosio::check(iterator == persons.end(), "Connection not removed");
+      }
+
+  private:
+    struct [[eosio::table]] person {
+      name key;
+      uint64_t primary_key() const { return key.value;}
     };
 
-    EOSIO_ABI(Person, (grantaccess)(revokeaccess)(revokeaccess2))
-}
+    typedef eosio::multi_index<"person"_n, person> personInx;
+};

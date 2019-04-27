@@ -105,7 +105,13 @@ func (s *Storage) ListConnected(patient string) ([]string, error) {
 	s.log.Debugf("Eos::listAccountFromTable(%s) called", patient)
 
 	// Get the table
-	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{JSON: true, Scope: patient, Code: s.config.EosContractAccount, Table: "person", Limit: math.MaxUint32, TableKey: "account_name"})
+	r, err := s.api.GetTableRows(eos.GetTableRowsRequest{
+		Code:    s.config.EosContractAccount,
+		JSON:    true,
+		Scope:   patient,
+		Table:   "person",
+		KeyType: "i64",
+		Limit:   math.MaxUint32})
 	if err != nil {
 		return nil, err
 	}

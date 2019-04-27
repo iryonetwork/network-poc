@@ -1,25 +1,59 @@
 version: "3"
 services:
+  ## local eos node
   nodeos:
     container_name: server
-    image: eosio/eos:v1.2.5
-    command: nodeosd.sh -e --http-alias=server:8888 --http-alias=127.0.0.1:8888 --http-alias=localhost:8888 --http-alias=host.docker.internal:8888
+    image: nodeos
+    build:
+      context: ./services/nodeos
+    command:
+      - nodeos
+      - -e
+      - -p
+      - eosio
+      - --http-server-address
+      - "0.0.0.0:8888"
+      - --plugin
+      - eosio::producer_plugin
+      - --plugin
+      - eosio::chain_api_plugin
+      - --plugin
+      - eosio::http_plugin
+      - --plugin
+      - eosio::state_history_plugin
+      - --access-control-allow-origin='*'
+      - --contracts-console
+      - --http-validate-host=false
+      - --trace-history
+      - --chain-state-history
+      - --verbose-http-errors
+      - --filter-on='*'
+      - --disable-replay-opts
     ports:
     - 8888:8888
 
-## Create master account
-  cleos:
-    image: eosio/eos-dev:v1.2.5
+  ## setup accounts and deploy contract
+  init:
+    image: nodeos
+    build:
+      context: ./services/nodeos
     command:
     - /bin/bash
     - -c
     - |
+      rm -fr ~/eosio-wallet
+      # create the wallet
       cleos wallet create --to-console
       cleos wallet import --private-key $$EOS_PRIVATE
       cleos wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 #default eosio account private key
-      cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
-      eosiocpp -g iryo.abi iryo.cpp
-      eosiocpp -o iryo.wast iryo.cpp
+      # create master account (if needed)
+      cleos -u $$EOS_API get account master || cleos -u $$EOS_API create account eosio master $$EOS_PUBLIC
+      # create then contract account (if needed)
+      cleos -u $$EOS_API get account $$EOS_CONTRACT_ACCOUNT || cleos -u $$EOS_API create account eosio $$EOS_CONTRACT_ACCOUNT $$EOS_PUBLIC
+      # build the contract
+      eosio-cpp -abigen -o iryo.wasm iryo.cpp
+      # deploy the contract
+      cleos -u $$EOS_API set contract $$EOS_CONTRACT_ACCOUNT . iryo.wasm iryo.abi
     volumes:
     - ./contract:/contract
     working_dir: /contract
@@ -27,52 +61,18 @@ services:
     - EOS_API=${EOS_NODE} # url on which nodeos is running
     - EOS_PRIVATE=${EOS_PRIVATE_KEY} # key used to sign master account
     - EOS_PUBLIC=${EOS_PUBLIC_KEY} # key used to create master account (public key of $EOS_PRIVATE)
+    - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT} # account
     tty: true
     depends_on:
     - nodeos
-## Cleos interface
-  tools:
-    image: eosio/eos-dev:v1.2.5
-    command:
-    - bash
-    volumes:
-    - ./contract:/contract
-    environment:
-    - EOS_API=${EOS_NODE} # url on which nodeos is running
-    tty: true
-## Deploy contract
-  deploy:
-    image: golang:1.11-alpine
-    command:
-    - go
-    - run
-    - main.go
-    volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
-    working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/deploy_eos_contract
-    environment:
-    - EOS_API=${EOS_NODE}
-    - EOS_ACCOUNT=${EOS_ACCOUNT} # create accounts using this one
-    - EOS_CONTRACT_ACCOUNT=${EOS_CONTRACT_ACCOUNT} # account to create and deploy the contract
-    - EOS_CONTRACT_NAME=${EOS_CONTRACT_NAME}  # name of contract
-    - EOS_TOKEN_ACCOUNT=iryo.token #name of account to deploy token to
-    - EOS_TOKEN_NAME=eosio.token # name of token contract
-    - EOS_PRIVATE=5KRuLTUU5pzPBhVPv2JkgXGtRoCM8g36PRCAxaCANYwJ7DH15tn # key used to sign master account
+
+  ## api server
   api:
-    image: golang:1.11-alpine
+    image: golang:1.12-alpine
     command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    - wshandlers.go
-    - ws.go
-    - accountCreate.go
-    - checks.go
-    - ehr.go
-    - token.go
+    - /iryo/api
     volumes:
-    - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./bin:/iryo
     - ./.data:/data
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/api
     environment:
@@ -87,18 +87,15 @@ services:
     - DEBUG=1
     ports:
     - 8000:8000
-  ## patient server
+
+  ## patient server #1
   patient1:
-    image: golang:1.11-alpine
+    image: golang:1.12-alpine
     command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    - indexHandlers.go
-    - wsHandler.go
+    - /iryo/client
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./bin:/iryo
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
@@ -109,17 +106,15 @@ services:
     - CLIENT_TYPE=Patient
     ports:
     - 9001:9000
+
+  ## patient server #2
   patient2:
-    image: golang:1.11-alpine
+    image: golang:1.12-alpine
     command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    - indexHandlers.go
-    - wsHandler.go
+    - /iryo/client
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./bin:/iryo
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - IRYO_ADDR=${IRYO_ADDR}
@@ -130,18 +125,15 @@ services:
     - CLIENT_TYPE=Patient
     ports:
     - 9002:9000
-  ## Doctor
+
+  ## doctor server #1
   doctor1:
-    image: golang:1.11-alpine
+    image: golang:1.12-alpine
     command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    - indexHandlers.go
-    - wsHandler.go
+    - /iryo/client
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./bin:/iryo
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - EOS_API=${EOS_NODE}
@@ -152,18 +144,15 @@ services:
     - CLIENT_TYPE=Doctor
     ports:
     - 9003:9000
-  ## Doctor
+
+  ## doctor server #2
   doctor2:
-    image: golang:1.11-alpine
+    image: golang:1.12-alpine
     command:
-    - go
-    - run
-    - main.go
-    - handlers.go
-    - indexHandlers.go
-    - wsHandler.go
+    - /iryo/client
     volumes:
     - ./:/go/src/github.com/iryonetwork/network-poc
+    - ./bin:/iryo
     working_dir: /go/src/github.com/iryonetwork/network-poc/cmd/client
     environment:
     - EOS_API=${EOS_NODE}

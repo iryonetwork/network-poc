@@ -37,7 +37,7 @@ func parseAvailableResources(response *eos.AccountResp) *resources {
 	// Get net
 	out.net = int64(response.NetLimit.Available)
 	// Get ram
-	out.ram = response.RAMQuota - response.RAMUsage
+	out.ram = int64(response.RAMQuota - response.RAMUsage)
 
 	return out
 }

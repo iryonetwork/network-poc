@@ -1,4 +1,6 @@
 DOCKER_TAG ?= latest
+SHELL = /bin/bash
+
 .PHONY: up run stop build specs
 
 ALL: vendorSync
@@ -14,9 +16,9 @@ clear: ## clears generated artifacts
 
 init: vendorUpdate vendorSync up/nodeos run/cleos up/deploy ## sets the nodeos up - creates master, iryo, iryo.token accounts and publishes contracts on them
 
-up: up/nodeos up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
+up: up/nodeos run/init up/api up/patient1 up/patient2 up/doctor1 up/doctor2 ## start nodeos, api and clients
 
-up/%: stop/% ## start a service in background
+up/%: .bin/% stop/% ## start a service in background
 	docker-compose up -d $*
 
 run/%: stop/% ## run a service in foreground
@@ -28,11 +30,16 @@ stop: ## stop all services in docker-compose
 stop/%: ## stop a service in docker-compose
 	docker-compose stop $*
 
+.bin/%: .FORCE ## builds a specific command line app
+	@mkdir -p .bin
+	@if [ -a cmd/$*/main.go ]; then \
+		echo -n Building $* ...; \
+		GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -installsuffix cgo -o ./.bin/$* ./cmd/$* || exit 1; \
+		echo " Done"; \
+	fi
+
 logs: ## shows docker compose logs
 	docker-compose logs -f --tail=0 $*
-
-specs: ## builds the protobuf spec
-	$(MAKE) -C ./specs
 
 test: test/unit ## run all tests
 
@@ -54,12 +61,27 @@ help: ## displays this message
 watch/%: ## helper for running tasks on file change (requires watchdog)
 	watchmedo shell-command -i "./.git/*;./.data/*;./.bin/*" --recursive --ignore-directories --wait --command "$(MAKE) $*"
 
+build/client: INCLUDE_FILES=cmd/client/templates
+
+build/%: DOCKERFILE = Dockerfile.build
+build/%: .bin/%
+	echo packaging $*
+	rm -fr .bin/$*-data
+	mkdir -p .bin/$*-data
+	cp -r .bin/$* .bin/$*-data/
+
+	cp $(DOCKERFILE) .bin/$*-data/Dockerfile
+	$(if $(INCLUDE_FILES), cp -r $(INCLUDE_FILES) .bin/$*-data/,)
+
 package: package/api package/client
 
-package/%:
-	docker build --build-arg BIN=$* --file=Dockerfile.build --tag=iryo/poc-$*:$(DOCKER_TAG) .
+package/%: build/%
+	docker build --tag=iryo/poc-$*:$(DOCKER_TAG) .bin/$*-data
+	# docker build --build-arg BIN=$* --file=Dockerfile.build --tag=iryo/poc-$*:$(DOCKER_TAG) .
 
 publish: publish/api publish/client
 
 publish/%: package/%
 	docker push iryo/poc-$*:$(DOCKER_TAG)
+
+.FORCE:
